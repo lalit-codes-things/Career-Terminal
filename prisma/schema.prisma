@@ -1,0 +1,130 @@
+// Prisma Schema — Job Search Platform
+// Defines core data models for email ingestion
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Supported email providers (extensible for Outlook, Yahoo, etc.)
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+}
+
+/// Connection health status
+enum ConnectionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  ERROR
+}
+
+/// Stores OAuth credentials linking a user to an email provider.
+/// Tokens are encrypted at the application level before storage.
+model UserEmailConnection {
+  id                    String           @id @default(uuid()) @db.Uuid
+  userId                String           @map("user_id")
+  provider              EmailProvider
+  emailAddress          String           @map("email_address")
+  accessTokenEncrypted  String           @map("access_token_encrypted") @db.Text
+  refreshTokenEncrypted String           @map("refresh_token_encrypted") @db.Text
+  tokenExpiry           DateTime         @map("token_expiry")
+  scopes                String[]
+  status                ConnectionStatus @default(ACTIVE)
+  lastSyncAt            DateTime?        @map("last_sync_at")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  emails EmailMessage[]
+  syncState GmailSyncState?
+
+  // Indexes
+  @@unique([userId, provider, emailAddress], name: "unique_user_provider_email")
+  @@index([userId])
+  @@index([provider])
+  @@index([status])
+  @@map("user_email_connections")
+}
+
+/// Normalized email message storage.
+/// Ingested from Gmail (or other providers) and stored provider-agnostically.
+model EmailMessage {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id")
+  connectionId      String   @map("connection_id") @db.Uuid
+  providerMessageId String   @map("provider_message_id")
+  threadId          String?  @map("thread_id")
+  sender            String
+  recipients        Json     // { to: string[], cc: string[], bcc: string[] }
+  subject           String   @default("")
+  bodyText          String?  @map("body_text") @db.Text
+  bodyHtml          String?  @map("body_html") @db.Text
+  labels            String[]
+  hasAttachments    Boolean  @default(false) @map("has_attachments")
+  receivedAt        DateTime @map("received_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // Relations
+  connection UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([userId, providerMessageId], name: "unique_user_message")
+  @@index([userId])
+  @@index([connectionId])
+  @@index([threadId])
+  @@index([receivedAt])
+  @@map("email_messages")
+}
+
+/// Tracks the synchronization cursor (historyId) for incremental Gmail sync.
+model GmailSyncState {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @map("user_id")
+  connectionId String   @unique @map("connection_id") @db.Uuid
+  historyId    String   @map("history_id")
+  lastSyncedAt DateTime @map("last_synced_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  connection UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  
+}
+
+/// Types of background jobs
+enum JobType {
+  GMAIL_INITIAL_SYNC
+  GMAIL_INCREMENTAL_SYNC
+}
+
+/// Status of a background job
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+/// Queue table for asynchronous background jobs
+model SyncJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id")
+  type        JobType
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  nextRunAt   DateTime  @default(now()) @map("next_run_at")
+  error       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, nextRunAt])
+  @@map("sync_jobs")
+}

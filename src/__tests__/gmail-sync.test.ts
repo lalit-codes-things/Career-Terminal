@@ -1,0 +1,151 @@
+import { GmailIngestionService } from '../services/gmail/ingestion/gmail-ingestion.service';
+import { GmailClient } from '../services/gmail/client/gmail-client';
+import { prisma } from '../config/database';
+import { gmailOAuthService } from '../services/gmail/auth/gmail-oauth.service';
+import { GmailApiError } from '../errors/app-errors';
+
+// Mock dependencies
+jest.mock('../services/gmail/client/gmail-client');
+jest.mock('../config/database', () => ({
+  prisma: {
+    userEmailConnection: { findFirst: jest.fn(), update: jest.fn() },
+    emailMessage: { upsert: jest.fn() },
+    gmailSyncState: { findUnique: jest.fn(), upsert: jest.fn() },
+  }
+}));
+jest.mock('../services/gmail/auth/gmail-oauth.service', () => ({
+  gmailOAuthService: { getValidAccessToken: jest.fn() }
+}));
+
+const mockClient = GmailClient.prototype as jest.Mocked<GmailClient>;
+const mockPrisma = prisma as unknown as jest.Mocked<typeof prisma>;
+
+describe('GmailIngestionService', () => {
+  let service: GmailIngestionService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new GmailIngestionService();
+
+    // Default mock setup
+    mockPrisma.userEmailConnection.findFirst.mockResolvedValue({
+      id: 'conn-1',
+      userId: 'user-1',
+      provider: 'GMAIL',
+      status: 'ACTIVE',
+    } as any);
+
+    (gmailOAuthService.getValidAccessToken as jest.Mock).mockResolvedValue('fake-token');
+  });
+
+  describe('syncInitialMailbox', () => {
+    it('should fetch profile, paginate through messages, and save state', async () => {
+      // Mock Profile
+      mockClient.getProfile.mockResolvedValue({
+        emailAddress: 'test@test.com',
+        messagesTotal: 2,
+        threadsTotal: 1,
+        historyId: 'start-hist-1',
+      });
+
+      // Mock List (2 pages)
+      mockClient.listMessages
+        .mockResolvedValueOnce({
+          messages: [{ id: 'msg-1', threadId: 'thread-1' }],
+          nextPageToken: 'page-2',
+          resultSizeEstimate: 2,
+        })
+        .mockResolvedValueOnce({
+          messages: [{ id: 'msg-2', threadId: 'thread-1' }],
+          resultSizeEstimate: 2,
+        });
+
+      // Mock getMessage for fetcher
+      mockClient.getMessage.mockResolvedValue({
+        id: 'mock-id',
+        threadId: 'thread-1',
+        labelIds: ['INBOX'],
+        sender: 'sender@test.com',
+        recipients: { to: [], cc: [], bcc: [] },
+        subject: 'Test Subject',
+        hasAttachments: false,
+        receivedAt: new Date(),
+        headers: {},
+      } as any);
+
+      await service.syncInitialMailbox('user-1');
+
+      // Verify list loops (pagination)
+      expect(mockClient.listMessages).toHaveBeenCalledTimes(2);
+
+      // Verify upserts (duplicate prevention)
+      expect(mockPrisma.emailMessage.upsert).toHaveBeenCalledTimes(2);
+
+      // Verify state was saved
+      expect(mockPrisma.gmailSyncState.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ historyId: 'start-hist-1' }),
+        })
+      );
+    });
+  });
+
+  describe('syncNewEmails (Incremental)', () => {
+    it('should use history API if state exists', async () => {
+      // Mock existing state
+      mockPrisma.gmailSyncState.findUnique.mockResolvedValue({
+        historyId: 'old-hist-1',
+      } as any);
+
+      // Mock history fetch
+      mockClient.getHistory.mockResolvedValue({
+        historyId: 'new-hist-2',
+        messagesAdded: [{ message: { id: 'msg-new', threadId: 't-1' } }]
+      });
+
+      // Mock getMessage
+      mockClient.getMessage.mockResolvedValue({
+        id: 'msg-new',
+        threadId: 't-1',
+        labelIds: [],
+        sender: 'sender',
+        recipients: { to: [], cc: [], bcc: [] },
+        subject: 'Subj',
+        hasAttachments: false,
+        receivedAt: new Date(),
+        headers: {},
+      } as any);
+
+      await service.syncNewEmails('user-1');
+
+      expect(mockClient.getHistory).toHaveBeenCalledWith({
+        startHistoryId: 'old-hist-1',
+        pageToken: undefined
+      });
+      expect(mockPrisma.emailMessage.upsert).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.gmailSyncState.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ historyId: 'new-hist-2' }),
+        })
+      );
+    });
+
+    it('should fall back to initial sync if history API returns 404', async () => {
+      // Mock existing state
+      mockPrisma.gmailSyncState.findUnique.mockResolvedValue({
+        historyId: 'expired-hist',
+      } as any);
+
+      // Force 404
+      mockClient.getHistory.mockRejectedValue(new GmailApiError('Not found', 404));
+
+      // Spy on initial sync
+      const initialSyncSpy = jest.spyOn(service, 'syncInitialMailbox').mockResolvedValue(undefined);
+
+      await service.syncNewEmails('user-1');
+
+      // Verify fallback triggered
+      expect(initialSyncSpy).toHaveBeenCalledWith('user-1');
+    });
+  });
+});
