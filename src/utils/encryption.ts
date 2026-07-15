@@ -106,8 +106,6 @@ export function decryptToken(encryptedValue: string): string {
     return decrypted.toString('utf8');
   } catch (error) {
     if (error instanceof EncryptionError) throw error;
-    throw new EncryptionError(
-      `Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-    );
+    throw new EncryptionError('Unsupported state or unable to authenticate data');
   }
 }

@@ -17,8 +17,25 @@ jest.mock('../services/gmail/auth/gmail-oauth.service', () => ({
   gmailOAuthService: { getValidAccessToken: jest.fn() }
 }));
 
-const mockClient = GmailClient.prototype as jest.Mocked<GmailClient>;
-const mockPrisma = prisma as unknown as jest.Mocked<typeof prisma>;
+const mockClient = GmailClient.prototype as unknown as {
+  getProfile: jest.Mock;
+  listMessages: jest.Mock;
+  getMessage: jest.Mock;
+  getHistory: jest.Mock;
+};
+const mockPrisma = prisma as unknown as {
+  userEmailConnection: {
+    findFirst: jest.Mock;
+    update: jest.Mock;
+  };
+  emailMessage: {
+    upsert: jest.Mock;
+  };
+  gmailSyncState: {
+    findUnique: jest.Mock;
+    upsert: jest.Mock;
+  };
+};
 
 describe('GmailIngestionService', () => {
   let service: GmailIngestionService;

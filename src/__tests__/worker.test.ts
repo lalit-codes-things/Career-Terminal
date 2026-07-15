@@ -9,6 +9,8 @@ jest.mock('../config/database', () => ({
       updateMany: jest.fn(),
       update: jest.fn(),
     },
+    // Include $transaction if used in the worker (your worker might not use it)
+    $transaction: jest.fn((callback) => callback(prisma)),
   },
 }));
 
@@ -19,7 +21,12 @@ jest.mock('../services/gmail/ingestion/gmail-ingestion.service', () => ({
   },
 }));
 
-const mockPrisma = prisma as unknown as jest.Mocked<typeof prisma>;
+// Type-safe access
+const mockSyncJob = {
+  findFirst: prisma.syncJob.findFirst as jest.Mock,
+  updateMany: prisma.syncJob.updateMany as jest.Mock,
+  update: prisma.syncJob.update as jest.Mock,
+};
 
 describe('GmailSyncWorker', () => {
   let worker: GmailSyncWorker;
@@ -34,22 +41,21 @@ describe('GmailSyncWorker', () => {
   });
 
   it('should return false if no pending jobs are available', async () => {
-    mockPrisma.syncJob.findFirst.mockResolvedValue(null);
+    mockSyncJob.findFirst.mockResolvedValue(null);
 
     const ran = await worker.processNextJob();
     expect(ran).toBe(false);
   });
 
   it('should return false if job gets locked by another process', async () => {
-    mockPrisma.syncJob.findFirst.mockResolvedValue({
+    mockSyncJob.findFirst.mockResolvedValue({
       id: 'job-1',
       type: 'GMAIL_INITIAL_SYNC',
       userId: 'user-1',
       attempts: 0,
-    } as any);
+    });
 
-    // Simulate another worker grabbing it first (count = 0 updated)
-    mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 0 });
+    mockSyncJob.updateMany.mockResolvedValue({ count: 0 });
 
     const ran = await worker.processNextJob();
     expect(ran).toBe(false);
@@ -57,23 +63,21 @@ describe('GmailSyncWorker', () => {
   });
 
   it('should execute job successfully and mark as SUCCESS', async () => {
-    mockPrisma.syncJob.findFirst.mockResolvedValue({
+    mockSyncJob.findFirst.mockResolvedValue({
       id: 'job-1',
       type: 'GMAIL_INITIAL_SYNC',
       userId: 'user-1',
       attempts: 0,
-    } as any);
+    });
 
-    mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 1 });
+    mockSyncJob.updateMany.mockResolvedValue({ count: 1 });
 
     const ran = await worker.processNextJob();
     expect(ran).toBe(true);
-    
-    // Check execution
+
     expect(gmailIngestionService.syncInitialMailbox).toHaveBeenCalledWith('user-1');
 
-    // Check success update
-    expect(mockPrisma.syncJob.update).toHaveBeenCalledWith(
+    expect(mockSyncJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'job-1' },
         data: expect.objectContaining({ status: 'SUCCESS' }),
@@ -82,22 +86,20 @@ describe('GmailSyncWorker', () => {
   });
 
   it('should exponential backoff when a job fails and attempts < MAX', async () => {
-    mockPrisma.syncJob.findFirst.mockResolvedValue({
+    mockSyncJob.findFirst.mockResolvedValue({
       id: 'job-1',
       type: 'GMAIL_INCREMENTAL_SYNC',
       userId: 'user-1',
-      attempts: 2, // This will become 3 during updateMany
-    } as any);
+      attempts: 2,
+    });
 
-    mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 1 });
-    
-    // Simulate failure
+    mockSyncJob.updateMany.mockResolvedValue({ count: 1 });
+
     (gmailIngestionService.syncNewEmails as jest.Mock).mockRejectedValue(new Error('API Down'));
 
     await worker.processNextJob();
 
-    // Verify backoff logic (attempt 3 means 2^2 * 2000 = 8000ms)
-    expect(mockPrisma.syncJob.update).toHaveBeenCalledWith(
+    expect(mockSyncJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'job-1' },
         data: expect.objectContaining({
@@ -110,19 +112,19 @@ describe('GmailSyncWorker', () => {
   });
 
   it('should mark job FAILED when max attempts are reached', async () => {
-    mockPrisma.syncJob.findFirst.mockResolvedValue({
+    mockSyncJob.findFirst.mockResolvedValue({
       id: 'job-1',
       type: 'GMAIL_INITIAL_SYNC',
       userId: 'user-1',
-      attempts: 4, // Next is 5 (MAX)
-    } as any);
+      attempts: 4,
+    });
 
-    mockPrisma.syncJob.updateMany.mockResolvedValue({ count: 1 });
+    mockSyncJob.updateMany.mockResolvedValue({ count: 1 });
     (gmailIngestionService.syncInitialMailbox as jest.Mock).mockRejectedValue(new Error('Fatal'));
 
     await worker.processNextJob();
 
-    expect(mockPrisma.syncJob.update).toHaveBeenCalledWith(
+    expect(mockSyncJob.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'job-1' },
         data: expect.objectContaining({

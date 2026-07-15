@@ -23,6 +23,7 @@ export interface ClassifiableEmail {
   bodyText?: string | null;
   bodyHtml?: string | null;
   receivedAt?: Date;
+  threadId?: string | null;
 }
 
 /** Classification result returned by JobEmailClassifier. */

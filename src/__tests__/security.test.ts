@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { createRateLimiter, RateLimitError } from '../middleware/rate-limiter';
 

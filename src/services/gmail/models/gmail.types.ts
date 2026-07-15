@@ -138,6 +138,25 @@ export interface GmailHistoryResult {
   // Other fields like messagesDeleted, labelsAdded etc can be added later if needed
 }
 
+/** Minimal Gmail message part header structure. */
+export interface GmailMessagePartHeader {
+  name?: string;
+  value?: string;
+}
+
+/** Minimal Gmail message part structure. */
+export interface GmailMessagePart {
+  mimeType?: string;
+  filename?: string;
+  headers?: GmailMessagePartHeader[];
+  parts?: GmailMessagePart[];
+  body?: {
+    data?: string;
+    attachmentId?: string;
+    size?: number;
+  };
+}
+
 // ============================================================
 // Service Configuration Types
 // ============================================================

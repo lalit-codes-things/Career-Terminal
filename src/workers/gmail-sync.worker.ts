@@ -39,7 +39,7 @@ export class GmailSyncWorker {
     }
 
     if (this.isRunning) {
-      this.timer = setTimeout(() => this.poll(intervalMs), intervalMs);
+      this.timer = setTimeout(() => { void this.poll(intervalMs); }, intervalMs);
     }
   }
 

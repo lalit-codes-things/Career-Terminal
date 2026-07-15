@@ -39,3 +39,15 @@ export { extractCompany } from './classifier/extractors/company.extractor';
 export { extractRole } from './classifier/extractors/role.extractor';
 
 export { ATS_PLATFORM_DOMAINS, isAtsPlatformDomain } from './classifier/signals/ats-platforms';
+
+export {
+  JobApplicationExtractor,
+  JobApplicationStatus,
+  jobApplicationExtractor,
+  type JobApplication,
+  type JobApplicationCompany,
+  type JobApplicationDetails,
+  type JobApplicationHiringProcess,
+  type JobApplicationRecruiter,
+  type JobApplicationRole,
+} from '../job-application';

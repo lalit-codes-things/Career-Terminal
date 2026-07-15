@@ -11,8 +11,8 @@ import { prisma } from '../../../config/database';
 import { GmailClient } from '../client/gmail-client';
 import { gmailOAuthService } from '../auth/gmail-oauth.service';
 import { RawEmailFetcher } from './fetcher';
-import { EmailNormalizer, type NormalizedEmailInput } from './normalizer';
-import { GmailApiError, TokenError, NotFoundError } from '../../../errors/app-errors';
+import { EmailNormalizer } from './normalizer';
+import { GmailApiError, NotFoundError } from '../../../errors/app-errors';
 import type { GmailMessageRef } from '../models/gmail.types';
 
 export interface IngestionService {

@@ -1,5 +1,25 @@
 import { EmailParserService } from '../services/gmail/processors/email-parser.service';
-import type { gmail_v1 } from 'googleapis';
+
+// Define local types matching the gmail_v1 schema shapes used in tests
+// (The googleapis shim exports gmail_v1 as `type = any`, not a usable namespace)
+interface GmailMessageHeader {
+  name?: string;
+  value?: string;
+}
+
+interface GmailMessagePart {
+  mimeType?: string;
+  filename?: string;
+  headers?: GmailMessageHeader[];
+  body?: { data?: string; attachmentId?: string; size?: number };
+  parts?: GmailMessagePart[];
+}
+
+interface GmailMessage {
+  id?: string;
+  labelIds?: string[];
+  payload?: GmailMessagePart;
+}
 
 describe('EmailParserService', () => {
   let parser: EmailParserService;
@@ -8,10 +28,11 @@ describe('EmailParserService', () => {
     parser = new EmailParserService();
   });
 
-  const encodeBase64Url = (str: string) => Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+  const encodeBase64Url = (str: string): string =>
+    Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 
   it('should parse headers correctly', () => {
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-1',
       labelIds: ['INBOX', 'UNREAD'],
       payload: {
@@ -25,7 +46,7 @@ describe('EmailParserService', () => {
     };
 
     const result = parser.parse(raw);
-    
+
     expect(result.id).toBe('msg-1');
     expect(result.sender).toBe('sender@example.com');
     expect(result.recipients.to).toEqual(['to1@test.com', 'to2@test.com']);
@@ -35,7 +56,7 @@ describe('EmailParserService', () => {
   });
 
   it('should extract plaintext body when present', () => {
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-1',
       payload: {
         mimeType: 'text/plain',
@@ -49,7 +70,7 @@ describe('EmailParserService', () => {
   });
 
   it('should fallback to stripping HTML when plaintext is absent', () => {
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-1',
       payload: {
         mimeType: 'text/html',
@@ -59,7 +80,7 @@ describe('EmailParserService', () => {
 
     const result = parser.parse(raw);
     expect(result.htmlContent).toContain('<h1>Title</h1>');
-    
+
     // Check fallback behavior
     expect(result.textContent).toContain('Title');
     expect(result.textContent).toContain('Hello World!');
@@ -67,7 +88,7 @@ describe('EmailParserService', () => {
   });
 
   it('should traverse multipart/mixed payloads and extract attachments', () => {
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-1',
       payload: {
         mimeType: 'multipart/mixed',
@@ -107,7 +128,7 @@ describe('EmailParserService', () => {
   });
 
   it('should handle missing payload gracefully', () => {
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-empty',
       // No payload
     };
@@ -120,11 +141,11 @@ describe('EmailParserService', () => {
 
   it('should prevent infinite recursion on extremely nested parts', () => {
     // Construct a deeply nested object > 20 levels
-    let currentPart: gmail_v1.Schema$MessagePart = {
+    let currentPart: GmailMessagePart = {
       mimeType: 'text/plain',
       body: { data: encodeBase64Url('Deep text') },
     };
-    
+
     for (let i = 0; i < 25; i++) {
       currentPart = {
         mimeType: 'multipart/mixed',
@@ -132,13 +153,13 @@ describe('EmailParserService', () => {
       };
     }
 
-    const raw: gmail_v1.Schema$Message = {
+    const raw: GmailMessage = {
       id: 'msg-deep',
       payload: currentPart,
     };
 
     const result = parser.parse(raw);
-    
+
     // Because it stops at depth 20, it should not find the 'Deep text'
     expect(result.textContent).toBeNull();
   });

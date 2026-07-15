@@ -4,8 +4,7 @@
  * These helpers extract structured data from the raw Gmail API
  * message format (nested parts, base64 bodies, headers as arrays).
  */
-import type { gmail_v1 } from 'googleapis';
-import type { EmailRecipients } from '../models/gmail.types';
+import type { EmailRecipients, GmailMessagePart, GmailMessagePartHeader } from '../models/gmail.types';
 
 /**
  * Extracts a specific header value from a Gmail message's headers array.
@@ -15,7 +14,7 @@ import type { EmailRecipients } from '../models/gmail.types';
  * @returns The header value, or empty string if not found
  */
 export function getHeader(
-  headers: gmail_v1.Schema$MessagePartHeader[] | undefined,
+  headers: GmailMessagePartHeader[] | undefined,
   name: string,
 ): string {
   if (!headers) return '';
@@ -32,7 +31,7 @@ export function getHeader(
  * @returns Structured recipients with to/cc/bcc arrays
  */
 export function parseRecipients(
-  headers: gmail_v1.Schema$MessagePartHeader[] | undefined,
+  headers: GmailMessagePartHeader[] | undefined,
 ): EmailRecipients {
   return {
     to: parseAddressList(getHeader(headers, 'To')),
@@ -64,7 +63,7 @@ export function parseAddressList(addressList: string): string[] {
  * @returns Decoded plain text body, or undefined if not found
  */
 export function extractBodyText(
-  payload: gmail_v1.Schema$MessagePart | undefined,
+  payload: GmailMessagePart | undefined,
 ): string | undefined {
   return extractBodyByMimeType(payload, 'text/plain');
 }
@@ -76,7 +75,7 @@ export function extractBodyText(
  * @returns Decoded HTML body, or undefined if not found
  */
 export function extractBodyHtml(
-  payload: gmail_v1.Schema$MessagePart | undefined,
+  payload: GmailMessagePart | undefined,
 ): string | undefined {
   return extractBodyByMimeType(payload, 'text/html');
 }
@@ -86,7 +85,7 @@ export function extractBodyHtml(
  * the specified MIME type and returns its decoded body.
  */
 function extractBodyByMimeType(
-  part: gmail_v1.Schema$MessagePart | undefined,
+  part: GmailMessagePart | undefined,
   mimeType: string,
 ): string | undefined {
   if (!part) return undefined;
@@ -127,7 +126,7 @@ export function decodeBase64Url(data: string): string {
  * @returns true if the message has at least one attachment
  */
 export function hasAttachments(
-  payload: gmail_v1.Schema$MessagePart | undefined,
+  payload: GmailMessagePart | undefined,
 ): boolean {
   if (!payload) return false;
 

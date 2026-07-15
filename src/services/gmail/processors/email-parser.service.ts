@@ -1,11 +1,11 @@
-import { gmail_v1 } from 'googleapis';
+import type { GmailMessagePart, GmailMessagePartHeader } from '../models/gmail.types';
 import type { NormalizedEmail, AttachmentMetadata } from '../models/parser.types';
 
 export class EmailParserService {
   /**
    * Main entrypoint: Parses a raw Gmail API message into a NormalizedEmail.
    */
-  public parse(rawMessage: gmail_v1.Schema$Message): NormalizedEmail {
+  public parse(rawMessage: { id?: string; payload?: GmailMessagePart; labelIds?: string[] }): NormalizedEmail {
     const headers = this.parseHeaders(rawMessage.payload?.headers);
     const { textContent, htmlContent, attachments } = this.extractBodyAndAttachments(rawMessage.payload);
 
@@ -29,7 +29,7 @@ export class EmailParserService {
   /**
    * Extracts strongly-typed headers from the raw array.
    */
-  private parseHeaders(headers: gmail_v1.Schema$MessagePartHeader[] | undefined) {
+  private parseHeaders(headers: GmailMessagePartHeader[] | undefined) {
     const result = {
       from: '',
       to: [] as string[],
@@ -74,7 +74,7 @@ export class EmailParserService {
    * Hack to get internal date if standard date is malformed, assuming it's available.
    * Normally Gmail passes internalDate at the root level, but if missing, fallback to now.
    */
-  private parseInternalDate(headers: any[]): number | null {
+  private parseInternalDate(_headers: GmailMessagePartHeader[]): number | null {
      // Just a dummy implementation. The actual rawMessage.internalDate would be better
      // if passed down, but for this signature, we just return null.
      return null;
@@ -83,7 +83,7 @@ export class EmailParserService {
   /**
    * Recursively traverses the MIME parts tree to extract bodies and attachments.
    */
-  private extractBodyAndAttachments(payload: gmail_v1.Schema$MessagePart | undefined) {
+  private extractBodyAndAttachments(payload: GmailMessagePart | undefined) {
     let textContent: string | null = null;
     let htmlContent: string | null = null;
     const attachments: AttachmentMetadata[] = [];
@@ -103,7 +103,7 @@ export class EmailParserService {
     };
 
     // Recursive traversal function
-    const traverse = (part: gmail_v1.Schema$MessagePart, depth = 0) => {
+    const traverse = (part: GmailMessagePart, depth = 0) => {
       // Prevent infinite recursion in extremely malformed deep emails
       if (depth > 20) return;
 

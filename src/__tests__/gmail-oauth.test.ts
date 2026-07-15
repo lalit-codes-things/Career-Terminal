@@ -1,9 +1,15 @@
+process.env.GOOGLE_CLIENT_ID ??= 'test-client-id';
+process.env.GOOGLE_CLIENT_SECRET ??= 'test-client-secret';
+process.env.GOOGLE_REDIRECT_URI ??= 'http://localhost/callback';
+process.env.ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef';
+process.env.DATABASE_URL ??= 'postgresql://user:pass@localhost:5432/testdb';
+
 import { GmailOAuthService } from '../services/gmail/auth/gmail-oauth.service';
 import { oauthStateService } from '../services/gmail/auth/oauth-state.service';
 import { prisma } from '../config/database';
 import { google } from 'googleapis';
 import * as encryption from '../utils/encryption';
-import { OAuthError, TokenError, NotFoundError } from '../errors/app-errors';
+import { OAuthError, NotFoundError } from '../errors/app-errors';
 
 // Mock dependencies
 jest.mock('googleapis');
@@ -19,7 +25,7 @@ jest.mock('../config/database', () => ({
 jest.mock('../utils/encryption');
 
 describe('GmailOAuthService', () => {
-  let service: GmailOAuthService;
+  let service: InstanceType<typeof GmailOAuthService>;
   
   // Mock OAuth2 client instance
   const mockGenerateAuthUrl = jest.fn();

@@ -5,31 +5,36 @@
  * and returns consistent JSON responses to the client.
  */
 import { type Request, type Response, type NextFunction } from 'express';
-import { AppError } from '../errors/app-errors';
+import { AppError, ValidationError } from '../errors/app-errors';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction,
-) {
+  _next: NextFunction,
+): void {
   // If it's our custom AppError, we have structured data
   if (err instanceof AppError) {
+    // Log based on severity
     if (err.statusCode >= 500) {
       console.error(`[SERVER ERROR] ${err.code}: ${err.message}`, err.stack);
     } else {
       console.warn(`[CLIENT ERROR] ${err.code}: ${err.message}`);
     }
 
+    const errorResponse: { code: string; message: string; details?: unknown } = {
+      code: err.code,
+      message: err.message,
+    };
+
+    if (err instanceof ValidationError && err.details) {
+      errorResponse.details = err.details;
+    }
+
     res.status(err.statusCode).json({
       success: false,
-      error: {
-        code: err.code,
-        message: err.message,
-        // @ts-expect-error Validation details are specific to ValidationError
-        ...(err.details ? { details: err.details } : {}),
-      },
+      error: errorResponse,
     });
     return;
   }

@@ -1,44 +1,57 @@
 /**
  * Express middleware for request validation using Zod.
  */
-import type { Request, Response, NextFunction } from 'express';
-import type { ZodSchema, ZodError } from 'zod';
+import { type Request, type Response, type NextFunction } from 'express';
+import { ZodSchema, ZodError } from 'zod';
 import { ValidationError } from '../errors/app-errors';
 
-export function validateQuery(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export function validateQuery(schema: ZodSchema): (req: Request, _res: Response, next: NextFunction) => void {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query);
+      const parsed = schema.parse(req.query);
+      Object.defineProperty(req, 'query', {
+        value: parsed,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      });
       next();
-    } catch (error: any) {
-      next(formatZodError(error));
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        next(formatZodError(error));
+      } else {
+        next(new ValidationError('Invalid request', {}));
+      }
     }
   };
 }
 
-export function validateBody(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
+/** Middleware to validate request body using a Zod schema. */
+export function validateBody(schema: ZodSchema): (req: Request, _res: Response, next: NextFunction) => void {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       req.body = schema.parse(req.body);
       next();
-    } catch (error: any) {
-      next(formatZodError(error));
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        next(formatZodError(error));
+      } else {
+        next(new ValidationError('Invalid request', {}));
+      }
     }
   };
 }
 
+/** Convert Zod validation errors into a custom ValidationError. */
 function formatZodError(error: ZodError): ValidationError {
   const details: Record<string, string[]> = {};
-  
-  if (error.errors) {
-    for (const err of error.errors) {
-      const path = err.path.join('.') || 'root';
-      if (!details[path]) {
-        details[path] = [];
-      }
-      details[path].push(err.message);
+  for (const err of error.errors) {
+    const path = err.path.join('.') || 'root';
+    if (!details[path]) {
+      details[path] = [];
     }
+    details[path].push(err.message);
   }
-
   return new ValidationError('Invalid request parameters', details);
 }

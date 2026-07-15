@@ -10,7 +10,7 @@
  * Uses the official `googleapis` library for OAuth2 operations.
  * Tokens are encrypted at rest via AES-256-GCM before database storage.
  */
-import { google, type Auth } from 'googleapis';
+import { google } from 'googleapis';
 import { config } from '../../../config';
 import { prisma } from '../../../config/database';
 import { OAuthError, TokenError, NotFoundError } from '../../../errors/app-errors';
@@ -33,7 +33,12 @@ const GMAIL_SCOPES = [
 const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 export class GmailOAuthService {
-  private readonly oauth2Client: Auth.OAuth2Client;
+  private readonly oauth2Client: {
+    generateAuthUrl: (options: Record<string, unknown>) => string;
+    setCredentials: (credentials: Record<string, unknown>) => void;
+    getToken: (code: string) => Promise<{ tokens: { access_token?: string; refresh_token?: string; expiry_date?: number; scope?: string } }>;
+    refreshAccessToken: () => Promise<{ credentials: { access_token?: string; refresh_token?: string; expiry_date?: number; scope?: string } }>;
+  };
 
   constructor() {
     this.oauth2Client = new google.auth.OAuth2(
@@ -122,7 +127,7 @@ export class GmailOAuthService {
       this.oauth2Client.setCredentials({ refresh_token: refreshToken });
       const { credentials } = await this.oauth2Client.refreshAccessToken();
 
-      if (!credentials.access_token || !credentials.expiry_date) {
+      if (!credentials.access_token || credentials.expiry_date === undefined) {
         throw new TokenError('Google returned empty credentials during refresh');
       }
 

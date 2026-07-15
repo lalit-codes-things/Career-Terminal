@@ -15,7 +15,7 @@
  *   const client = new GmailClient({ accessToken: 'ya29...' });
  *   const messages = await client.listMessages({ maxResults: 10 });
  */
-import { google, type gmail_v1 } from 'googleapis';
+import { google } from 'googleapis';
 import { GmailApiError } from '../../../errors/app-errors';
 import {
   getHeader,
@@ -37,6 +37,8 @@ import type {
   GmailProfile,
   GetHistoryOptions,
   GmailHistoryResult,
+  GmailMessagePart,
+  GmailMessagePartHeader,
 } from '../models/gmail.types';
 
 /** Maximum number of retries for transient API failures. */
@@ -49,7 +51,27 @@ const INITIAL_RETRY_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 503]);
 
 export class GmailClient {
-  private readonly gmail: gmail_v1.Gmail;
+  private readonly gmail: {
+    users: {
+      messages: {
+        list: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+        get: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+        attachments: {
+          get: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+        };
+      };
+      threads: {
+        get: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+      };
+      labels: {
+        list: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+      };
+      getProfile: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+      history: {
+        list: (params: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }>;
+      };
+    };
+  };
   private readonly userId = 'me'; // Authenticated user
 
   /**
@@ -84,15 +106,16 @@ export class GmailClient {
         labelIds: options.labelIds,
       });
 
-      const messages: GmailMessageRef[] = (response.data.messages ?? []).map((msg) => ({
-        id: msg.id ?? '',
-        threadId: msg.threadId ?? '',
+      const data = response.data;
+      const messages: GmailMessageRef[] = (Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []).map((msg: Record<string, unknown>) => ({
+        id: this.readString(msg.id),
+        threadId: this.readString(msg.threadId),
       }));
 
       return {
         messages,
-        nextPageToken: response.data.nextPageToken ?? undefined,
-        resultSizeEstimate: response.data.resultSizeEstimate ?? 0,
+        nextPageToken: this.readOptionalString(data.nextPageToken),
+        resultSizeEstimate: this.readNumber(data.resultSizeEstimate),
       };
     });
   }
@@ -129,13 +152,14 @@ export class GmailClient {
         format: 'full',
       });
 
-      const messages = (response.data.messages ?? []).map((msg) =>
+      const data = response.data;
+      const messages = (Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []).map((msg: Record<string, unknown>) =>
         this.parseMessage(msg),
       );
 
       return {
-        id: response.data.id ?? threadId,
-        historyId: response.data.historyId ?? '',
+        id: this.readString(data.id) || threadId,
+        historyId: this.readString(data.historyId),
         messages,
       };
     });
@@ -157,7 +181,7 @@ export class GmailClient {
       });
 
       const attachments: GmailAttachment[] = [];
-      const parts = this.flattenParts(message.data.payload);
+      const parts = this.flattenParts(message.data.payload as GmailMessagePart | undefined);
 
       for (const part of parts) {
         if (part.filename && part.filename.length > 0 && part.body?.attachmentId) {
@@ -166,6 +190,7 @@ export class GmailClient {
             messageId,
             id: part.body.attachmentId,
           });
+          const attachmentData = attachmentResponse.data;
 
           attachments.push({
             attachmentId: part.body.attachmentId,
@@ -173,7 +198,7 @@ export class GmailClient {
             filename: part.filename,
             mimeType: part.mimeType ?? 'application/octet-stream',
             size: part.body.size ?? 0,
-            data: attachmentResponse.data.data ?? undefined,
+            data: this.readOptionalString(attachmentData.data),
           });
         }
       }
@@ -193,12 +218,13 @@ export class GmailClient {
         userId: this.userId,
       });
 
-      return (response.data.labels ?? []).map((label) => ({
-        id: label.id ?? '',
-        name: label.name ?? '',
-        type: label.type === 'system' ? ('system' as const) : ('user' as const),
-        messagesTotal: label.messagesTotal ?? undefined,
-        messagesUnread: label.messagesUnread ?? undefined,
+      const data = response.data;
+      return (Array.isArray(data.labels) ? (data.labels as Array<Record<string, unknown>>) : []).map((label: Record<string, unknown>) => ({
+        id: this.readString(label.id),
+        name: this.readString(label.name),
+        type: this.readString(label.type) === 'system' ? ('system' as const) : ('user' as const),
+        messagesTotal: this.readOptionalNumber(label.messagesTotal),
+        messagesUnread: this.readOptionalNumber(label.messagesUnread),
       }));
     });
   }
@@ -212,11 +238,12 @@ export class GmailClient {
         userId: this.userId,
       });
 
+      const data = response.data;
       return {
-        emailAddress: response.data.emailAddress ?? '',
-        messagesTotal: response.data.messagesTotal ?? 0,
-        threadsTotal: response.data.threadsTotal ?? 0,
-        historyId: response.data.historyId ?? '',
+        emailAddress: this.readString(data.emailAddress),
+        messagesTotal: this.readNumber(data.messagesTotal),
+        threadsTotal: this.readNumber(data.threadsTotal),
+        historyId: this.readString(data.historyId),
       };
     });
   }
@@ -233,28 +260,28 @@ export class GmailClient {
         pageToken: options.pageToken,
       });
 
+      const data = response.data;
       const messagesAdded: { message: GmailMessageRef }[] = [];
-      
-      if (response.data.history) {
-        for (const historyRecord of response.data.history) {
-          if (historyRecord.messagesAdded) {
-            for (const added of historyRecord.messagesAdded) {
-              if (added.message?.id && added.message?.threadId) {
-                messagesAdded.push({
-                  message: {
-                    id: added.message.id,
-                    threadId: added.message.threadId,
-                  }
-                });
-              }
-            }
+      const historyEntries = Array.isArray(data.history) ? (data.history as Array<Record<string, unknown>>) : [];
+
+      for (const historyRecord of historyEntries) {
+        const addedEntries = Array.isArray(historyRecord.messagesAdded) ? (historyRecord.messagesAdded as Array<Record<string, unknown>>) : [];
+        for (const added of addedEntries) {
+          const message = added.message as Record<string, unknown> | undefined;
+          if (message && this.readString(message.id) && this.readString(message.threadId)) {
+            messagesAdded.push({
+              message: {
+                id: this.readString(message.id),
+                threadId: this.readString(message.threadId),
+              },
+            });
           }
         }
       }
 
       return {
-        historyId: response.data.historyId ?? options.startHistoryId,
-        nextPageToken: response.data.nextPageToken ?? undefined,
+        historyId: this.readString(data.historyId) || options.startHistoryId,
+        nextPageToken: this.readOptionalString(data.nextPageToken),
         messagesAdded,
       };
     });
@@ -267,19 +294,22 @@ export class GmailClient {
   /**
    * Parses a raw Gmail API message into our domain type.
    */
-  private parseMessage(raw: gmail_v1.Schema$Message): GmailMessage {
-    const headers = raw.payload?.headers;
+  private parseMessage(raw: Record<string, unknown>): GmailMessage {
+    const payload = raw.payload as GmailMessagePart | undefined;
+    const headers = Array.isArray(payload?.headers)
+      ? (payload?.headers)
+      : undefined;
 
     return {
-      id: raw.id ?? '',
-      threadId: raw.threadId ?? '',
-      labelIds: raw.labelIds ?? [],
+      id: this.readString(raw.id),
+      threadId: this.readString(raw.threadId),
+      labelIds: Array.isArray(raw.labelIds) ? (raw.labelIds as unknown[]).map((label) => String(label)) : [],
       sender: getHeader(headers, 'From'),
       recipients: parseRecipients(headers),
       subject: getHeader(headers, 'Subject'),
-      bodyText: extractBodyText(raw.payload ?? undefined),
-      bodyHtml: extractBodyHtml(raw.payload ?? undefined),
-      hasAttachments: hasAttachments(raw.payload ?? undefined),
+      bodyText: extractBodyText(payload),
+      bodyHtml: extractBodyHtml(payload),
+      hasAttachments: hasAttachments(payload),
       receivedAt: parseEmailDate(getHeader(headers, 'Date')),
       headers: this.headersToRecord(headers),
     };
@@ -289,12 +319,12 @@ export class GmailClient {
    * Converts Gmail's headers array to a key-value record.
    */
   private headersToRecord(
-    headers: gmail_v1.Schema$MessagePartHeader[] | undefined,
+    headers: GmailMessagePartHeader[] | undefined,
   ): Record<string, string> {
     const record: Record<string, string> = {};
     if (!headers) return record;
     for (const header of headers) {
-      if (header.name && header.value) {
+      if (typeof header.name === 'string' && typeof header.value === 'string') {
         record[header.name] = header.value;
       }
     }
@@ -306,16 +336,32 @@ export class GmailClient {
    * Used for finding attachments across all MIME parts.
    */
   private flattenParts(
-    part: gmail_v1.Schema$MessagePart | null | undefined,
-  ): gmail_v1.Schema$MessagePart[] {
+    part: GmailMessagePart | null | undefined,
+  ): GmailMessagePart[] {
     if (!part) return [];
-    const result: gmail_v1.Schema$MessagePart[] = [part];
+    const result: GmailMessagePart[] = [part];
     if (part.parts) {
       for (const child of part.parts) {
         result.push(...this.flattenParts(child));
       }
     }
     return result;
+  }
+
+  private readString(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+  }
+
+  private readOptionalString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private readNumber(value: unknown): number {
+    return typeof value === 'number' ? value : 0;
+  }
+
+  private readOptionalNumber(value: unknown): number | undefined {
+    return typeof value === 'number' ? value : undefined;
   }
 
   /**

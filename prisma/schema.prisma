@@ -128,3 +128,48 @@ model SyncJob {
   @@index([status, nextRunAt])
   @@map("sync_jobs")
 }
+
+model JobApplication {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id")
+  companyName      String   @map("company_name")
+  companyDomain    String   @map("company_domain")
+  roleTitle        String   @map("role_title")
+  roleDepartment   String   @map("role_department")
+  status           String
+  appliedDate      DateTime @map("applied_date")
+  recruiterName    String   @map("recruiter_name")
+  recruiterEmail   String   @map("recruiter_email")
+  sourceEmailId    String   @map("source_email_id")
+  location         String
+  employmentType   String   @map("employment_type")
+  currentStage     String   @map("current_stage")
+  interviewRounds  Int      @default(0) @map("interview_rounds")
+  deadlines        String[]
+  candidateEmail   String?  @map("candidate_email")
+  atsApplicationId String?  @map("ats_application_id")
+  threadIds        String[] @map("thread_ids")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  timeline         ApplicationTimeline[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("job_applications")
+}
+
+model ApplicationTimeline {
+  id            String   @id @default(uuid()) @db.Uuid
+  applicationId String   @map("application_id") @db.Uuid
+  eventType     String   @map("event_type")
+  description   String
+  timestamp     DateTime
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("application_timeline")
+}

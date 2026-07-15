@@ -15,6 +15,7 @@
     "sourceMap": true,
     "moduleResolution": "node",
     "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": ["src/*"],
       "googleapis": ["src/types/googleapis-shim.ts"],
@@ -29,6 +30,8 @@
     "exactOptionalPropertyTypes": false,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*", "src/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "node_modules/googleapis/build/src/apis/recommender/v1beta1.d.ts"]
+  "include": ["src/**/*", "src/**/*.d.ts", "src/__tests__/**/*.ts"],
+  "exclude": ["node_modules",        "dist",
+        "node_modules/googleapis/build/src/apis/recommender/v1beta1.d.ts"
+    ]
 }
