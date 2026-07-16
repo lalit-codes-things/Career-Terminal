@@ -9,7 +9,7 @@ jest.mock('../services/gmail/client/gmail-client');
 jest.mock('../config/database', () => ({
   prisma: {
     userEmailConnection: { findFirst: jest.fn(), update: jest.fn() },
-    emailMessage: { upsert: jest.fn() },
+    emailMessage: { findUnique: jest.fn(), upsert: jest.fn() },
     gmailSyncState: { findUnique: jest.fn(), upsert: jest.fn() },
   }
 }));
@@ -29,6 +29,7 @@ const mockPrisma = prisma as unknown as {
     update: jest.Mock;
   };
   emailMessage: {
+    findUnique: jest.Mock;
     upsert: jest.Mock;
   };
   gmailSyncState: {
@@ -53,6 +54,7 @@ describe('GmailIngestionService', () => {
     } as any);
 
     (gmailOAuthService.getValidAccessToken as jest.Mock).mockResolvedValue('fake-token');
+    mockPrisma.emailMessage.findUnique.mockResolvedValue(null);
   });
 
   describe('syncInitialMailbox', () => {

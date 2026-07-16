@@ -15,6 +15,12 @@ jest.mock('../config/database', () => ({
     emailMessage: {
       findMany: jest.fn(),
     },
+    applicationTimeline: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -78,7 +84,7 @@ describe('ApplicationTrackingService', () => {
     it('should throw an error if application is not found', async () => {
       (prisma.jobApplication.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(applicationTrackingService.getApplication('nonexistent')).rejects.toThrow('Application with ID nonexistent not found');
+      await expect(applicationTrackingService.getApplication('nonexistent')).rejects.toThrow('Application not found: nonexistent');
     });
   });
 });

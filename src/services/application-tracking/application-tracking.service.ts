@@ -1,18 +1,22 @@
-// Force IDE re-parse to clear stale Prisma type cache
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { Prisma } from '@prisma/client';               // namespace import for types
-import type { JobApplication, JobApplicationStatus } from '../job-application';
-import type { ClassifiableEmail, JobEmailClassification } from '../job-intelligence';
-import { jobApplicationExtractor } from '../job-application';
+import { NotFoundError } from '../../errors/app-errors';
 import { applicationMergeService } from '../application-merge/application-merge.service';
-
-// ─── Domain types (if not exported, define here) ──────────────────────────────
+import {
+  applicationTimelineService,
+  type ApplicationTimelineEventType,
+} from '../application-timeline';
+import { companyService } from '../company';
+import { statusEngine } from '../status-engine';
+import { recruiterService } from '../recruiter';
+import { jobApplicationExtractor, type JobApplication, type JobApplicationStatus } from '../job-application';
+import type { ClassifiableEmail, JobEmailClassification } from '../job-intelligence';
 
 export interface ExtractedJobData {
   userId: string;
   company: { name: string; domain: string };
   role: { title: string; department?: string };
-  status: string;                           // plain string (no enum)
+  status: string;
   appliedDate: Date;
   recruiter: { name?: string; email?: string };
   sourceEmailId?: string;
@@ -20,11 +24,9 @@ export interface ExtractedJobData {
   hiringProcess: {
     currentStage?: string;
     interviewRounds?: number;
-    deadlines: readonly string[];               // extractor provides ISO strings
+    deadlines: readonly string[];
   };
 }
-
-// ─── Public Interfaces ──────────────────────────────────────────────────────────
 
 export interface ApplicationListFilters {
   readonly status?: string;
@@ -51,12 +53,35 @@ export interface ApplicationEmailRecord {
 
 export interface ApplicationTimelineEvent {
   readonly id: string;
-  readonly eventType: string;
-  readonly description: string;
+  readonly applicationId: string;
+  readonly eventType: ApplicationTimelineEventType;
   readonly timestamp: string;
+  readonly sourceEmailId: string | null;
+  readonly metadata: Prisma.JsonValue | null;
+  readonly description: string | null;
 }
 
-// ─── Service ────────────────────────────────────────────────────────────────────
+type JobApplicationRecord = {
+  id: string;
+  userId: string;
+  companyName: string;
+  companyDomain: string;
+  roleTitle: string;
+  roleDepartment: string;
+  status: string;
+  appliedDate: Date;
+  recruiterName: string | null;
+  recruiterEmail: string | null;
+  sourceEmailId: string | null;
+  location: string | null;
+  employmentType: string | null;
+  currentStage: string | null;
+  interviewRounds: number;
+  deadlines: string[] | null;
+  threadIds: string[];
+  recruiterId: string | null;
+  companyId: string | null;
+};
 
 export class ApplicationTrackingService {
   public async listApplications(
@@ -66,7 +91,7 @@ export class ApplicationTrackingService {
     const where: Prisma.JobApplicationWhereInput = { userId };
 
     if (filters.status) {
-      where.status = filters.status;          // string, no enum cast
+      where.status = filters.status;
     }
     if (filters.company) {
       where.companyName = { contains: filters.company, mode: 'insensitive' };
@@ -76,7 +101,7 @@ export class ApplicationTrackingService {
     }
     if (filters.date) {
       const parsedDate = new Date(filters.date);
-      if (!isNaN(parsedDate.getTime())) {
+      if (!Number.isNaN(parsedDate.getTime())) {
         const start = new Date(parsedDate);
         start.setHours(0, 0, 0, 0);
         const end = new Date(parsedDate);
@@ -93,20 +118,18 @@ export class ApplicationTrackingService {
       orderBy: { appliedDate: 'desc' },
     });
 
-    return applications.map(this.mapPrismaToDomainModel);
+    return applications.map((record) => this.mapPrismaToDomainModel(record));
   }
 
   public async getApplication(applicationId: string): Promise<ApplicationDetailsResult> {
     const applicationRecord = await prisma.jobApplication.findUnique({
       where: { id: applicationId },
-      include: { timeline: { orderBy: { timestamp: 'desc' } } },
     });
 
     if (!applicationRecord) {
-      throw new Error(`Application with ID ${applicationId} not found`);
+      throw new NotFoundError('Application', applicationId);
     }
 
-    // Build OR conditions safely
     const orConditions: Prisma.EmailMessageWhereInput[] = [];
     if (applicationRecord.companyDomain) {
       orConditions.push({
@@ -128,58 +151,66 @@ export class ApplicationTrackingService {
 
     return {
       application: this.mapPrismaToDomainModel(applicationRecord),
-      emailHistory: emailHistoryRecords.map((e) => ({
-        id: e.id,
-        subject: e.subject ?? 'No Subject',
+      emailHistory: emailHistoryRecords.map((email) => ({
+        id: email.id,
+        subject: email.subject || 'No Subject',
       })),
-      timeline: applicationRecord.timeline.map((t) => ({
-        id: t.id,
-        eventType: t.eventType,
-        description: t.description,
-        timestamp: t.timestamp.toISOString(),
-      })),
+      timeline: await this.getApplicationTimeline(applicationId),
     };
+  }
+
+  public async getApplicationTimeline(applicationId: string): Promise<readonly ApplicationTimelineEvent[]> {
+    const timeline = await applicationTimelineService.listTimeline(applicationId);
+    return timeline.map((event) => this.mapTimelineRecord(event));
+  }
+
+  public async updateTimelineEvent(
+    eventId: string,
+    input: {
+      eventType?: ApplicationTimelineEventType;
+      timestamp?: Date;
+      sourceEmailId?: string | null;
+      metadata?: Prisma.InputJsonValue | null;
+      description?: string | null;
+    },
+  ): Promise<ApplicationTimelineEvent> {
+    const updated = await applicationTimelineService.patchTimelineEvent(eventId, input);
+    return this.mapTimelineRecord(updated);
   }
 
   public async updateApplicationStatus(
     applicationId: string,
     newStatus: string,
+    changedByUserId?: string,
   ): Promise<ApplicationStatusUpdateResult> {
-    const applicationRecord = await prisma.jobApplication.findUnique({
-      where: { id: applicationId },
-    });
-
-    if (!applicationRecord) {
-      throw new Error(`Application with ID ${applicationId} not found`);
-    }
-
     const result = await prisma.$transaction(async (tx) => {
-      const updatedApp = await tx.jobApplication.update({
+      const change = await statusEngine.overrideStatus(
+        applicationId,
+        newStatus,
+        changedByUserId ?? 'manual',
+        tx,
+      );
+      const updatedApp = await tx.jobApplication.findUnique({
         where: { id: applicationId },
-        data: { status: newStatus },           // string, no enum
       });
 
-      const timelineEvent = await tx.applicationTimeline.create({
-        data: {
-          applicationId,
-          eventType: 'STATUS_CHANGED',
-          description: `Application status updated to ${newStatus}`,
-          timestamp: new Date(),
-        },
-      });
+      if (!updatedApp) {
+        throw new NotFoundError('Application', applicationId);
+      }
 
-      return { updatedApp, timelineEvent };
+      return { updatedApp, timelineEvent: change.timelineEvent };
     });
 
     return {
       application: this.mapPrismaToDomainModel(result.updatedApp),
-      timelineEvent: {
-        id: result.timelineEvent.id,
-        eventType: result.timelineEvent.eventType,
-        description: result.timelineEvent.description,
-        timestamp: result.timelineEvent.timestamp.toISOString(),
-      },
+      timelineEvent: result.timelineEvent
+        ? this.mapTimelineRecord(result.timelineEvent)
+        : (() => { throw new Error(`Unsupported application status for timeline event: ${newStatus}`); })(),
     };
+  }
+
+  public async getApplicationStatusHistory(applicationId: string) {
+    return statusEngine.getStatusHistory(applicationId);
   }
 
   public async processEmailForJobApplication(
@@ -187,65 +218,66 @@ export class ApplicationTrackingService {
     classification: JobEmailClassification,
     userId: string,
   ): Promise<void> {
-    const extractedData = jobApplicationExtractor.extract(
-      email,
-      userId,
-      classification,
-    );
+    const extractedData = jobApplicationExtractor.extract(email, userId, classification);
 
-    // Use Deduplication Engine
-    // We attempt to find a match before starting the transaction to keep it fast
     const mergeDecision = await applicationMergeService.findMatch(
       userId,
       extractedData,
-      email
+      email,
     );
 
     await prisma.$transaction(async (tx) => {
-      let app = null;
+      const company = await companyService.resolveCompany(
+        {
+          name: extractedData.company.name,
+          domain: extractedData.company.domain,
+        },
+        tx,
+      );
+
+      let app: JobApplicationRecord | null = null;
 
       if (mergeDecision.targetApplication) {
-        // Re-fetch inside transaction with lock if necessary, but standard update is fine
         app = await tx.jobApplication.findUnique({
-          where: { id: mergeDecision.targetApplication.id }
+          where: { id: mergeDecision.targetApplication.id },
         });
       }
 
       if (app) {
-        // Update only if status changed or we need to add thread ID
         const threadIds = app.threadIds || [];
-        const isNewThread = email.threadId && !threadIds.includes(email.threadId);
-        
-        const updateData: Prisma.JobApplicationUpdateInput = { updatedAt: new Date() };
-        let needsUpdate = false;
+        const isNewThread = email.threadId ? !threadIds.includes(email.threadId) : false;
 
-        if (String(app.status) !== String(extractedData.status)) {
-          updateData.status = extractedData.status;
-          updateData.currentStage = extractedData.hiringProcess.currentStage;
-          updateData.interviewRounds = extractedData.hiringProcess.interviewRounds;
-          needsUpdate = true;
+        const updateData: Prisma.JobApplicationUpdateInput = { updatedAt: new Date() };
+        let shouldWriteApp = false;
+
+        if (app.companyId !== company.id) {
+          updateData.company = {
+            connect: {
+              id: company.id,
+            },
+          };
+          shouldWriteApp = true;
         }
 
         if (isNewThread && email.threadId) {
           updateData.threadIds = { push: email.threadId };
-          needsUpdate = true;
+          shouldWriteApp = true;
         }
 
-        if (needsUpdate) {
+        if (shouldWriteApp) {
           app = await tx.jobApplication.update({
             where: { id: app.id },
             data: updateData,
           });
         }
       } else {
-        // Create new – deadlines must be stored as String[]
         const deadlinesAsStrings = [...extractedData.hiringProcess.deadlines];
-        
         const threadIds = email.threadId ? [email.threadId] : [];
 
         app = await tx.jobApplication.create({
           data: {
             userId: extractedData.userId,
+            companyId: company.id,
             companyName: extractedData.company.name,
             companyDomain: extractedData.company.domain,
             roleTitle: extractedData.role.title,
@@ -260,31 +292,96 @@ export class ApplicationTrackingService {
             currentStage: extractedData.hiringProcess.currentStage ?? '',
             interviewRounds: extractedData.hiringProcess.interviewRounds ?? 0,
             deadlines: deadlinesAsStrings,
-            threadIds: threadIds,
+            threadIds,
           },
         });
       }
 
-      const timelineDesc = mergeDecision.targetApplication 
-        ? `Processed email: ${email.subject ?? 'Unknown'} as ${classification.category}. Merged with confidence ${mergeDecision.confidenceScore}% (${mergeDecision.reasons.join(', ')})`
-        : `Processed email: ${email.subject ?? 'Unknown'} as ${classification.category}. Created new application.`;
-
-      await tx.applicationTimeline.create({
-        data: {
-          applicationId: app.id,
-          eventType: 'EMAIL_PROCESSED',
-          description: timelineDesc,
-          timestamp: new Date(),
+      const timelineInput = applicationTimelineService.buildEmailTimelineEvent({
+        applicationId: app.id,
+        email,
+        classification,
+        metadata: {
+          mergeDecision: {
+            matched: Boolean(mergeDecision.targetApplication),
+            confidenceScore: mergeDecision.confidenceScore,
+            reasons: mergeDecision.reasons,
+          },
+          extractedData: {
+            company: extractedData.company,
+            role: extractedData.role,
+            status: extractedData.status,
+            currentStage: extractedData.hiringProcess.currentStage,
+          },
         },
       });
+
+      if (timelineInput) {
+        await tx.applicationTimeline.create({
+          data: timelineInput,
+        });
+      }
+
+      await statusEngine.applyEmailStatus(
+        app.id,
+        classification,
+        {
+          emailId: email.emailId,
+          receivedAt: email.receivedAt,
+          subject: email.subject,
+        },
+        tx,
+      );
+
+      await recruiterService.syncRecruiterFromEmail(
+        {
+          userId,
+          application: {
+            id: app.id,
+            userId: app.userId,
+            companyName: app.companyName,
+            companyDomain: app.companyDomain,
+            roleTitle: app.roleTitle,
+            recruiterName: app.recruiterName ?? extractedData.recruiter.name ?? 'Recruiter',
+            recruiterEmail: app.recruiterEmail ?? extractedData.recruiter.email ?? email.sender,
+          },
+          email: {
+            emailId: email.emailId,
+            sender: email.sender,
+            subject: email.subject,
+            bodyText: email.bodyText,
+            receivedAt: email.receivedAt,
+            threadId: email.threadId,
+          },
+          company: extractedData.company,
+          recruiter: extractedData.recruiter,
+        },
+        tx,
+      );
     });
   }
 
-  // ─── Private Mapper ──────────────────────────────────────────────────────────
+  private mapTimelineRecord(record: {
+    id: string;
+    applicationId: string;
+    eventType: string;
+    timestamp: string | Date;
+    sourceEmailId: string | null;
+    metadata: Prisma.JsonValue | null;
+    description: string | null;
+  }): ApplicationTimelineEvent {
+    return {
+      id: record.id,
+      applicationId: record.applicationId,
+      eventType: record.eventType as ApplicationTimelineEventType,
+      timestamp: record.timestamp instanceof Date ? record.timestamp.toISOString() : record.timestamp,
+      sourceEmailId: record.sourceEmailId,
+      metadata: record.metadata,
+      description: record.description,
+    };
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-private mapPrismaToDomainModel = (record: Prisma.JobApplicationGetPayload<{}>): JobApplication => {
-    // Keep deadlines as stored ISO strings
+  private mapPrismaToDomainModel = (record: JobApplicationRecord): JobApplication => {
     const deadlines = record.deadlines ?? [];
 
     return {
@@ -304,14 +401,14 @@ private mapPrismaToDomainModel = (record: Prisma.JobApplicationGetPayload<{}>): 
         name: record.recruiterName ?? 'Unknown',
         email: record.recruiterEmail ?? '',
       },
-      sourceEmailId: record.sourceEmailId ?? undefined,
+      sourceEmailId: record.sourceEmailId ?? '',
       details: {
         applicationDate: record.appliedDate,
-        location: record.location ?? undefined,
-        employmentType: record.employmentType ?? undefined,
+            location: record.location ?? '',
+        employmentType: record.employmentType ?? '',
       },
       hiringProcess: {
-        currentStage: record.currentStage ?? undefined,
+        currentStage: record.currentStage ?? '',
         interviewRounds: record.interviewRounds ?? 0,
         deadlines,
       },

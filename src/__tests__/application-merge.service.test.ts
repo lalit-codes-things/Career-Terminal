@@ -42,6 +42,8 @@ describe('ApplicationMergeService', () => {
     roleDepartment: 'Engineering',
     status: 'APPLIED',
     appliedDate: new Date('2026-07-10'),
+    recruiterId: null,
+    companyId: null,
     recruiterName: 'Alice',
     recruiterEmail: 'recruiter@acme.com',
     sourceEmailId: 'email-0',

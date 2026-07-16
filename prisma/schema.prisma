@@ -58,6 +58,8 @@ model EmailMessage {
   id                String   @id @default(uuid()) @db.Uuid
   userId            String   @map("user_id")
   connectionId      String   @map("connection_id") @db.Uuid
+  applicationId     String?  @map("application_id") @db.Uuid
+  recruiterId      String?  @map("recruiter_id") @db.Uuid
   providerMessageId String   @map("provider_message_id")
   threadId          String?  @map("thread_id")
   sender            String
@@ -72,11 +74,15 @@ model EmailMessage {
 
   // Relations
   connection UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  recruiter Recruiter? @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
 
   // Indexes
   @@unique([userId, providerMessageId], name: "unique_user_message")
   @@index([userId])
   @@index([connectionId])
+  @@index([applicationId])
+  @@index([recruiterId])
   @@index([threadId])
   @@index([receivedAt])
   @@map("email_messages")
@@ -132,6 +138,8 @@ model SyncJob {
 model JobApplication {
   id               String   @id @default(uuid()) @db.Uuid
   userId           String   @map("user_id")
+  companyId        String?  @map("company_id") @db.Uuid
+  recruiterId      String?  @map("recruiter_id") @db.Uuid
   companyName      String   @map("company_name")
   companyDomain    String   @map("company_domain")
   roleTitle        String   @map("role_title")
@@ -153,23 +161,119 @@ model JobApplication {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   timeline         ApplicationTimeline[]
+  statusHistory    ApplicationStatusHistory[]
+  emails           EmailMessage[]
+  company          Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  recruiter        Recruiter? @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([companyId])
+  @@index([recruiterId])
   @@index([status])
   @@map("job_applications")
+}
+
+model ApplicationStatusHistory {
+  id               String   @id @default(uuid()) @db.Uuid
+  applicationId    String   @map("application_id") @db.Uuid
+  previousStatus   String?  @map("previous_status")
+  status           String
+  source           String
+  sourceEmailId    String?  @map("source_email_id")
+  changedByUserId  String?  @map("changed_by_user_id")
+  timestamp        DateTime
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([applicationId, timestamp])
+  @@map("application_status_history")
+}
+
+model Company {
+  id           String      @id @default(uuid()) @db.Uuid
+  name         String
+  domain       String      @unique
+  careersUrl    String?     @map("careers_url")
+  website      String?
+  logoUrl      String?     @map("logo_url")
+  industry     String?
+  headquarters String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  recruiters Recruiter[]
+  aliases    CompanyAlias[]
+  applications JobApplication[]
+
+  @@index([name])
+  @@map("companies")
+}
+
+model CompanyAlias {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  value           String
+  normalizedValue String   @unique @map("normalized_value")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_aliases")
+}
+
+model Recruiter {
+  id         String          @id @default(uuid()) @db.Uuid
+  companyId  String          @map("company_id") @db.Uuid
+  name       String
+  email      String
+  title      String
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  applications JobApplication[]
+  emails     EmailMessage[]
+
+  @@unique([companyId, email], name: "unique_company_recruiter_email")
+  @@index([companyId])
+  @@index([email])
+  @@map("recruiters")
+}
+
+enum ApplicationTimelineEventType {
+  APPLICATION_SUBMITTED
+  APPLICATION_CONFIRMED
+  RECRUITER_CONTACT
+  ASSESSMENT
+  ASSESSMENT_COMPLETED
+  PHONE_SCREEN
+  INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  REJECTION
+  WITHDRAWN
 }
 
 model ApplicationTimeline {
   id            String   @id @default(uuid()) @db.Uuid
   applicationId String   @map("application_id") @db.Uuid
-  eventType     String   @map("event_type")
-  description   String
+  eventType     ApplicationTimelineEventType @map("event_type")
   timestamp     DateTime
+  sourceEmailId  String?  @map("source_email_id")
+  metadata      Json?
+  description   String?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
+  @@index([applicationId, timestamp])
   @@map("application_timeline")
 }

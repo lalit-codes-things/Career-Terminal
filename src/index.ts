@@ -7,6 +7,9 @@ import { integrationsRouter } from './routes/integrations.routes';
 import { applicationsRouter } from './routes/applications.routes';
 import { analyticsRouter } from './routes/analytics.routes';
 import { resumeRouter } from './routes/resume.routes';
+import { timelineRouter } from './routes/timeline.routes';
+import { recruitersRouter } from './routes/recruiters.routes';
+import { companiesRouter } from './routes/companies.routes';
 import { errorHandler } from './middleware/error-handler';
 
 const app = express();
@@ -21,6 +24,9 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.use('/integrations', integrationsRouter);
 app.use('/applications', applicationsRouter);
+app.use('/timeline', timelineRouter);
+app.use('/recruiters', recruitersRouter);
+app.use('/companies', companiesRouter);
 app.use('/analytics', analyticsRouter);
 app.use('/resume', resumeRouter);
 

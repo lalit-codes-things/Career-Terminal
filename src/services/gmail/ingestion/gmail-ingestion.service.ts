@@ -14,6 +14,8 @@ import { RawEmailFetcher } from './fetcher';
 import { EmailNormalizer } from './normalizer';
 import { GmailApiError, NotFoundError } from '../../../errors/app-errors';
 import type { GmailMessageRef } from '../models/gmail.types';
+import { applicationTrackingService } from '../../application-tracking/application-tracking.service';
+import { jobEmailClassifier, JobEmailCategory, type ClassifiableEmail } from '../../job-intelligence';
 
 export interface IngestionService {
   syncInitialMailbox(userId: string): Promise<void>;
@@ -176,6 +178,15 @@ export class GmailIngestionService implements IngestionService {
 
     // Pipeline Step 3: Save to database (Upsert to prevent duplicates)
     for (const data of normalizedData) {
+      const existingMessage = await prisma.emailMessage.findUnique({
+        where: {
+          unique_user_message: {
+            userId,
+            providerMessageId: data.providerMessageId,
+          },
+        },
+      });
+
       await prisma.emailMessage.upsert({
         where: {
           unique_user_message: {
@@ -194,6 +205,27 @@ export class GmailIngestionService implements IngestionService {
           threadId: data.threadId,
         },
       });
+
+      if (!existingMessage) {
+        const classifiableEmail: ClassifiableEmail = {
+          emailId: data.providerMessageId,
+          sender: data.sender,
+          subject: data.subject,
+          bodyText: data.bodyText,
+          bodyHtml: data.bodyHtml,
+          receivedAt: data.receivedAt,
+          threadId: data.threadId,
+        };
+
+        const classification = jobEmailClassifier.classify(classifiableEmail);
+        if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
+          await applicationTrackingService.processEmailForJobApplication(
+            classifiableEmail,
+            classification,
+            userId,
+          );
+        }
+      }
     }
   }
 
