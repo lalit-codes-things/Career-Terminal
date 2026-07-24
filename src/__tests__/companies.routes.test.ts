@@ -52,11 +52,18 @@ describe('Companies routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedCompanyService.listCompanies).toHaveBeenCalledWith('user-1', {
-      name: 'Google',
-      domain: undefined,
-      industry: undefined,
-    });
+    expect(mockedCompanyService.listCompanies).toHaveBeenCalledWith(
+      'user-1',
+      {
+        name: 'Google',
+        domain: undefined,
+        industry: undefined,
+      },
+      {
+        page: undefined,
+        pageSize: undefined,
+      },
+    );
   });
 
   it('returns company details', async () => {
@@ -99,11 +106,20 @@ describe('Companies routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/companies/company-1/applications').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/companies/company-1/applications')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedCompanyService.getCompanyApplications).toHaveBeenCalledWith('user-1', 'company-1');
+    expect(mockedCompanyService.getCompanyApplications).toHaveBeenCalledWith(
+      'user-1',
+      'company-1',
+      {
+        page: undefined,
+        pageSize: undefined,
+      },
+    );
   });
 });

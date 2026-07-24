@@ -138,9 +138,7 @@ export const CATEGORY_KEYWORD_RULES: readonly CategoryKeywordRule[] = [
 ];
 
 /** Sender-context boosts applied when domain/local-part matches job signals. */
-export const SENDER_CATEGORY_BOOSTS: Readonly<
-  Partial<Record<JobEmailCategory, number>>
-> = {
+export const SENDER_CATEGORY_BOOSTS: Readonly<Partial<Record<JobEmailCategory, number>>> = {
   [JobEmailCategory.JOB_APPLICATION]: 0.15,
   [JobEmailCategory.INTERVIEW_INVITATION]: 0.12,
   [JobEmailCategory.ASSESSMENT_TEST]: 0.12,

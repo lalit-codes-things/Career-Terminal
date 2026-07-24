@@ -1,4 +1,6 @@
+import { JobStatus, JobType } from '@prisma/client';
 import { prisma } from '../config/database';
+import { logger } from '../lib/logger';
 
 export class JobQueueService {
   /**
@@ -8,11 +10,11 @@ export class JobQueueService {
     await prisma.syncJob.create({
       data: {
         userId,
-        type: 'GMAIL_INITIAL_SYNC',
-        status: 'PENDING',
+        type: JobType.GMAIL_INITIAL_SYNC,
+        status: JobStatus.PENDING,
       },
     });
-    console.info(`[Queue] Enqueued initial sync job for user ${userId}`);
+    logger.info('[Queue] Enqueued initial sync job', { userId });
   }
 
   /**
@@ -24,24 +26,24 @@ export class JobQueueService {
     const existing = await prisma.syncJob.findFirst({
       where: {
         userId,
-        type: 'GMAIL_INCREMENTAL_SYNC',
-        status: { in: ['PENDING', 'RUNNING'] },
+        type: JobType.GMAIL_INCREMENTAL_SYNC,
+        status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
       },
     });
 
     if (existing) {
-      console.info(`[Queue] Incremental sync already in progress for user ${userId}`);
+      logger.info('[Queue] Incremental sync already in progress', { userId });
       return;
     }
 
     await prisma.syncJob.create({
       data: {
         userId,
-        type: 'GMAIL_INCREMENTAL_SYNC',
-        status: 'PENDING',
+        type: JobType.GMAIL_INCREMENTAL_SYNC,
+        status: JobStatus.PENDING,
       },
     });
-    console.info(`[Queue] Enqueued incremental sync job for user ${userId}`);
+    logger.info('[Queue] Enqueued incremental sync job', { userId });
   }
 }
 

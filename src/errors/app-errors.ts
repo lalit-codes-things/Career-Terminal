@@ -14,12 +14,7 @@ export class AppError extends Error {
   public readonly code: string;
   public readonly isOperational: boolean;
 
-  constructor(
-    message: string,
-    statusCode: number,
-    code: string,
-    isOperational = true,
-  ) {
+  constructor(message: string, statusCode: number, code: string, isOperational = true) {
     super(message);
     this.name = this.constructor.name;
     this.statusCode = statusCode;
@@ -92,5 +87,25 @@ export class ValidationError extends AppError {
 export class NotFoundError extends AppError {
   constructor(resource: string, identifier: string) {
     super(`${resource} not found: ${identifier}`, 404, 'NOT_FOUND');
+  }
+}
+
+/**
+ * Thrown when a repository query is missing a required partition key.
+ * Prevents unbounded full-table scans that would destroy DB performance at scale.
+ *
+ * @example
+ * // Every query on `job_applications` must include `userId`
+ * throw new MissingPartitionKeyError('job_applications', 'userId');
+ */
+export class MissingPartitionKeyError extends AppError {
+  constructor(table: string, partitionKey: string) {
+    super(
+      `Query on "${table}" is missing required partition key: "${partitionKey}". ` +
+        `All queries must be scoped to a partition to prevent full-table scans.`,
+      500,
+      'MISSING_PARTITION_KEY',
+      false, // programming error — not user-facing
+    );
   }
 }

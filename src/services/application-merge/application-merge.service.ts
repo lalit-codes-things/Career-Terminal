@@ -18,7 +18,7 @@ export class ApplicationMergeService {
     incomingData: ExtractedJobData,
     sourceEmail: ClassifiableEmail,
     candidateEmail?: string,
-    atsApplicationId?: string
+    atsApplicationId?: string,
   ): Promise<MergeDecision> {
     // 1. Fetch potential candidates for the user
     // To be efficient, we fetch all applications for the user, but in a real massive scale system
@@ -38,7 +38,7 @@ export class ApplicationMergeService {
         incomingData,
         sourceEmail,
         candidateEmail,
-        atsApplicationId
+        atsApplicationId,
       );
 
       // Always track the best reasons for debugging (including strict rejects at 0)
@@ -54,7 +54,11 @@ export class ApplicationMergeService {
 
     // Threshold for merging
     if (highestConfidence >= 80 && bestMatch) {
-      return { targetApplication: bestMatch, confidenceScore: highestConfidence, reasons: bestReasons };
+      return {
+        targetApplication: bestMatch,
+        confidenceScore: highestConfidence,
+        reasons: bestReasons,
+      };
     }
 
     return { targetApplication: null, confidenceScore: highestConfidence, reasons: bestReasons };
@@ -65,7 +69,7 @@ export class ApplicationMergeService {
     incomingData: ExtractedJobData,
     sourceEmail: ClassifiableEmail,
     candidateEmail?: string,
-    atsApplicationId?: string
+    atsApplicationId?: string,
   ): { confidence: number; reasons: string[] } {
     let confidence = 0;
     const reasons: string[] = [];
@@ -73,17 +77,19 @@ export class ApplicationMergeService {
     // STRICT REJECT: Different Companies
     // We check domains or exact name matches
     const sameDomain = existingApp.companyDomain === incomingData.company.domain;
-    const sameName = existingApp.companyName.toLowerCase() === incomingData.company.name.toLowerCase();
-    
+    const sameName =
+      existingApp.companyName.toLowerCase() === incomingData.company.name.toLowerCase();
+
     if (!sameDomain && !sameName) {
       return { confidence: 0, reasons: ['Strict Reject: Different companies'] };
     }
 
     // STRICT REJECT: Wildly different roles unless we have exact ATS id
     const sameRole = existingApp.roleTitle.toLowerCase() === incomingData.role.title.toLowerCase();
-    const roleIsSubstring = existingApp.roleTitle.toLowerCase().includes(incomingData.role.title.toLowerCase()) || 
-                            incomingData.role.title.toLowerCase().includes(existingApp.roleTitle.toLowerCase());
-                            
+    const roleIsSubstring =
+      existingApp.roleTitle.toLowerCase().includes(incomingData.role.title.toLowerCase()) ||
+      incomingData.role.title.toLowerCase().includes(existingApp.roleTitle.toLowerCase());
+
     if (!sameRole && !roleIsSubstring && existingApp.atsApplicationId !== atsApplicationId) {
       return { confidence: 0, reasons: ['Strict Reject: Different roles without ATS ID override'] };
     }
@@ -113,7 +119,10 @@ export class ApplicationMergeService {
       reasons.push('+30: Thread ID match');
     }
 
-    if (incomingData.recruiter.email && existingApp.recruiterEmail === incomingData.recruiter.email) {
+    if (
+      incomingData.recruiter.email &&
+      existingApp.recruiterEmail === incomingData.recruiter.email
+    ) {
       confidence += 20;
       reasons.push('+20: Recruiter email match');
     }
@@ -122,7 +131,7 @@ export class ApplicationMergeService {
     const existingDate = existingApp.appliedDate.getTime();
     const incomingDate = incomingData.appliedDate.getTime();
     const diffDays = Math.abs(existingDate - incomingDate) / (1000 * 60 * 60 * 24);
-    
+
     if (diffDays <= 14) {
       confidence += 15;
       reasons.push(`+15: Close application date (${diffDays.toFixed(1)} days apart)`);

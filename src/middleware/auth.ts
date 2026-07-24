@@ -1,51 +1,118 @@
-import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../errors/app-errors';
-
 /**
- * Custom Unauthorized Error (401)
+ * Authentication middleware — stateless JWT verification.
+ *
+ * Every protected route runs through `requireAuth`, which:
+ *  1. Extracts the Bearer token from the Authorization header.
+ *  2. Verifies the JWT signature and expiry synchronously (no DB/cache hit).
+ *  3. Attaches `req.user = { id: userId }` for downstream handlers.
+ *
+ * Refresh-token rotation is handled by the `/auth/refresh` route — not here.
+ * This middleware only deals with access tokens, keeping it O(1) and stateless.
+ *
+ * Test environment:
+ *   When NODE_ENV=test the `x-user-id` header is still accepted so existing
+ *   integration tests keep working without a live JWT stack.
  */
+import { type Request, type Response, type NextFunction } from 'express';
+import { AppError } from '../errors/app-errors';
+import { tokenService } from '../services/auth/token.service';
+import { logger } from '../lib/logger';
+
+// ---------------------------------------------------------------------------
+// Augment Express Request with typed user property
+// ---------------------------------------------------------------------------
+
+export interface AuthenticatedUser {
+  id: string;
+  /** JWT ID — available for per-token audit logging. */
+  jti?: string;
+}
+
+declare module 'express' {
+  interface Request {
+    user?: AuthenticatedUser;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error class
+// ---------------------------------------------------------------------------
+
 export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
     super(message, 401, 'UNAUTHORIZED');
   }
 }
 
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
+
 /**
- * Require Authentication Middleware
+ * Require a valid JWT access token on the Authorization header.
  *
- * Extracts the user's identity securely. Currently mocked to use the 'x-user-id'
- * header or a Bearer token for demonstration purposes until a full session/JWT
- * system is integrated.
- *
- * Prevents IDOR vulnerabilities by ensuring routes don't trust raw query parameters.
+ * On success  → attaches `req.user` and calls next().
+ * On failure  → calls next(UnauthorizedError).
  */
 export const requireAuth = (req: Request, _res: Response, next: NextFunction): void => {
-  // 1. Try to get from x-user-id header
-  const xUserIdHeader = req.headers['x-user-id'];
-  let userId = Array.isArray(xUserIdHeader) ? xUserIdHeader[0] : xUserIdHeader;
-
-  // 2. Try to get from Authorization Bearer token (mock decoding)
-  if (!userId && req.headers.authorization?.startsWith('Bearer ')) {
-    const token = req.headers.authorization.split(' ')[1];
-    // In a real app, you would verify the JWT here.
-    // For this mock, we assume the token IS the userId if it's not a real JWT.
-    userId = token;
-  }
-
-  // In test environment, allow userId via query parameter when present
-  if (!userId && process.env.NODE_ENV === 'test') {
-    const queryUserId = (req as any).query?.userId;
-    if (typeof queryUserId === 'string' && queryUserId) {
-      userId = queryUserId;
+  try {
+    // ── Test escape-hatch (never active in production) ─────────────────────
+    if (process.env.NODE_ENV === 'test') {
+      const xUserId = req.headers['x-user-id'];
+      const testUserId = Array.isArray(xUserId) ? xUserId[0] : xUserId;
+      if (testUserId) {
+        req.user = { id: testUserId };
+        return next();
+      }
     }
+
+    // ── Extract Bearer token ───────────────────────────────────────────────
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedError(
+        'Authorization header missing or malformed. Expected: Bearer <token>',
+      );
+    }
+
+    const token = authHeader.slice(7); // strip "Bearer "
+
+    // ── Verify JWT (synchronous, stateless — no Redis/DB hit) ─────────────
+    const payload = tokenService.verifyAccessToken(token);
+
+    req.user = { id: payload.sub, jti: payload.jti };
+
+    logger.debug('[auth] Request authenticated', { userId: payload.sub });
+
+    next();
+  } catch (err) {
+    // Re-wrap all errors as UnauthorizedError so the API surface is consistent:
+    // callers always receive a 401 UNAUTHORIZED, regardless of the internal
+    // error type (TokenError, generic Error, etc.).
+    if (err instanceof UnauthorizedError) {
+      return next(err);
+    }
+    next(new UnauthorizedError('Authentication failed'));
+  }
+};
+
+/**
+ * Optional auth — populates req.user if a valid token is present,
+ * but does NOT block requests without one. Useful for public routes
+ * that return richer data when the caller is authenticated.
+ */
+export const optionalAuth = (req: Request, _res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return next(); // anonymous — fine
   }
 
-  if (!userId) {
-    return next(new UnauthorizedError('Authentication required. Missing x-user-id header or Bearer token.'));
+  try {
+    const token = authHeader.slice(7);
+    const payload = tokenService.verifyAccessToken(token);
+    req.user = { id: payload.sub, jti: payload.jti };
+  } catch {
+    // Invalid token on an optional route — ignore silently
   }
-
-  // Attach user identity to the request
-  (req as Request & { user?: { id: string } }).user = { id: userId };
 
   next();
 };

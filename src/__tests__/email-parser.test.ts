@@ -74,7 +74,11 @@ describe('EmailParserService', () => {
       id: 'msg-1',
       payload: {
         mimeType: 'text/html',
-        body: { data: encodeBase64Url('<html><body><h1>Title</h1><p>Hello <b>World</b>!</p><br>Footer</body></html>') },
+        body: {
+          data: encodeBase64Url(
+            '<html><body><h1>Title</h1><p>Hello <b>World</b>!</p><br>Footer</body></html>',
+          ),
+        },
       },
     };
 

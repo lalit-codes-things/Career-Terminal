@@ -1,11 +1,99 @@
-import { Router } from 'express';
+/**
+ * Resume routes.
+ *
+ * POST /resume/upload   — Upload a resume with SHA-256 deduplication.
+ * GET  /resume/active   — Retrieve the user's current active resume.
+ * POST /resume/match    — Score a resume against a job description (existing).
+ */
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
+import { ValidationError } from '../errors/app-errors';
 import { resumeMatcherService } from '../services/resume-matcher/resume-matcher.service';
-import type { Request, Response, NextFunction } from 'express';
+import { resumeUploadService } from '../services/resume/resume-upload.service';
 
-const upload = multer({ storage: multer.memoryStorage() });
+// multer: keep file in memory so we can hash it before deciding whether to upload
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB hard limit at the HTTP layer
+});
+
 export const resumeRouter = Router();
+
+// ---------------------------------------------------------------------------
+// POST /resume/upload
+// ---------------------------------------------------------------------------
+
+resumeRouter.post(
+  '/upload',
+  requireAuth,
+  upload.single('resume'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const file = req.file;
+
+      if (!file) {
+        throw new ValidationError('Resume file is required (field name: "resume")');
+      }
+
+      const result = await resumeUploadService.upload({
+        userId,
+        fileBuffer: file.buffer,
+        originalFilename: file.originalname,
+        mimeType: file.mimetype,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          userResumeId: result.userResumeId,
+          storageKey: result.storageKey,
+          presignedUrl: result.presignedUrl,
+          fileSizeBytes: result.fileSizeBytes,
+          hash: result.hash,
+          deduplicated: result.deduplicated,
+          message: result.deduplicated
+            ? 'Identical file already stored — linked to existing blob (no re-upload).'
+            : 'File uploaded successfully. Parsing job queued.',
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// GET /resume/active
+// ---------------------------------------------------------------------------
+
+resumeRouter.get(
+  '/active',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const resume = await resumeUploadService.getActiveResume(userId);
+
+      if (!resume) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'No active resume found for this user' },
+        });
+        return;
+      }
+
+      res.json({ success: true, data: resume });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /resume/match  (existing — unchanged)
+// ---------------------------------------------------------------------------
 
 resumeRouter.post(
   '/match',
@@ -17,24 +105,21 @@ resumeRouter.post(
       const jobDescription = req.body.jobDescription;
 
       if (!file) {
-        throw new Error('Resume file is required');
+        throw new ValidationError('Resume file is required');
       }
       if (!jobDescription || typeof jobDescription !== 'string') {
-        throw new Error('Job description text is required');
+        throw new ValidationError('Job description text is required');
       }
 
-      // Extract text from the uploaded file
-      const resumeText = await resumeMatcherService.extractTextFromBuffer(file.buffer, file.mimetype);
-
-      // Score the match
+      const resumeText = await resumeMatcherService.extractTextFromBuffer(
+        file.buffer,
+        file.mimetype,
+      );
       const matchScore = await resumeMatcherService.scoreMatch(resumeText, jobDescription);
 
-      res.json({
-        success: true,
-        data: matchScore,
-      });
+      res.json({ success: true, data: matchScore });
     } catch (error) {
       next(error);
     }
-  }
+  },
 );

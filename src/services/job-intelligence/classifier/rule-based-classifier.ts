@@ -13,15 +13,8 @@ import {
 import { extractCompany } from './extractors/company.extractor';
 import { extractRole } from './extractors/role.extractor';
 import { isAtsPlatformDomain } from './signals/ats-platforms';
-import {
-  CATEGORY_KEYWORD_RULES,
-  SENDER_CATEGORY_BOOSTS,
-} from './signals/keyword-patterns';
-import {
-  isAtsNoreplySender,
-  isRecruiterSender,
-  parseSender,
-} from './signals/sender-patterns';
+import { CATEGORY_KEYWORD_RULES, SENDER_CATEGORY_BOOSTS } from './signals/keyword-patterns';
+import { isAtsNoreplySender, isRecruiterSender, parseSender } from './signals/sender-patterns';
 
 const ALL_CATEGORIES = Object.values(JobEmailCategory);
 
@@ -49,14 +42,14 @@ function initScores(): Record<JobEmailCategory, number> {
       acc[category] = 0;
       return acc;
     },
-    {} as Record<JobEmailCategory, number>
+    {} as Record<JobEmailCategory, number>,
   );
 }
 
 function applyKeywordRules(
   searchText: string,
   scores: Record<JobEmailCategory, number>,
-  matchedSignals: string[]
+  matchedSignals: string[],
 ): void {
   for (const rule of CATEGORY_KEYWORD_RULES) {
     for (const pattern of rule.patterns) {
@@ -71,7 +64,7 @@ function applyKeywordRules(
 function applySenderSignals(
   sender: string,
   scores: Record<JobEmailCategory, number>,
-  matchedSignals: string[]
+  matchedSignals: string[],
 ): void {
   const parsed = parseSender(sender);
   if (!parsed) {
@@ -89,8 +82,7 @@ function applySenderSignals(
       (scores[JobEmailCategory.INTERVIEW_INVITATION] ?? 0) + 0.2;
     scores[JobEmailCategory.ASSESSMENT_TEST] =
       (scores[JobEmailCategory.ASSESSMENT_TEST] ?? 0) + 0.2;
-    scores[JobEmailCategory.REJECTION] =
-      (scores[JobEmailCategory.REJECTION] ?? 0) + 0.15;
+    scores[JobEmailCategory.REJECTION] = (scores[JobEmailCategory.REJECTION] ?? 0) + 0.15;
     scores[JobEmailCategory.OFFER] = (scores[JobEmailCategory.OFFER] ?? 0) + 0.15;
     matchedSignals.push(`sender:ats:${parsed.domain}`);
   }
@@ -111,9 +103,7 @@ function applySenderSignals(
   }
 }
 
-function resolveCategory(
-  scores: Record<JobEmailCategory, number>
-): JobEmailCategory {
+function resolveCategory(scores: Record<JobEmailCategory, number>): JobEmailCategory {
   let bestCategory = JobEmailCategory.NOT_JOB_RELATED;
   let bestScore = 0;
 
@@ -135,11 +125,7 @@ function resolveCategory(
   return bestCategory;
 }
 
-function scoreToConfidence(
-  category: JobEmailCategory,
-  score: number,
-  signalCount: number
-): number {
+function scoreToConfidence(category: JobEmailCategory, score: number, signalCount: number): number {
   if (category === JobEmailCategory.NOT_JOB_RELATED) {
     return Math.max(0.5, Math.min(0.85, 0.55 + signalCount * 0.02));
   }
@@ -176,9 +162,7 @@ export class RuleBasedJobEmailClassifier {
     detectedRole: string | null;
   } {
     const result = this.classify(email);
-    const body =
-      email.bodyText?.trim() ??
-      (email.bodyHtml ? stripHtml(email.bodyHtml) : '');
+    const body = email.bodyText?.trim() ?? (email.bodyHtml ? stripHtml(email.bodyHtml) : '');
 
     return {
       result,

@@ -58,7 +58,9 @@ describe('Analytics Routes', () => {
   });
 
   it('GET /analytics/jobs should handle errors', async () => {
-    (jobAnalyticsService.getAnalytics as jest.Mock).mockRejectedValueOnce(new Error('Database error'));
+    (jobAnalyticsService.getAnalytics as jest.Mock).mockRejectedValueOnce(
+      new Error('Database error'),
+    );
 
     // Temporary error handler to prevent supertest from logging errors to console and failing tests
     const errorApp = express();

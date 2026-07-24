@@ -16,6 +16,25 @@ enum EmailProvider {
   OUTLOOK
 }
 
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  SCREENING
+  ASSESSMENT
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationSourceProvider {
+  GMAIL
+  MANUAL
+  OUTLOOK
+  CSV
+  API
+}
+
 /// Connection health status
 enum ConnectionStatus {
   ACTIVE
@@ -144,7 +163,7 @@ model JobApplication {
   companyDomain    String   @map("company_domain")
   roleTitle        String   @map("role_title")
   roleDepartment   String   @map("role_department")
-  status           String
+  status           ApplicationStatus
   appliedDate      DateTime @map("applied_date")
   recruiterName    String   @map("recruiter_name")
   recruiterEmail   String   @map("recruiter_email")
@@ -162,6 +181,7 @@ model JobApplication {
 
   timeline         ApplicationTimeline[]
   statusHistory    ApplicationStatusHistory[]
+  sources          ApplicationSource[]
   emails           EmailMessage[]
   company          Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   recruiter        Recruiter? @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
@@ -176,8 +196,8 @@ model JobApplication {
 model ApplicationStatusHistory {
   id               String   @id @default(uuid()) @db.Uuid
   applicationId    String   @map("application_id") @db.Uuid
-  previousStatus   String?  @map("previous_status")
-  status           String
+  previousStatus   ApplicationStatus? @map("previous_status")
+  status           ApplicationStatus
   source           String
   sourceEmailId    String?  @map("source_email_id")
   changedByUserId  String?  @map("changed_by_user_id")
@@ -191,6 +211,24 @@ model ApplicationStatusHistory {
   @@index([applicationId])
   @@index([applicationId, timestamp])
   @@map("application_status_history")
+}
+
+model ApplicationSource {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  applicationId       String                   @map("application_id") @db.Uuid
+  provider            ApplicationSourceProvider
+  providerMessageId   String?                  @map("provider_message_id")
+  providerThreadId    String?                  @map("provider_thread_id")
+  providerConversationId String?                @map("provider_conversation_id")
+  providerMetadata    Json?                    @map("provider_metadata")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+
+  application         JobApplication           @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([provider])
+  @@index([providerMessageId])
+  @@map("application_sources")
 }
 
 model Company {
@@ -276,4 +314,52 @@ model ApplicationTimeline {
   @@index([applicationId])
   @@index([applicationId, timestamp])
   @@map("application_timeline")
+}
+
+/// Deduplication table for resume/CV file blobs.
+/// Before uploading to S3, the upload handler computes SHA-256 of the file buffer.
+/// If this hash already exists here, no upload occurs — the existing S3 URL is reused.
+/// This can save enormous storage at scale (100k users × multiple resume versions).
+model ResumeHash {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// SHA-256 hex digest of the raw file bytes (64 hex chars).
+  hash      String   @unique
+  /// S3 object key, e.g. "uploads/resumes/<hash>.pdf"
+  storageKey String  @map("storage_key")
+  /// Full public/presigned-base URL stored for convenience.
+  storageUrl String  @map("storage_url") @db.Text
+  /// MIME type of the original file.
+  mimeType  String   @map("mime_type")
+  /// Size in bytes of the original file.
+  sizeBytes Int      @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Back-reference to every user resume record that points at this blob.
+  userResumes UserResume[]
+
+  @@index([hash])
+  @@map("resume_hashes")
+}
+
+/// Links a user to a deduplicated resume blob.
+/// Multiple users (or the same user uploading the same file twice) all
+/// point to a single ResumeHash row — zero duplicate S3 objects.
+model UserResume {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id")
+  /// Human-readable filename the user gave the file.
+  originalName   String      @map("original_name")
+  /// FK → the deduplicated blob.
+  resumeHashId   String      @map("resume_hash_id") @db.Uuid
+  /// Whether this is the user's currently active resume.
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  resumeHash     ResumeHash  @relation(fields: [resumeHashId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([resumeHashId])
+  @@map("user_resumes")
 }

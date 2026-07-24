@@ -49,6 +49,10 @@ describe('RecruiterService', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
+    mockPrisma.jobApplication.findFirst.mockResolvedValue({
+      id: 'app-1',
+      userId: 'user-1',
+    });
     mockPrisma.recruiter.upsert.mockResolvedValue({
       id: 'rec-1',
       companyId: 'company-1',
@@ -130,7 +134,15 @@ describe('RecruiterService', () => {
       title: 'Recruiter',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
-      applications: [{ id: 'app-1', appliedDate: new Date(), status: 'APPLIED', roleTitle: 'Engineer', companyName: 'Stripe' }],
+      applications: [
+        {
+          id: 'app-1',
+          appliedDate: new Date(),
+          status: 'APPLIED',
+          roleTitle: 'Engineer',
+          companyName: 'Stripe',
+        },
+      ],
       emails: [
         {
           id: 'email-1',

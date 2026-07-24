@@ -1,45 +1,52 @@
 /**
  * Integration Routes for OAuth flows.
+ *
+ * Security model:
+ *   GET /integrations/gmail/connect   — requires a valid JWT; userId is taken
+ *                                       from req.user (never from a query param).
+ *   GET /integrations/gmail/callback  — public (called by Google's redirect);
+ *                                       userId is resolved from the CSRF state
+ *                                       token that was generated during /connect.
  */
 import { Request, Response, NextFunction, Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/validate';
-// import { requireAuth } from '../middleware/auth'; // Disabled for simplified testing
+import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { createRateLimiter } from '../middleware/rate-limiter';
 import { gmailOAuthService } from '../services/gmail';
-
-// (Removed AuthenticatedRequest interface as auth is not required)
 
 export const integrationsRouter = Router();
 
 // Validation schemas
-// No query parameters required for connect route
-const connectQuerySchema = z.object({
-  userId: z.string().min(1, 'userId is required'),
-});
-
 const callbackQuerySchema = z.object({
   code: z.string().min(1, 'code is required'),
   state: z.string().min(1, 'state is required'),
 });
 
 // Configure rate limiters:
-// Connect route: 10 requests per 15 minutes
+// Connect route: 10 requests per 15 minutes per IP
 const connectLimiter = createRateLimiter(15 * 60 * 1000, 10);
-// Callback route: 20 requests per 15 minutes
+// Callback route: 20 requests per 15 minutes per IP
 const callbackLimiter = createRateLimiter(15 * 60 * 1000, 20);
 
 /**
  * GET /integrations/gmail/connect
  * Generates and returns the Google OAuth2 authorization URL.
+ *
+ * Requires authentication — userId is derived from the verified JWT, not a
+ * query parameter. This prevents an attacker from linking another user's
+ * account to their own Gmail inbox.
  */
 integrationsRouter.get(
   '/gmail/connect',
   connectLimiter,
-  validateQuery(connectQuerySchema),
+  requireAuth,
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { userId } = req.query as { userId: string };
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
       const authorizationUrl = gmailOAuthService.getAuthorizationUrl(userId);
       res.json({
         success: true,
@@ -54,6 +61,11 @@ integrationsRouter.get(
 /**
  * GET /integrations/gmail/callback
  * Handles the OAuth callback from Google.
+ *
+ * This route is unauthenticated because Google redirects here with a
+ * short-lived authorization code.  The userId is recovered from the CSRF
+ * state token that was embedded during /connect — not from any caller-supplied
+ * parameter.
  */
 integrationsRouter.get(
   '/gmail/callback',

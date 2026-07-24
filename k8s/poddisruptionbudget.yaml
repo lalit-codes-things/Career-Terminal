@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: applywise-api-pdb
+  namespace: applywise
+  labels:
+    app: applywise-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: applywise-api

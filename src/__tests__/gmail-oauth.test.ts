@@ -26,7 +26,7 @@ jest.mock('../utils/encryption');
 
 describe('GmailOAuthService', () => {
   let service: InstanceType<typeof GmailOAuthService>;
-  
+
   // Mock OAuth2 client instance
   const mockGenerateAuthUrl = jest.fn();
   const mockGetToken = jest.fn();
@@ -36,7 +36,7 @@ describe('GmailOAuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup googleapis mocks
     (google.auth.OAuth2 as jest.Mock).mockImplementation(() => ({
       generateAuthUrl: mockGenerateAuthUrl,
@@ -44,7 +44,7 @@ describe('GmailOAuthService', () => {
       setCredentials: mockSetCredentials,
       refreshAccessToken: mockRefreshAccessToken,
     }));
-    
+
     (google.oauth2 as jest.Mock).mockReturnValue({
       userinfo: { get: mockUserinfoGet },
     });
@@ -54,16 +54,20 @@ describe('GmailOAuthService', () => {
 
   describe('getAuthorizationUrl', () => {
     it('should generate URL with state', () => {
-      mockGenerateAuthUrl.mockReturnValue('https://accounts.google.com/o/oauth2/v2/auth?state=mocked-state');
-      
+      mockGenerateAuthUrl.mockReturnValue(
+        'https://accounts.google.com/o/oauth2/v2/auth?state=mocked-state',
+      );
+
       const url = service.getAuthorizationUrl('user_123');
-      
+
       expect(url).toBe('https://accounts.google.com/o/oauth2/v2/auth?state=mocked-state');
-      expect(mockGenerateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({
-        access_type: 'offline',
-        prompt: 'consent',
-        state: expect.any(String),
-      }));
+      expect(mockGenerateAuthUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          access_type: 'offline',
+          prompt: 'consent',
+          state: expect.any(String),
+        }),
+      );
     });
   });
 
@@ -71,7 +75,7 @@ describe('GmailOAuthService', () => {
     it('should complete full oauth flow successfully', async () => {
       // Mock state validation
       const state = oauthStateService.generateState('user_1');
-      
+
       // Mock token exchange
       mockGetToken.mockResolvedValue({
         tokens: {
@@ -98,13 +102,15 @@ describe('GmailOAuthService', () => {
         emailAddress: 'test@gmail.com',
         provider: 'GMAIL',
       });
-      
-      expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        create: expect.objectContaining({
-          userId: 'user_1',
-          emailAddress: 'test@gmail.com',
-        })
-      }));
+
+      expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            userId: 'user_1',
+            emailAddress: 'test@gmail.com',
+          }),
+        }),
+      );
     });
 
     it('should throw OAuthError if token exchange fails', async () => {
@@ -114,7 +120,7 @@ describe('GmailOAuthService', () => {
       await expect(service.handleCallback('invalid_code', state)).rejects.toThrow(OAuthError);
     });
   });
-  
+
   describe('getValidAccessToken', () => {
     it('should return token if not expired', async () => {
       (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue({
@@ -126,7 +132,7 @@ describe('GmailOAuthService', () => {
       (encryption.decryptToken as jest.Mock).mockReturnValue('decrypted_access');
 
       const token = await service.getValidAccessToken('conn_1');
-      
+
       expect(token).toBe('decrypted_access');
       expect(mockRefreshAccessToken).not.toHaveBeenCalled();
     });
@@ -139,21 +145,21 @@ describe('GmailOAuthService', () => {
         refreshTokenEncrypted: 'encrypted_refresh',
       });
       (encryption.decryptToken as jest.Mock).mockReturnValue('decrypted_refresh');
-      
+
       mockRefreshAccessToken.mockResolvedValue({
         credentials: {
           access_token: 'new_access',
           expiry_date: Date.now() + 3600000,
-        }
+        },
       });
 
       const token = await service.getValidAccessToken('conn_1');
-      
+
       expect(token).toBe('new_access');
       expect(mockRefreshAccessToken).toHaveBeenCalled();
       expect(prisma.userEmailConnection.update).toHaveBeenCalled();
     });
-    
+
     it('should throw NotFoundError if connection does not exist', async () => {
       (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(service.getValidAccessToken('missing_conn')).rejects.toThrow(NotFoundError);

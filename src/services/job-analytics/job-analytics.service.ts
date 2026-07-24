@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database';
-import { JobApplicationStatus } from '../job-application';
+import { ApplicationStatus } from '../../domain/application-status';
 import { ApplicationTimelineEventType } from '../application-timeline';
 
 export interface JobAnalytics {
@@ -26,8 +26,20 @@ export class JobAnalyticsService {
   public async getAnalytics(userId: string): Promise<JobAnalytics> {
     const applications = await prisma.jobApplication.findMany({
       where: { userId },
-      include: {
-        timeline: true,
+      select: {
+        id: true,
+        appliedDate: true,
+        updatedAt: true,
+        companyDomain: true,
+        roleDepartment: true,
+        status: true,
+        timeline: {
+          select: {
+            eventType: true,
+            description: true,
+            timestamp: true,
+          },
+        },
       },
     });
 
@@ -51,6 +63,19 @@ export class JobAnalyticsService {
     }
 
     const uniqueCompanies = new Set(applications.map((app) => app.companyDomain).filter(Boolean));
+    const responseStatuses = new Set<ApplicationStatus>([
+      ApplicationStatus.SCREENING,
+      ApplicationStatus.INTERVIEW,
+      ApplicationStatus.ASSESSMENT,
+      ApplicationStatus.OFFER,
+      ApplicationStatus.REJECTED,
+      ApplicationStatus.WITHDRAWN,
+    ]);
+    const interviewStatuses = new Set<ApplicationStatus>([
+      ApplicationStatus.INTERVIEW,
+      ApplicationStatus.ASSESSMENT,
+      ApplicationStatus.OFFER,
+    ]);
 
     let responsesCount = 0;
     let interviewsCount = 0;
@@ -62,23 +87,12 @@ export class JobAnalyticsService {
 
     for (const app of applications) {
       const isResponseStatus = (status: string | undefined) =>
-        status ? [
-          JobApplicationStatus.SCREENING,
-          JobApplicationStatus.INTERVIEW,
-          JobApplicationStatus.ASSESSMENT,
-          JobApplicationStatus.OFFER,
-          JobApplicationStatus.REJECTED,
-          JobApplicationStatus.WITHDRAWN,
-        ].includes(status as JobApplicationStatus) : false;
+        status ? responseStatuses.has(status as ApplicationStatus) : false;
 
       const isInterviewStatus = (status: string | undefined) =>
-        status ? [
-          JobApplicationStatus.INTERVIEW,
-          JobApplicationStatus.ASSESSMENT,
-          JobApplicationStatus.OFFER,
-        ].includes(status as JobApplicationStatus) : false;
+        status ? interviewStatuses.has(status as ApplicationStatus) : false;
 
-      const isOfferStatus = (status: string | undefined) => status === JobApplicationStatus.OFFER;
+      const isOfferStatus = (status: string | undefined) => status === ApplicationStatus.OFFER;
 
       const allStatuses = [
         app.status,
@@ -95,11 +109,13 @@ export class JobAnalyticsService {
         // Calculate response time
         // Find the earliest timeline event that indicates a response
         const responseEvents = app.timeline.filter((timelineEvent) =>
-          this.mapTimelineEventToStatuses(timelineEvent).some(isResponseStatus)
+          this.mapTimelineEventToStatuses(timelineEvent).some(isResponseStatus),
         );
 
         if (responseEvents.length > 0) {
-          const earliestResponse = new Date(Math.min(...responseEvents.map((e) => e.timestamp.getTime())));
+          const earliestResponse = new Date(
+            Math.min(...responseEvents.map((e) => e.timestamp.getTime())),
+          );
           const responseTimeMs = earliestResponse.getTime() - app.appliedDate.getTime();
           if (responseTimeMs >= 0) {
             totalResponseTimeMs += responseTimeMs;
@@ -173,22 +189,22 @@ export class JobAnalyticsService {
     switch (timelineEvent.eventType) {
       case ApplicationTimelineEventType.APPLICATION_SUBMITTED:
       case ApplicationTimelineEventType.APPLICATION_CONFIRMED:
-        return [JobApplicationStatus.APPLIED];
+        return [ApplicationStatus.APPLIED];
       case ApplicationTimelineEventType.RECRUITER_CONTACT:
-        return [JobApplicationStatus.SCREENING];
+        return [ApplicationStatus.SCREENING];
       case ApplicationTimelineEventType.ASSESSMENT:
       case ApplicationTimelineEventType.ASSESSMENT_COMPLETED:
-        return [JobApplicationStatus.ASSESSMENT];
+        return [ApplicationStatus.ASSESSMENT];
       case ApplicationTimelineEventType.PHONE_SCREEN:
       case ApplicationTimelineEventType.INTERVIEW:
       case ApplicationTimelineEventType.FINAL_INTERVIEW:
-        return [JobApplicationStatus.INTERVIEW];
+        return [ApplicationStatus.INTERVIEW];
       case ApplicationTimelineEventType.OFFER:
-        return [JobApplicationStatus.OFFER];
+        return [ApplicationStatus.OFFER];
       case ApplicationTimelineEventType.REJECTION:
-        return [JobApplicationStatus.REJECTED];
+        return [ApplicationStatus.REJECTED];
       case ApplicationTimelineEventType.WITHDRAWN:
-        return [JobApplicationStatus.WITHDRAWN];
+        return [ApplicationStatus.WITHDRAWN];
       default: {
         const legacyMatch = timelineEvent.description?.match(/updated to (.*)/);
         return legacyMatch?.[1] ? [legacyMatch[1]] : [];

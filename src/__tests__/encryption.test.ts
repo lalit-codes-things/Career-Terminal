@@ -27,9 +27,9 @@ describe('Encryption Utility', () => {
   it('should generate different ciphertexts for the same plaintext (semantic security)', () => {
     const encrypted1 = encryptToken(plaintext);
     const encrypted2 = encryptToken(plaintext);
-    
+
     expect(encrypted1).not.toEqual(encrypted2);
-    
+
     // Both should decrypt back to the same plaintext
     expect(decryptToken(encrypted1)).toEqual(plaintext);
     expect(decryptToken(encrypted2)).toEqual(plaintext);
@@ -37,14 +37,14 @@ describe('Encryption Utility', () => {
 
   it('should throw EncryptionError if ENCRYPTION_KEY is missing', () => {
     delete process.env.ENCRYPTION_KEY;
-    
+
     expect(() => encryptToken(plaintext)).toThrow(EncryptionError);
     expect(() => encryptToken(plaintext)).toThrow(/ENCRYPTION_KEY environment variable is not set/);
   });
 
   it('should throw EncryptionError if ENCRYPTION_KEY is wrong length', () => {
     process.env.ENCRYPTION_KEY = 'tooshort';
-    
+
     expect(() => encryptToken(plaintext)).toThrow(EncryptionError);
     expect(() => encryptToken(plaintext)).toThrow(/must be 64 hex characters/);
   });
@@ -52,13 +52,15 @@ describe('Encryption Utility', () => {
   it('should throw EncryptionError if ciphertext is tampered with', () => {
     const encrypted = encryptToken(plaintext);
     const parts = encrypted.split(':');
-    
+
     // Tamper with the ciphertext part
     parts[2] = Buffer.from('tampered_data').toString('base64');
     const tampered = parts.join(':');
 
     expect(() => decryptToken(tampered)).toThrow(EncryptionError);
-    expect(() => decryptToken(tampered)).toThrow(/Unsupported state or unable to authenticate data/);
+    expect(() => decryptToken(tampered)).toThrow(
+      /Unsupported state or unable to authenticate data/,
+    );
   });
 
   it('should throw EncryptionError for invalid encrypted format', () => {

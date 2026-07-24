@@ -4,24 +4,27 @@
  * Catches all errors thrown during request processing, formats them,
  * and returns consistent JSON responses to the client.
  */
+import { randomUUID } from 'crypto';
 import { type Request, type Response, type NextFunction } from 'express';
 import { AppError, ValidationError } from '../errors/app-errors';
+import { logger } from '../lib/logger';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(
-  err: Error,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-): void {
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
+  const errorId = randomUUID();
+
   // If it's our custom AppError, we have structured data
   if (err instanceof AppError) {
-    // Log based on severity
-    if (err.statusCode >= 500) {
-      console.error(`[SERVER ERROR] ${err.code}: ${err.message}`, err.stack);
-    } else {
-      console.warn(`[CLIENT ERROR] ${err.code}: ${err.message}`);
-    }
+    const logLevel = err.isOperational ? 'warn' : 'error';
+    logger[logLevel]('[SERVER ERROR]', {
+      errorId,
+      code: err.code,
+      message: err.message,
+      stack: err.stack,
+      requestId: req.requestId,
+      correlationId: req.correlationId,
+      isOperational: err.isOperational,
+    });
 
     const errorResponse: { code: string; message: string; details?: unknown } = {
       code: err.code,
@@ -40,16 +43,20 @@ export function errorHandler(
   }
 
   // Handle generic / unexpected errors
-  console.error('[UNHANDLED ERROR]', err);
+  logger.error('[UNHANDLED ERROR]', {
+    errorId,
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    requestId: req.requestId,
+    correlationId: req.correlationId,
+  });
 
   res.status(500).json({
     success: false,
     error: {
       code: 'INTERNAL_SERVER_ERROR',
-      message:
-        process.env.NODE_ENV === 'production'
-          ? 'An unexpected error occurred'
-          : err.message,
+      message: 'An unexpected error occurred',
     },
   });
 }

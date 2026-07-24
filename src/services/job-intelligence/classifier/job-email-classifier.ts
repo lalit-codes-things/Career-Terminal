@@ -2,14 +2,8 @@
  * Job Email Classifier — hybrid rules-first classifier with optional ML fallback.
  */
 import type { JobEmailMlModel } from './ml-model.interface';
-import {
-  ruleBasedJobEmailClassifier,
-  RuleBasedJobEmailClassifier,
-} from './rule-based-classifier';
-import type {
-  ClassifiableEmail,
-  JobEmailClassification,
-} from '../models/job-intelligence.types';
+import { ruleBasedJobEmailClassifier, RuleBasedJobEmailClassifier } from './rule-based-classifier';
+import type { ClassifiableEmail, JobEmailClassification } from '../models/job-intelligence.types';
 
 export interface JobEmailClassifierOptions {
   /** Optional ML model invoked when rule confidence is below the threshold. */
@@ -29,10 +23,8 @@ export class JobEmailClassifier {
 
   constructor(options: JobEmailClassifierOptions = {}) {
     this.mlModel = options.mlModel;
-    this.mlConfidenceThreshold =
-      options.mlConfidenceThreshold ?? DEFAULT_ML_THRESHOLD;
-    this.ruleClassifier =
-      options.ruleClassifier ?? ruleBasedJobEmailClassifier;
+    this.mlConfidenceThreshold = options.mlConfidenceThreshold ?? DEFAULT_ML_THRESHOLD;
+    this.ruleClassifier = options.ruleClassifier ?? ruleBasedJobEmailClassifier;
   }
 
   /** Synchronous rules-only classification. */
@@ -53,15 +45,10 @@ export class JobEmailClassifier {
    * Hybrid classification: rules first, ML fallback when confidence is low.
    * When no ML model is configured, behaves like classify().
    */
-  async classifyAsync(
-    email: ClassifiableEmail
-  ): Promise<JobEmailClassification> {
+  async classifyAsync(email: ClassifiableEmail): Promise<JobEmailClassification> {
     const ruleResult = this.classify(email);
 
-    if (
-      !this.mlModel ||
-      ruleResult.confidence >= this.mlConfidenceThreshold
-    ) {
+    if (!this.mlModel || ruleResult.confidence >= this.mlConfidenceThreshold) {
       return ruleResult;
     }
 

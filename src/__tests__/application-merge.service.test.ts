@@ -69,7 +69,11 @@ describe('ApplicationMergeService', () => {
       createMockApp({ companyDomain: 'other.com', companyName: 'Other Corp' }),
     ]);
 
-    const result = await applicationMergeService.findMatch(userId, mockIncomingData, mockSourceEmail);
+    const result = await applicationMergeService.findMatch(
+      userId,
+      mockIncomingData,
+      mockSourceEmail,
+    );
     expect(result.confidenceScore).toBe(0);
     expect(result.targetApplication).toBeNull();
     expect(result.reasons).toContain('Strict Reject: Different companies');
@@ -83,9 +87,9 @@ describe('ApplicationMergeService', () => {
       userId,
       mockIncomingData,
       mockSourceEmail,
-      'candidate@example.com'
+      'candidate@example.com',
     );
-    
+
     // Exact role (+50), Candidate email (+20), Thread ID (+30), Recruiter (+20), Date (+15)
     expect(result.confidenceScore).toBe(100); // capped at 100
     expect(result.targetApplication?.id).toBe(existingApp.id);
@@ -95,25 +99,32 @@ describe('ApplicationMergeService', () => {
     const existingApp = createMockApp({ roleTitle: 'Marketing Manager' });
     (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue([existingApp]);
 
-    const result = await applicationMergeService.findMatch(userId, mockIncomingData, mockSourceEmail);
-    
+    const result = await applicationMergeService.findMatch(
+      userId,
+      mockIncomingData,
+      mockSourceEmail,
+    );
+
     expect(result.confidenceScore).toBe(0);
     expect(result.targetApplication).toBeNull();
     expect(result.reasons).toContain('Strict Reject: Different roles without ATS ID override');
   });
 
   it('should merge same company, different role IF exact ATS ID matches', async () => {
-    const existingApp = createMockApp({ roleTitle: 'Marketing Manager', atsApplicationId: 'ats-999' });
+    const existingApp = createMockApp({
+      roleTitle: 'Marketing Manager',
+      atsApplicationId: 'ats-999',
+    });
     (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue([existingApp]);
 
     const result = await applicationMergeService.findMatch(
-      userId, 
-      mockIncomingData, 
-      mockSourceEmail, 
-      undefined, 
-      'ats-999'
+      userId,
+      mockIncomingData,
+      mockSourceEmail,
+      undefined,
+      'ats-999',
     );
-    
+
     // ATS ID match (+100)
     expect(result.confidenceScore).toBe(100);
     expect(result.targetApplication?.id).toBe(existingApp.id);
@@ -121,17 +132,21 @@ describe('ApplicationMergeService', () => {
 
   it('should create new (not merge) for low confidence match', async () => {
     // Same company, fuzzy role match but no thread, different recruiter, long time ago
-    const existingApp = createMockApp({ 
+    const existingApp = createMockApp({
       roleTitle: 'Senior Software Engineer', // fuzzy role (+30)
-      threadIds: [], 
+      threadIds: [],
       recruiterEmail: 'someone-else@acme.com',
-      appliedDate: new Date('2025-01-01') // not close date
+      appliedDate: new Date('2025-01-01'), // not close date
     });
-    
+
     (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue([existingApp]);
 
-    const result = await applicationMergeService.findMatch(userId, mockIncomingData, mockSourceEmail);
-    
+    const result = await applicationMergeService.findMatch(
+      userId,
+      mockIncomingData,
+      mockSourceEmail,
+    );
+
     // Confidence = fuzzy role (30). Total = 30 < 80.
     expect(result.confidenceScore).toBe(30);
     expect(result.targetApplication).toBeNull(); // Do not merge

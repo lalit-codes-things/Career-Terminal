@@ -1,8 +1,10 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
+import { DomainValidationError } from '../../errors/domain-errors';
+import { ApplicationStatus, normalizeApplicationStatus } from '../../domain/application-status';
+import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 import { applicationTimelineService } from '../application-timeline';
-import { JobApplicationStatus } from '../job-application';
 import { JobEmailCategory, type JobEmailClassification } from '../job-intelligence';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -12,8 +14,8 @@ export type ApplicationStatusSource = 'EMAIL' | 'MANUAL';
 export interface ApplicationStatusHistoryRecord {
   readonly id: string;
   readonly applicationId: string;
-  readonly previousStatus: string | null;
-  readonly status: string;
+  readonly previousStatus: ApplicationStatus | null;
+  readonly status: ApplicationStatus;
   readonly source: string;
   readonly sourceEmailId: string | null;
   readonly changedByUserId: string | null;
@@ -30,13 +32,14 @@ export interface StatusChangeInput {
   readonly source: ApplicationStatusSource;
   readonly sourceEmailId?: string | null;
   readonly changedByUserId?: string | null;
+  readonly userId?: string | null;
   readonly metadata?: Prisma.InputJsonValue | null;
 }
 
 export interface StatusChangeResult {
   readonly application: {
     readonly id: string;
-    readonly status: string;
+    readonly status: ApplicationStatus;
     readonly currentStage: string | null;
     readonly updatedAt: Date;
   };
@@ -55,8 +58,8 @@ export interface StatusChangeResult {
 export interface StatusHistoryItem {
   readonly id: string;
   readonly applicationId: string;
-  readonly previousStatus: string | null;
-  readonly status: string;
+  readonly previousStatus: ApplicationStatus | null;
+  readonly status: ApplicationStatus;
   readonly source: string;
   readonly sourceEmailId: string | null;
   readonly changedByUserId: string | null;
@@ -76,10 +79,13 @@ export class StatusEngine {
       subject?: string;
     },
     db: DbClient = prisma,
+    userId?: string,
   ): Promise<StatusChangeResult> {
     const status = this.resolveStatusFromEmail(classification);
     if (!status) {
-      throw new Error(`Unsupported email classification for status updates: ${classification.category}`);
+      throw new DomainValidationError(
+        `Unsupported email classification for status updates: ${classification.category}`,
+      );
     }
 
     return this.recordStatusChange(
@@ -89,6 +95,7 @@ export class StatusEngine {
         timestamp: email.receivedAt ?? new Date(),
         source: 'EMAIL',
         sourceEmailId: email.emailId,
+        userId,
         metadata: {
           classification: {
             emailId: classification.emailId,
@@ -109,6 +116,7 @@ export class StatusEngine {
     status: string,
     changedByUserId: string,
     db: DbClient = prisma,
+    userId?: string,
   ): Promise<StatusChangeResult> {
     return this.recordStatusChange(
       {
@@ -117,6 +125,7 @@ export class StatusEngine {
         timestamp: new Date(),
         source: 'MANUAL',
         changedByUserId,
+        userId,
         metadata: {
           manualOverride: true,
         },
@@ -128,9 +137,14 @@ export class StatusEngine {
   public async getStatusHistory(
     applicationId: string,
     db: DbClient = prisma,
+    userId?: string,
+    pagination?: PaginationInput,
   ): Promise<readonly StatusHistoryItem[]> {
-    const application = await db.jobApplication.findUnique({
-      where: { id: applicationId },
+    const application = await db.jobApplication.findFirst({
+      where: {
+        id: applicationId,
+        ...(userId ? { userId } : {}),
+      },
       select: { id: true },
     });
 
@@ -138,31 +152,34 @@ export class StatusEngine {
       throw new NotFoundError('Application', applicationId);
     }
 
+    const paging = resolvePagination(pagination);
+
     const entries = await db.applicationStatusHistory.findMany({
       where: { applicationId },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
     });
 
     return entries.map((entry) => this.mapHistory(entry));
   }
 
-  public resolveStatusFromEmail(classification: JobEmailClassification): JobApplicationStatus | null {
+  public resolveStatusFromEmail(classification: JobEmailClassification): ApplicationStatus | null {
     switch (classification.category) {
       case JobEmailCategory.JOB_APPLICATION:
-        return JobApplicationStatus.APPLIED;
+        return ApplicationStatus.APPLIED;
       case JobEmailCategory.RECRUITER_OUTREACH:
       case JobEmailCategory.NETWORKING:
       case JobEmailCategory.CAREER_NEWSLETTER:
       case JobEmailCategory.NOT_JOB_RELATED:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
       case JobEmailCategory.ASSESSMENT_TEST:
-        return JobApplicationStatus.ASSESSMENT;
+        return ApplicationStatus.ASSESSMENT;
       case JobEmailCategory.INTERVIEW_INVITATION:
-        return JobApplicationStatus.INTERVIEW;
+        return ApplicationStatus.INTERVIEW;
       case JobEmailCategory.OFFER:
-        return JobApplicationStatus.OFFER;
+        return ApplicationStatus.OFFER;
       case JobEmailCategory.REJECTION:
-        return JobApplicationStatus.REJECTED;
+        return ApplicationStatus.REJECTED;
       default:
         return null;
     }
@@ -174,17 +191,31 @@ export class StatusEngine {
   ): Promise<StatusChangeResult> {
     const normalizedStatus = this.normalizeStatus(input.status);
     if (!normalizedStatus) {
-      throw new Error(`Unsupported application status: ${input.status}`);
+      throw new DomainValidationError(`Unsupported application status: ${input.status}`);
     }
 
-    const application = await db.jobApplication.findUnique({
-      where: { id: input.applicationId },
-      select: {
-        id: true,
-        status: true,
-        currentStage: true,
-      },
-    });
+    const application = input.userId
+      ? await db.jobApplication.findFirst({
+          where: {
+            id: input.applicationId,
+            userId: input.userId,
+          },
+          select: {
+            id: true,
+            status: true,
+            currentStage: true,
+            userId: true,
+          },
+        })
+      : await db.jobApplication.findUnique({
+          where: { id: input.applicationId },
+          select: {
+            id: true,
+            status: true,
+            currentStage: true,
+            userId: true,
+          },
+        });
 
     if (!application) {
       throw new NotFoundError('Application', input.applicationId);
@@ -229,17 +260,15 @@ export class StatusEngine {
       application.currentStage !== nextStage ||
       this.isManualSource(input.source);
 
-    let timelineEvent:
-      | {
-          id: string;
-          applicationId: string;
-          eventType: string;
-          timestamp: Date;
-          sourceEmailId: string | null;
-          metadata: Prisma.JsonValue | null;
-          description: string | null;
-        }
-      | null = null;
+    let timelineEvent: {
+      id: string;
+      applicationId: string;
+      eventType: string;
+      timestamp: Date;
+      sourceEmailId: string | null;
+      metadata: Prisma.JsonValue | null;
+      description: string | null;
+    } | null = null;
 
     if (shouldUpdateApplication) {
       const updatedApp = await db.jobApplication.update({
@@ -291,28 +320,11 @@ export class StatusEngine {
     };
   }
 
-  private normalizeStatus(status: string): JobApplicationStatus | null {
-    const normalized = status.toUpperCase().trim() as JobApplicationStatus;
-    switch (normalized) {
-      case JobApplicationStatus.SAVED:
-      case JobApplicationStatus.APPLIED:
-      case JobApplicationStatus.SCREENING:
-      case JobApplicationStatus.ASSESSMENT:
-      case JobApplicationStatus.INTERVIEW:
-      case JobApplicationStatus.OFFER:
-      case JobApplicationStatus.REJECTED:
-      case JobApplicationStatus.WITHDRAWN:
-        return normalized;
-      default:
-        return null;
-    }
-  }
-
   private applyTransition(
-    currentStatus: JobApplicationStatus,
+    currentStatus: ApplicationStatus,
     nextStatusRaw: string,
     source: string,
-  ): JobApplicationStatus {
+  ): ApplicationStatus {
     const nextStatus = this.normalizeStatus(nextStatusRaw);
     if (!nextStatus) {
       return currentStatus;
@@ -341,26 +353,26 @@ export class StatusEngine {
     return currentStatus;
   }
 
-  private isTerminalStatus(status: JobApplicationStatus): boolean {
-    return status === JobApplicationStatus.REJECTED || status === JobApplicationStatus.WITHDRAWN;
+  private isTerminalStatus(status: ApplicationStatus): boolean {
+    return status === ApplicationStatus.REJECTED || status === ApplicationStatus.WITHDRAWN;
   }
 
-  private statusRank(status: JobApplicationStatus): number {
+  private statusRank(status: ApplicationStatus): number {
     switch (status) {
-      case JobApplicationStatus.SAVED:
+      case ApplicationStatus.SAVED:
         return 0;
-      case JobApplicationStatus.APPLIED:
+      case ApplicationStatus.APPLIED:
         return 1;
-      case JobApplicationStatus.SCREENING:
+      case ApplicationStatus.SCREENING:
         return 2;
-      case JobApplicationStatus.ASSESSMENT:
+      case ApplicationStatus.ASSESSMENT:
         return 3;
-      case JobApplicationStatus.INTERVIEW:
+      case ApplicationStatus.INTERVIEW:
         return 4;
-      case JobApplicationStatus.OFFER:
+      case ApplicationStatus.OFFER:
         return 5;
-      case JobApplicationStatus.REJECTED:
-      case JobApplicationStatus.WITHDRAWN:
+      case ApplicationStatus.REJECTED:
+      case ApplicationStatus.WITHDRAWN:
         return 6;
       default:
         return 0;
@@ -368,22 +380,22 @@ export class StatusEngine {
   }
 
   private mapStatusToStage(status: string): string {
-    switch (status.toUpperCase().trim() as JobApplicationStatus) {
-      case JobApplicationStatus.SAVED:
+    switch (normalizeApplicationStatus(status)) {
+      case ApplicationStatus.SAVED:
         return 'Saved';
-      case JobApplicationStatus.APPLIED:
+      case ApplicationStatus.APPLIED:
         return 'Applied';
-      case JobApplicationStatus.SCREENING:
+      case ApplicationStatus.SCREENING:
         return 'Screening';
-      case JobApplicationStatus.ASSESSMENT:
+      case ApplicationStatus.ASSESSMENT:
         return 'Assessment';
-      case JobApplicationStatus.INTERVIEW:
+      case ApplicationStatus.INTERVIEW:
         return 'Interview';
-      case JobApplicationStatus.OFFER:
+      case ApplicationStatus.OFFER:
         return 'Offer';
-      case JobApplicationStatus.REJECTED:
+      case ApplicationStatus.REJECTED:
         return 'Rejected';
-      case JobApplicationStatus.WITHDRAWN:
+      case ApplicationStatus.WITHDRAWN:
         return 'Withdrawn';
       default:
         return status;
@@ -397,8 +409,8 @@ export class StatusEngine {
   private mapHistory(entry: {
     id: string;
     applicationId: string;
-    previousStatus: string | null;
-    status: string;
+    previousStatus: ApplicationStatus | null;
+    status: ApplicationStatus;
     source: string;
     sourceEmailId: string | null;
     changedByUserId: string | null;
@@ -410,8 +422,10 @@ export class StatusEngine {
     return {
       id: entry.id,
       applicationId: entry.applicationId,
-      previousStatus: entry.previousStatus,
-      status: entry.status,
+      previousStatus: entry.previousStatus
+        ? normalizeApplicationStatus(entry.previousStatus)
+        : null,
+      status: normalizeApplicationStatus(entry.status) ?? ApplicationStatus.SAVED,
       source: entry.source,
       sourceEmailId: entry.sourceEmailId,
       changedByUserId: entry.changedByUserId,
@@ -420,6 +434,10 @@ export class StatusEngine {
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
     };
+  }
+
+  private normalizeStatus(status: string): ApplicationStatus | null {
+    return normalizeApplicationStatus(status);
   }
 
   private mapTimelineEvent(entry: {

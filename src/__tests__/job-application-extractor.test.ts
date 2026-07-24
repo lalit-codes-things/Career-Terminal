@@ -1,12 +1,16 @@
 import { JobApplicationExtractor, JobApplicationStatus } from '../services/job-intelligence';
-import { JobEmailCategory, type ClassifiableEmail } from '../services/job-intelligence/models/job-intelligence.types';
+import {
+  JobEmailCategory,
+  type ClassifiableEmail,
+} from '../services/job-intelligence/models/job-intelligence.types';
 
 function makeEmail(overrides: Partial<ClassifiableEmail> = {}): ClassifiableEmail {
   return {
     emailId: 'email-1',
     sender: 'recruiting@stripe.com',
     subject: 'Application received for Senior Backend Engineer',
-    bodyText: 'Hi Maya Chen, thanks for applying to Stripe. We are reviewing your application for the Engineering team in New York. Please complete your assessment by March 15, 2026.',
+    bodyText:
+      'Hi Maya Chen, thanks for applying to Stripe. We are reviewing your application for the Engineering team in New York. Please complete your assessment by March 15, 2026.',
     ...overrides,
   };
 }
@@ -15,17 +19,13 @@ describe('JobApplicationExtractor', () => {
   it('extracts structured application fields from a job-related email', () => {
     const extractor = new JobApplicationExtractor();
 
-    const application = extractor.extract(
-      makeEmail(),
-      'user-1',
-      {
-        emailId: 'email-1',
-        category: JobEmailCategory.JOB_APPLICATION,
-        confidence: 0.95,
-        detectedCompany: 'Stripe',
-        detectedRole: 'Senior Backend Engineer',
-      },
-    );
+    const application = extractor.extract(makeEmail(), 'user-1', {
+      emailId: 'email-1',
+      category: JobEmailCategory.JOB_APPLICATION,
+      confidence: 0.95,
+      detectedCompany: 'Stripe',
+      detectedRole: 'Senior Backend Engineer',
+    });
 
     expect(application.company.name).toBe('Stripe');
     expect(application.company.domain).toBe('stripe.com');
@@ -44,7 +44,8 @@ describe('JobApplicationExtractor', () => {
     const application = extractor.extract(
       makeEmail({
         subject: 'Interview round 2 scheduled',
-        bodyText: 'We would like to invite you to your second round interview next week in Seattle.',
+        bodyText:
+          'We would like to invite you to your second round interview next week in Seattle.',
         sender: 'maya@stripe.com',
       }),
       'user-2',

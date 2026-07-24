@@ -44,15 +44,24 @@ describe('Recruiters routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/recruiters?company=Stripe').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/recruiters?company=Stripe')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedRecruiterService.listRecruiters).toHaveBeenCalledWith('user-1', {
-      company: 'Stripe',
-      name: undefined,
-    });
+    expect(mockedRecruiterService.listRecruiters).toHaveBeenCalledWith(
+      'user-1',
+      {
+        company: 'Stripe',
+        name: undefined,
+      },
+      {
+        page: undefined,
+        pageSize: undefined,
+      },
+    );
   });
 
   it('returns recruiter details', async () => {
@@ -101,7 +110,9 @@ describe('Recruiters routes', () => {
       linkedEmailConversations: [],
     });
 
-    const response = await request(app).get('/recruiters/rec-1/insights').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/recruiters/rec-1/insights')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);

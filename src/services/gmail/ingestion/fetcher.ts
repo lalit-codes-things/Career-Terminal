@@ -7,6 +7,7 @@
  */
 import { GmailClient } from '../client/gmail-client';
 import type { GmailMessage, GmailMessageRef } from '../models/gmail.types';
+import { logger } from '../../../lib/logger';
 
 export class RawEmailFetcher {
   private client: GmailClient;
@@ -32,18 +33,21 @@ export class RawEmailFetcher {
     // Process in chunks
     for (let i = 0; i < messageRefs.length; i += batchSize) {
       const batch = messageRefs.slice(i, i + batchSize);
-      
+
       // Fetch batch concurrently
       const promises = batch.map((ref) =>
         this.client.getMessage(ref.id).catch((err) => {
           // If a single message fails, log it but don't crash the whole batch
-          console.warn(`[Fetcher] Failed to fetch message ${ref.id}:`, err.message);
+          logger.warn('[Fetcher] Failed to fetch message', {
+            messageId: ref.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
           return null;
         }),
       );
 
       const batchResults = await Promise.all(promises);
-      
+
       // Filter out failures
       for (const msg of batchResults) {
         if (msg) results.push(msg);

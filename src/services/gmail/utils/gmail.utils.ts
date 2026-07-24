@@ -4,7 +4,11 @@
  * These helpers extract structured data from the raw Gmail API
  * message format (nested parts, base64 bodies, headers as arrays).
  */
-import type { EmailRecipients, GmailMessagePart, GmailMessagePartHeader } from '../models/gmail.types';
+import type {
+  EmailRecipients,
+  GmailMessagePart,
+  GmailMessagePartHeader,
+} from '../models/gmail.types';
 
 /**
  * Extracts a specific header value from a Gmail message's headers array.
@@ -13,14 +17,9 @@ import type { EmailRecipients, GmailMessagePart, GmailMessagePartHeader } from '
  * @param name - The header name (case-insensitive)
  * @returns The header value, or empty string if not found
  */
-export function getHeader(
-  headers: GmailMessagePartHeader[] | undefined,
-  name: string,
-): string {
+export function getHeader(headers: GmailMessagePartHeader[] | undefined, name: string): string {
   if (!headers) return '';
-  const header = headers.find(
-    (h) => h.name?.toLowerCase() === name.toLowerCase(),
-  );
+  const header = headers.find((h) => h.name?.toLowerCase() === name.toLowerCase());
   return header?.value ?? '';
 }
 
@@ -30,9 +29,7 @@ export function getHeader(
  * @param headers - The message headers array
  * @returns Structured recipients with to/cc/bcc arrays
  */
-export function parseRecipients(
-  headers: GmailMessagePartHeader[] | undefined,
-): EmailRecipients {
+export function parseRecipients(headers: GmailMessagePartHeader[] | undefined): EmailRecipients {
   return {
     to: parseAddressList(getHeader(headers, 'To')),
     cc: parseAddressList(getHeader(headers, 'Cc')),
@@ -62,9 +59,7 @@ export function parseAddressList(addressList: string): string[] {
  * @param payload - The message payload from the Gmail API
  * @returns Decoded plain text body, or undefined if not found
  */
-export function extractBodyText(
-  payload: GmailMessagePart | undefined,
-): string | undefined {
+export function extractBodyText(payload: GmailMessagePart | undefined): string | undefined {
   return extractBodyByMimeType(payload, 'text/plain');
 }
 
@@ -74,9 +69,7 @@ export function extractBodyText(
  * @param payload - The message payload from the Gmail API
  * @returns Decoded HTML body, or undefined if not found
  */
-export function extractBodyHtml(
-  payload: GmailMessagePart | undefined,
-): string | undefined {
+export function extractBodyHtml(payload: GmailMessagePart | undefined): string | undefined {
   return extractBodyByMimeType(payload, 'text/html');
 }
 
@@ -125,9 +118,7 @@ export function decodeBase64Url(data: string): string {
  * @param payload - The message payload
  * @returns true if the message has at least one attachment
  */
-export function hasAttachments(
-  payload: GmailMessagePart | undefined,
-): boolean {
+export function hasAttachments(payload: GmailMessagePart | undefined): boolean {
   if (!payload) return false;
 
   if (payload.filename && payload.filename.length > 0 && payload.body?.attachmentId) {

@@ -2,6 +2,8 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { companyService } from '../company';
+import { ownershipGuard } from '../ownership/ownership.guard';
+import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -127,6 +129,8 @@ export class RecruiterService {
     },
     db: DbClient = prisma,
   ): Promise<RecruiterProfile | null> {
+    await ownershipGuard.ensureApplicationAccess(input.userId, input.application.id, db);
+
     const recruiterEmail = input.recruiter.email ?? input.email.sender;
     if (!recruiterEmail) {
       return null;
@@ -140,7 +144,7 @@ export class RecruiterService {
       db,
     );
 
-    const recruiter = await db.recruiter.upsert({
+    const recruiter = (await db.recruiter.upsert({
       where: {
         unique_company_recruiter_email: {
           companyId: company.id,
@@ -151,16 +155,20 @@ export class RecruiterService {
         companyId: company.id,
         name: input.recruiter.name?.trim() || this.inferNameFromEmail(recruiterEmail),
         email: recruiterEmail,
-        title: this.normalizeTitle(input.title ?? this.inferTitle(input.email, input.application.roleTitle)),
+        title: this.normalizeTitle(
+          input.title ?? this.inferTitle(input.email, input.application.roleTitle),
+        ),
       },
       update: {
         name: input.recruiter.name?.trim() || this.inferNameFromEmail(recruiterEmail),
-        title: this.normalizeTitle(input.title ?? this.inferTitle(input.email, input.application.roleTitle)),
+        title: this.normalizeTitle(
+          input.title ?? this.inferTitle(input.email, input.application.roleTitle),
+        ),
       },
       include: {
         company: true,
       },
-    }) as RecruiterBaseRecord;
+    })) as RecruiterBaseRecord;
 
     await db.jobApplication.update({
       where: { id: input.application.id },
@@ -198,18 +206,30 @@ export class RecruiterService {
   public async listRecruiters(
     userId: string,
     filters: RecruiterListFilters = {},
+    pagination?: PaginationInput,
   ): Promise<readonly RecruiterListItem[]> {
+    const paging = resolvePagination(pagination);
     const searchConditions: Prisma.RecruiterWhereInput[] = [
-      ...(filters.name ? [{ name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } }] : []),
+      ...(filters.name
+        ? [{ name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } }]
+        : []),
       ...(filters.company
         ? [
-            { company: { is: { name: { contains: filters.company, mode: Prisma.QueryMode.insensitive } } } },
-            { company: { is: { domain: { contains: filters.company, mode: Prisma.QueryMode.insensitive } } } },
+            {
+              company: {
+                is: { name: { contains: filters.company, mode: Prisma.QueryMode.insensitive } },
+              },
+            },
+            {
+              company: {
+                is: { domain: { contains: filters.company, mode: Prisma.QueryMode.insensitive } },
+              },
+            },
           ]
         : []),
     ];
 
-    const recruiters = await prisma.recruiter.findMany({
+    const recruiters = (await prisma.recruiter.findMany({
       where: {
         ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
         applications: {
@@ -231,26 +251,27 @@ export class RecruiterService {
         },
       },
       orderBy: { updatedAt: 'desc' },
-    }) as RecruiterListQueryRecord[];
+      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+    })) as RecruiterListQueryRecord[];
 
     return recruiters.map((recruiter) => ({
       ...this.mapRecruiter(recruiter),
       applicationCount: recruiter.applications.length,
       totalEmails: recruiter.emails.length,
-      lastContactAt: recruiter.emails.length > 0
-        ? new Date(Math.max(...recruiter.emails.map((email) => email.receivedAt.getTime()))).toISOString()
-        : null,
+      lastContactAt:
+        recruiter.emails.length > 0
+          ? new Date(
+              Math.max(...recruiter.emails.map((email) => email.receivedAt.getTime())),
+            ).toISOString()
+          : null,
     }));
   }
 
   public async getRecruiter(userId: string, recruiterId: string): Promise<RecruiterInsight> {
-    const recruiter = await prisma.recruiter.findFirst({
-      where: {
-        id: recruiterId,
-        applications: {
-          some: { userId },
-        },
-      },
+    await ownershipGuard.ensureRecruiterAccess(userId, recruiterId, prisma);
+
+    const recruiter = (await prisma.recruiter.findFirst({
+      where: { id: recruiterId },
       include: {
         company: true,
         applications: {
@@ -276,7 +297,7 @@ export class RecruiterService {
           },
         },
       },
-    }) as RecruiterInsightQueryRecord | null;
+    })) as RecruiterInsightQueryRecord | null;
 
     if (!recruiter) {
       throw new NotFoundError('Recruiter', recruiterId);
@@ -328,10 +349,12 @@ export class RecruiterService {
 
     return {
       recruiter: this.mapRecruiter(recruiter),
-      firstContactAt: recruiter.emails.length > 0 ? recruiter.emails[0]!.receivedAt.toISOString() : null,
-      lastContactAt: recruiter.emails.length > 0
-        ? recruiter.emails[recruiter.emails.length - 1]!.receivedAt.toISOString()
-        : null,
+      firstContactAt:
+        recruiter.emails.length > 0 ? recruiter.emails[0]!.receivedAt.toISOString() : null,
+      lastContactAt:
+        recruiter.emails.length > 0
+          ? recruiter.emails[recruiter.emails.length - 1]!.receivedAt.toISOString()
+          : null,
       totalEmails: recruiter.emails.length,
       averageResponseTimeMinutes,
       applicationCount: recruiter.applications.length,

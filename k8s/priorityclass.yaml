@@ -1,0 +1,9 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: applywise-high-priority
+  labels:
+    app: applywise-api
+value: 100000
+globalDefault: false
+description: "High priority for ApplyWise API pods"

@@ -68,12 +68,19 @@ describe('Applications routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedService.listApplications).toHaveBeenCalledWith('user-1', {
-      status: 'APPLIED',
-      company: 'Stripe',
-      role: 'Engineer',
-      date: undefined,
-    });
+    expect(mockedService.listApplications).toHaveBeenCalledWith(
+      'user-1',
+      {
+        status: 'APPLIED',
+        company: 'Stripe',
+        role: 'Engineer',
+        date: undefined,
+      },
+      {
+        page: undefined,
+        pageSize: undefined,
+      },
+    );
   });
 
   it('returns application details with email history and timeline', async () => {
@@ -89,7 +96,14 @@ describe('Applications routes', () => {
         sourceEmailId: 'email-1',
       },
       emailHistory: [{ id: 'email-1', subject: 'Application received' }],
-      timeline: [{ id: 'evt-1', eventType: 'STATUS_CHANGED', description: 'Application saved', timestamp: '2026-01-01T00:00:00.000Z' }],
+      timeline: [
+        {
+          id: 'evt-1',
+          eventType: 'STATUS_CHANGED',
+          description: 'Application saved',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      ],
     });
 
     const response = await request(app).get('/applications/app-1').set('x-user-id', 'user-1');
@@ -123,12 +137,17 @@ describe('Applications routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/applications/app-1/timeline').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/applications/app-1/timeline')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(2);
-    expect(mockedService.getApplicationTimeline).toHaveBeenCalledWith('app-1');
+    expect(mockedService.getApplicationTimeline).toHaveBeenCalledWith('user-1', 'app-1', {
+      page: undefined,
+      pageSize: undefined,
+    });
   });
 
   it('returns status history for an application', async () => {
@@ -148,12 +167,17 @@ describe('Applications routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/applications/app-1/status-history').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/applications/app-1/status-history')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedService.getApplicationStatusHistory).toHaveBeenCalledWith('app-1');
+    expect(mockedService.getApplicationStatusHistory).toHaveBeenCalledWith('user-1', 'app-1', {
+      page: undefined,
+      pageSize: undefined,
+    });
   });
 
   it('updates application status and creates a timeline event', async () => {
@@ -185,7 +209,12 @@ describe('Applications routes', () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.application.status).toBe('INTERVIEW');
     expect(response.body.data.timelineEvent.description).toContain('INTERVIEW');
-    expect(mockedService.updateApplicationStatus).toHaveBeenCalledWith('app-1', 'INTERVIEW', 'user-1');
+    expect(mockedService.updateApplicationStatus).toHaveBeenCalledWith(
+      'user-1',
+      'app-1',
+      'INTERVIEW',
+      'user-1',
+    );
   });
 
   it('patches a timeline event', async () => {
@@ -207,7 +236,7 @@ describe('Applications routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.id).toBe('evt-2');
-    expect(mockedService.updateTimelineEvent).toHaveBeenCalledWith('evt-2', {
+    expect(mockedService.updateTimelineEvent).toHaveBeenCalledWith('user-1', 'evt-2', {
       eventType: undefined,
       timestamp: undefined,
       sourceEmailId: undefined,
@@ -235,12 +264,17 @@ describe('Applications routes', () => {
       linkedEmailConversations: [],
     });
 
-    const response = await request(app).get('/applications/app-1/recruiter').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get('/applications/app-1/recruiter')
+      .set('x-user-id', 'user-1');
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.recruiter.id).toBe('rec-1');
-    expect(mockedRecruiterService.getRecruiterByApplication).toHaveBeenCalledWith('user-1', 'app-1');
+    expect(mockedRecruiterService.getRecruiterByApplication).toHaveBeenCalledWith(
+      'user-1',
+      'app-1',
+    );
   });
 
   it('rejects invalid statuses', async () => {

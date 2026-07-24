@@ -23,7 +23,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'noreply@greenhouse.io',
         subject: 'Application received — Software Engineer',
         bodyText: 'Thank you for applying. We received your application.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.JOB_APPLICATION);
@@ -37,7 +37,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'recruiting@stripe.com',
         subject: 'Interview scheduled for Senior Backend Engineer',
         bodyText: 'We would like to invite you to interview for the next round.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.INTERVIEW_INVITATION);
@@ -51,7 +51,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         subject: 'Update on your application',
         bodyText:
           'Unfortunately, we have decided to pursue other candidates and will not be moving forward.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.REJECTION);
@@ -64,7 +64,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'hr@company.com',
         subject: 'Offer letter — Product Manager',
         bodyText: 'We are pleased to offer you the position with a compensation package.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.OFFER);
@@ -78,7 +78,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         subject: 'Exciting opportunity at Fintech Co',
         bodyText:
           'I am a recruiter reaching out regarding an open role that could be a great fit for you.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.RECRUITER_OUTREACH);
@@ -91,7 +91,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'notifications@hackerrank.com',
         subject: 'Complete your coding challenge',
         bodyText: 'Please complete the assessment within 48 hours.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.ASSESSMENT_TEST);
@@ -104,7 +104,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'alex@startup.io',
         subject: 'Coffee chat?',
         bodyText: 'Would love to connect on LinkedIn and schedule a networking chat.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.NETWORKING);
@@ -117,7 +117,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'jobs@newsletter.com',
         subject: 'Weekly digest: top jobs for you',
         bodyText: 'Career tips and job alerts. Click unsubscribe to opt out.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.CAREER_NEWSLETTER);
@@ -130,7 +130,7 @@ describe('RuleBasedJobEmailClassifier', () => {
         sender: 'friend@gmail.com',
         subject: 'Weekend plans',
         bodyText: 'Want to grab dinner on Saturday?',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.NOT_JOB_RELATED);
@@ -146,7 +146,7 @@ describe('JobEmailClassifier entity extraction', () => {
         sender: 'recruiting@stripe.com',
         subject: 'Interview scheduled',
         bodyText: 'We invite you to interview for the next round.',
-      })
+      }),
     );
 
     expect(result.detectedCompany).toBe('Stripe');
@@ -159,7 +159,7 @@ describe('JobEmailClassifier entity extraction', () => {
         sender: 'noreply@greenhouse.io',
         subject: 'Application received for Senior Backend Engineer',
         bodyText: 'Thank you for applying. We received your application.',
-      })
+      }),
     );
 
     expect(result.detectedRole).toBe('Senior Backend Engineer');
@@ -172,7 +172,7 @@ describe('JobEmailClassifier entity extraction', () => {
         bodyHtml: '<p>Your <strong>application received</strong> confirmation.</p>',
         sender: 'noreply@lever.co',
         subject: 'Application update',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.JOB_APPLICATION);
@@ -201,7 +201,7 @@ describe('JobEmailClassifier ML fallback', () => {
         sender: 'noreply@greenhouse.io',
         subject: 'Offer letter',
         bodyText: 'We are pleased to offer you the job offer and compensation package.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.OFFER);
@@ -229,7 +229,7 @@ describe('JobEmailClassifier ML fallback', () => {
         sender: 'friend@gmail.com',
         subject: 'Quick question',
         bodyText: 'Can you review my resume draft?',
-      })
+      }),
     );
 
     expect(mlModel.classify).toHaveBeenCalled();
@@ -258,7 +258,7 @@ describe('JobEmailClassifier ML fallback', () => {
         sender: 'noreply@workday.com',
         subject: 'Rejected',
         bodyText: 'Unfortunately we are not moving forward with your application.',
-      })
+      }),
     );
 
     expect(result.category).toBe(JobEmailCategory.REJECTION);

@@ -29,11 +29,15 @@ export class ResumeMatcherService {
    */
   public async parseResume(text: string): Promise<ParsedResume> {
     const lowerText = text.toLowerCase();
-    
+
     // Mock extraction
-    const skills = ['javascript', 'typescript', 'react', 'node.js', 'sql'].filter(s => lowerText.includes(s));
-    const technologies = ['aws', 'docker', 'kubernetes', 'git'].filter(s => lowerText.includes(s));
-    
+    const skills = ['javascript', 'typescript', 'react', 'node.js', 'sql'].filter((s) =>
+      lowerText.includes(s),
+    );
+    const technologies = ['aws', 'docker', 'kubernetes', 'git'].filter((s) =>
+      lowerText.includes(s),
+    );
+
     // Mock experience parsing
     const experience = [];
     if (lowerText.includes('senior')) {
@@ -47,7 +51,7 @@ export class ResumeMatcherService {
       technologies,
       experience,
       education: ['B.S. Computer Science'],
-      keywords: [...skills, ...technologies]
+      keywords: [...skills, ...technologies],
     };
   }
 
@@ -56,10 +60,12 @@ export class ResumeMatcherService {
    */
   public async parseJobDescription(text: string): Promise<ParsedJob> {
     const lowerText = text.toLowerCase();
-    
-    const skills = ['javascript', 'typescript', 'react', 'python', 'graphql'].filter(s => lowerText.includes(s));
-    const technologies = ['aws', 'docker', 'ci/cd'].filter(s => lowerText.includes(s));
-    
+
+    const skills = ['javascript', 'typescript', 'react', 'python', 'graphql'].filter((s) =>
+      lowerText.includes(s),
+    );
+    const technologies = ['aws', 'docker', 'ci/cd'].filter((s) => lowerText.includes(s));
+
     const minExperience = lowerText.includes('senior') ? 5 : 2;
 
     return {
@@ -67,7 +73,7 @@ export class ResumeMatcherService {
       skills,
       technologies,
       minExperience,
-      keywords: [...skills, ...technologies]
+      keywords: [...skills, ...technologies],
     };
   }
 
@@ -88,18 +94,16 @@ export class ResumeMatcherService {
         const score = await this.semanticMatcher.scoreSimilarity(reqSkill, resSkill);
         if (score > bestMatch) bestMatch = score;
       }
-      
+
       skillScoreSum += bestMatch;
-      
+
       // If no resume skill is > 0.7 similar, it's missing
       if (bestMatch < 0.7) {
         missingSkills.push(reqSkill);
       }
     }
 
-    const skillMatch = parsedJob.skills.length > 0 
-      ? skillScoreSum / parsedJob.skills.length 
-      : 1.0;
+    const skillMatch = parsedJob.skills.length > 0 ? skillScoreSum / parsedJob.skills.length : 1.0;
 
     // Semantic matching for technologies
     let techScoreSum = 0;
@@ -113,25 +117,25 @@ export class ResumeMatcherService {
       if (bestMatch < 0.7) missingSkills.push(reqTech);
     }
 
-    const techMatch = parsedJob.technologies.length > 0
-      ? techScoreSum / parsedJob.technologies.length
-      : 1.0;
+    const techMatch =
+      parsedJob.technologies.length > 0 ? techScoreSum / parsedJob.technologies.length : 1.0;
 
     // Experience matching
     const totalExpYears = parsedResume.experience.reduce((sum, exp) => sum + exp.years, 0);
-    let experienceMatch = parsedJob.minExperience > 0 
-      ? Math.min(totalExpYears / parsedJob.minExperience, 1.0)
-      : 1.0;
+    let experienceMatch =
+      parsedJob.minExperience > 0 ? Math.min(totalExpYears / parsedJob.minExperience, 1.0) : 1.0;
 
     // Combined overall score (Weighted: 40% skills, 30% tech, 30% experience)
-    const overallScore = (skillMatch * 0.4) + (techMatch * 0.3) + (experienceMatch * 0.3);
+    const overallScore = skillMatch * 0.4 + techMatch * 0.3 + experienceMatch * 0.3;
 
     const improvementSuggestions = [];
     if (missingSkills.length > 0) {
       improvementSuggestions.push(`Consider adding experience with: ${missingSkills.join(', ')}`);
     }
     if (experienceMatch < 1.0) {
-      improvementSuggestions.push(`Highlight more relevant experience to meet the ${parsedJob.minExperience} year requirement.`);
+      improvementSuggestions.push(
+        `Highlight more relevant experience to meet the ${parsedJob.minExperience} year requirement.`,
+      );
     }
 
     return {
@@ -139,7 +143,7 @@ export class ResumeMatcherService {
       skillMatch: Number(skillMatch.toFixed(2)),
       experienceMatch: Number(experienceMatch.toFixed(2)),
       missingSkills,
-      improvementSuggestions
+      improvementSuggestions,
     };
   }
 }

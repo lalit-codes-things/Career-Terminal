@@ -11,10 +11,10 @@ jest.mock('../config/database', () => ({
     userEmailConnection: { findFirst: jest.fn(), update: jest.fn() },
     emailMessage: { findUnique: jest.fn(), upsert: jest.fn() },
     gmailSyncState: { findUnique: jest.fn(), upsert: jest.fn() },
-  }
+  },
 }));
 jest.mock('../services/gmail/auth/gmail-oauth.service', () => ({
-  gmailOAuthService: { getValidAccessToken: jest.fn() }
+  gmailOAuthService: { getValidAccessToken: jest.fn() },
 }));
 
 const mockClient = GmailClient.prototype as unknown as {
@@ -104,7 +104,7 @@ describe('GmailIngestionService', () => {
       expect(mockPrisma.gmailSyncState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({ historyId: 'start-hist-1' }),
-        })
+        }),
       );
     });
   });
@@ -119,7 +119,7 @@ describe('GmailIngestionService', () => {
       // Mock history fetch
       mockClient.getHistory.mockResolvedValue({
         historyId: 'new-hist-2',
-        messagesAdded: [{ message: { id: 'msg-new', threadId: 't-1' } }]
+        messagesAdded: [{ message: { id: 'msg-new', threadId: 't-1' } }],
       });
 
       // Mock getMessage
@@ -139,13 +139,13 @@ describe('GmailIngestionService', () => {
 
       expect(mockClient.getHistory).toHaveBeenCalledWith({
         startHistoryId: 'old-hist-1',
-        pageToken: undefined
+        pageToken: undefined,
       });
       expect(mockPrisma.emailMessage.upsert).toHaveBeenCalledTimes(1);
       expect(mockPrisma.gmailSyncState.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({ historyId: 'new-hist-2' }),
-        })
+        }),
       );
     });
 

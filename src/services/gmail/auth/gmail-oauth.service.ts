@@ -36,8 +36,22 @@ export class GmailOAuthService {
   private readonly oauth2Client: {
     generateAuthUrl: (options: Record<string, unknown>) => string;
     setCredentials: (credentials: Record<string, unknown>) => void;
-    getToken: (code: string) => Promise<{ tokens: { access_token?: string; refresh_token?: string; expiry_date?: number; scope?: string } }>;
-    refreshAccessToken: () => Promise<{ credentials: { access_token?: string; refresh_token?: string; expiry_date?: number; scope?: string } }>;
+    getToken: (code: string) => Promise<{
+      tokens: {
+        access_token?: string;
+        refresh_token?: string;
+        expiry_date?: number;
+        scope?: string;
+      };
+    }>;
+    refreshAccessToken: () => Promise<{
+      credentials: {
+        access_token?: string;
+        refresh_token?: string;
+        expiry_date?: number;
+        scope?: string;
+      };
+    }>;
   };
 
   constructor() {

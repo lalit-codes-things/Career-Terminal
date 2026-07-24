@@ -5,7 +5,9 @@ import { type Request, type Response, type NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 import { ValidationError } from '../errors/app-errors';
 
-export function validateQuery(schema: ZodSchema): (req: Request, _res: Response, next: NextFunction) => void {
+export function validateQuery(
+  schema: ZodSchema,
+): (req: Request, _res: Response, next: NextFunction) => void {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       const parsed = schema.parse(req.query);
@@ -13,7 +15,7 @@ export function validateQuery(schema: ZodSchema): (req: Request, _res: Response,
         value: parsed,
         writable: true,
         enumerable: true,
-        configurable: true
+        configurable: true,
       });
       next();
     } catch (error: unknown) {
@@ -27,7 +29,9 @@ export function validateQuery(schema: ZodSchema): (req: Request, _res: Response,
 }
 
 /** Middleware to validate request body using a Zod schema. */
-export function validateBody(schema: ZodSchema): (req: Request, _res: Response, next: NextFunction) => void {
+export function validateBody(
+  schema: ZodSchema,
+): (req: Request, _res: Response, next: NextFunction) => void {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

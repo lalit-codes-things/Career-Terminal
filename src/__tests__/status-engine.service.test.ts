@@ -203,7 +203,12 @@ describe('StatusEngine', () => {
       updatedAt: new Date('2026-07-15T00:00:00.000Z'),
     });
 
-    const result = await statusEngine.overrideStatus('app-2', JobApplicationStatus.REJECTED, 'user-1', prisma);
+    const result = await statusEngine.overrideStatus(
+      'app-2',
+      JobApplicationStatus.REJECTED,
+      'user-1',
+      prisma,
+    );
 
     expect(result.application.status).toBe(JobApplicationStatus.REJECTED);
     expect(result.timelineEvent?.eventType).toBe('REJECTION');

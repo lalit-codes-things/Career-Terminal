@@ -8,14 +8,20 @@
  * Uses the Fetcher -> Parser -> Normalizer -> DB pipeline.
  */
 import { prisma } from '../../../config/database';
+import { ConnectionStatus, EmailProvider } from '@prisma/client';
 import { GmailClient } from '../client/gmail-client';
 import { gmailOAuthService } from '../auth/gmail-oauth.service';
 import { RawEmailFetcher } from './fetcher';
 import { EmailNormalizer } from './normalizer';
 import { GmailApiError, NotFoundError } from '../../../errors/app-errors';
+import { logger } from '../../../lib/logger';
 import type { GmailMessageRef } from '../models/gmail.types';
 import { applicationTrackingService } from '../../application-tracking/application-tracking.service';
-import { jobEmailClassifier, JobEmailCategory, type ClassifiableEmail } from '../../job-intelligence';
+import {
+  jobEmailClassifier,
+  JobEmailCategory,
+  type ClassifiableEmail,
+} from '../../job-intelligence';
 
 export interface IngestionService {
   syncInitialMailbox(userId: string): Promise<void>;
@@ -31,7 +37,7 @@ export class GmailIngestionService implements IngestionService {
    * to prevent API exhaustion and long processing times.
    */
   async syncInitialMailbox(userId: string): Promise<void> {
-    console.info(`[Sync] Starting initial sync for user ${userId}`);
+    logger.info('[Sync] Starting initial sync', { userId });
     const { client, connectionId } = await this.setupClient(userId);
     const fetcher = new RawEmailFetcher(client);
 
@@ -53,22 +59,17 @@ export class GmailIngestionService implements IngestionService {
       if (listResult.messages.length === 0) break;
 
       // 3. Fetch full bodies, normalize, and save
-      await this.processAndSaveBatch(
-        userId,
-        connectionId,
-        listResult.messages,
-        fetcher
-      );
+      await this.processAndSaveBatch(userId, connectionId, listResult.messages, fetcher);
 
       totalSynced += listResult.messages.length;
       pageToken = listResult.nextPageToken;
-      
+
       if (!pageToken) break;
     }
 
     // 4. Save the sync state so future syncs are incremental
     await this.updateSyncState(userId, connectionId, startingHistoryId);
-    console.info(`[Sync] Initial sync completed for user ${userId}. Saved ${totalSynced} messages.`);
+    logger.info('[Sync] Initial sync completed', { userId, savedMessages: totalSynced });
   }
 
   /**
@@ -76,15 +77,15 @@ export class GmailIngestionService implements IngestionService {
    * Only fetches messages that have changed since the last sync.
    */
   async syncNewEmails(userId: string): Promise<void> {
-    console.info(`[Sync] Starting incremental sync for user ${userId}`);
-    
+    logger.info('[Sync] Starting incremental sync', { userId });
+
     // 1. Retrieve current sync state
     const syncState = await prisma.gmailSyncState.findUnique({
       where: { userId },
     });
 
     if (!syncState) {
-      console.warn(`[Sync] No sync state found for user ${userId}. Triggering initial sync.`);
+      logger.warn('[Sync] No sync state found; falling back to initial sync', { userId });
       return this.syncInitialMailbox(userId);
     }
 
@@ -107,12 +108,7 @@ export class GmailIngestionService implements IngestionService {
 
         if (messagesToFetch.length > 0) {
           // 3. Process new messages
-          await this.processAndSaveBatch(
-            userId,
-            connectionId,
-            messagesToFetch,
-            fetcher
-          );
+          await this.processAndSaveBatch(userId, connectionId, messagesToFetch, fetcher);
           totalNewMessages += messagesToFetch.length;
         }
 
@@ -123,13 +119,12 @@ export class GmailIngestionService implements IngestionService {
 
       // 4. Update sync state with the latest historyId
       await this.updateSyncState(userId, connectionId, currentHistoryId);
-      console.info(`[Sync] Incremental sync completed for user ${userId}. Found ${totalNewMessages} new messages.`);
-
+      logger.info('[Sync] Incremental sync completed', { userId, newMessages: totalNewMessages });
     } catch (error) {
       // If History API returns 404, the historyId has expired (Google drops old history)
       // We must fall back to a full sync to reconcile.
       if (error instanceof GmailApiError && error.gmailErrorCode === 404) {
-        console.warn(`[Sync] History ID expired for user ${userId}. Falling back to full sync.`);
+        logger.warn('[Sync] History ID expired; falling back to full sync', { userId });
         return this.syncInitialMailbox(userId);
       }
       throw error;
@@ -143,9 +138,11 @@ export class GmailIngestionService implements IngestionService {
   /**
    * Retrieves an authenticated GmailClient for the given user.
    */
-  private async setupClient(userId: string): Promise<{ client: GmailClient; connectionId: string }> {
+  private async setupClient(
+    userId: string,
+  ): Promise<{ client: GmailClient; connectionId: string }> {
     const connection = await prisma.userEmailConnection.findFirst({
-      where: { userId, provider: 'GMAIL', status: 'ACTIVE' },
+      where: { userId, provider: EmailProvider.GMAIL, status: ConnectionStatus.ACTIVE },
     });
 
     if (!connection) {
@@ -154,7 +151,7 @@ export class GmailIngestionService implements IngestionService {
 
     // This handles automatic token refresh if expired
     const accessToken = await gmailOAuthService.getValidAccessToken(connection.id);
-    
+
     return {
       client: new GmailClient({ accessToken }),
       connectionId: connection.id,
@@ -168,11 +165,11 @@ export class GmailIngestionService implements IngestionService {
     userId: string,
     connectionId: string,
     messageRefs: GmailMessageRef[],
-    fetcher: RawEmailFetcher
+    fetcher: RawEmailFetcher,
   ): Promise<void> {
     // Pipeline Step 1: Fetch raw full messages
     const rawMessages = await fetcher.fetchMessagesInBatches(messageRefs);
-    
+
     // Pipeline Step 2: Normalize to DB schema
     const normalizedData = this.normalizer.normalizeBatch(rawMessages);
 
@@ -232,7 +229,11 @@ export class GmailIngestionService implements IngestionService {
   /**
    * Updates or creates the synchronization state cursor.
    */
-  private async updateSyncState(userId: string, connectionId: string, historyId: string): Promise<void> {
+  private async updateSyncState(
+    userId: string,
+    connectionId: string,
+    historyId: string,
+  ): Promise<void> {
     await prisma.gmailSyncState.upsert({
       where: { userId },
       create: {

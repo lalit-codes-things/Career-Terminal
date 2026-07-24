@@ -54,11 +54,7 @@ function companyFromText(text: string): string | null {
   return null;
 }
 
-export function extractCompany(
-  sender: string,
-  subject: string,
-  body: string
-): string | null {
+export function extractCompany(sender: string, subject: string, body: string): string | null {
   const parsed = parseSender(sender);
   if (parsed) {
     const fromDomain = companyFromDomain(parsed.domain);

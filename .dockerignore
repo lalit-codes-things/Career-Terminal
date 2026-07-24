@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log*
+
+# Build output — copied from builder stage, not from host
+dist
+
+# Environment files — secrets must never enter build context
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+coverage
+
+# Editor / OS
+.vscode
+.idea
+*.DS_Store
+*.swp
+*.swo
+
+# Kiro IDE
+.kiro
+.agents
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Misc
+README.md
+SECURITY.md
+verify-worker.ts
+
+# Logs
+logs
+*.log

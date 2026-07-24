@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { jobAnalyticsService } from '../services/job-analytics/job-analytics.service';
 
 export const analyticsRouter = Router();
@@ -12,7 +12,7 @@ analyticsRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
       const analytics = await jobAnalyticsService.getAnalytics(userId);

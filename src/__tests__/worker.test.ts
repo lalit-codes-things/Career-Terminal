@@ -81,7 +81,7 @@ describe('GmailSyncWorker', () => {
       expect.objectContaining({
         where: { id: 'job-1' },
         data: expect.objectContaining({ status: 'SUCCESS' }),
-      })
+      }),
     );
   });
 
@@ -107,7 +107,7 @@ describe('GmailSyncWorker', () => {
           error: 'API Down',
           nextRunAt: expect.any(Date),
         }),
-      })
+      }),
     );
   });
 
@@ -131,7 +131,7 @@ describe('GmailSyncWorker', () => {
           status: 'FAILED',
           error: 'Fatal',
         }),
-      })
+      }),
     );
   });
 });

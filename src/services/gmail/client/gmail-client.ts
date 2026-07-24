@@ -107,7 +107,9 @@ export class GmailClient {
       });
 
       const data = response.data;
-      const messages: GmailMessageRef[] = (Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []).map((msg: Record<string, unknown>) => ({
+      const messages: GmailMessageRef[] = (
+        Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
+      ).map((msg: Record<string, unknown>) => ({
         id: this.readString(msg.id),
         threadId: this.readString(msg.threadId),
       }));
@@ -153,9 +155,9 @@ export class GmailClient {
       });
 
       const data = response.data;
-      const messages = (Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []).map((msg: Record<string, unknown>) =>
-        this.parseMessage(msg),
-      );
+      const messages = (
+        Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
+      ).map((msg: Record<string, unknown>) => this.parseMessage(msg));
 
       return {
         id: this.readString(data.id) || threadId,
@@ -219,7 +221,9 @@ export class GmailClient {
       });
 
       const data = response.data;
-      return (Array.isArray(data.labels) ? (data.labels as Array<Record<string, unknown>>) : []).map((label: Record<string, unknown>) => ({
+      return (
+        Array.isArray(data.labels) ? (data.labels as Array<Record<string, unknown>>) : []
+      ).map((label: Record<string, unknown>) => ({
         id: this.readString(label.id),
         name: this.readString(label.name),
         type: this.readString(label.type) === 'system' ? ('system' as const) : ('user' as const),
@@ -262,10 +266,14 @@ export class GmailClient {
 
       const data = response.data;
       const messagesAdded: { message: GmailMessageRef }[] = [];
-      const historyEntries = Array.isArray(data.history) ? (data.history as Array<Record<string, unknown>>) : [];
+      const historyEntries = Array.isArray(data.history)
+        ? (data.history as Array<Record<string, unknown>>)
+        : [];
 
       for (const historyRecord of historyEntries) {
-        const addedEntries = Array.isArray(historyRecord.messagesAdded) ? (historyRecord.messagesAdded as Array<Record<string, unknown>>) : [];
+        const addedEntries = Array.isArray(historyRecord.messagesAdded)
+          ? (historyRecord.messagesAdded as Array<Record<string, unknown>>)
+          : [];
         for (const added of addedEntries) {
           const message = added.message as Record<string, unknown> | undefined;
           if (message && this.readString(message.id) && this.readString(message.threadId)) {
@@ -296,14 +304,14 @@ export class GmailClient {
    */
   private parseMessage(raw: Record<string, unknown>): GmailMessage {
     const payload = raw.payload as GmailMessagePart | undefined;
-    const headers = Array.isArray(payload?.headers)
-      ? (payload?.headers)
-      : undefined;
+    const headers = Array.isArray(payload?.headers) ? payload?.headers : undefined;
 
     return {
       id: this.readString(raw.id),
       threadId: this.readString(raw.threadId),
-      labelIds: Array.isArray(raw.labelIds) ? (raw.labelIds as unknown[]).map((label) => String(label)) : [],
+      labelIds: Array.isArray(raw.labelIds)
+        ? (raw.labelIds as unknown[]).map((label) => String(label))
+        : [],
       sender: getHeader(headers, 'From'),
       recipients: parseRecipients(headers),
       subject: getHeader(headers, 'Subject'),
@@ -318,9 +326,7 @@ export class GmailClient {
   /**
    * Converts Gmail's headers array to a key-value record.
    */
-  private headersToRecord(
-    headers: GmailMessagePartHeader[] | undefined,
-  ): Record<string, string> {
+  private headersToRecord(headers: GmailMessagePartHeader[] | undefined): Record<string, string> {
     const record: Record<string, string> = {};
     if (!headers) return record;
     for (const header of headers) {
@@ -335,9 +341,7 @@ export class GmailClient {
    * Flattens the nested message parts tree into a flat array.
    * Used for finding attachments across all MIME parts.
    */
-  private flattenParts(
-    part: GmailMessagePart | null | undefined,
-  ): GmailMessagePart[] {
+  private flattenParts(part: GmailMessagePart | null | undefined): GmailMessagePart[] {
     if (!part) return [];
     const result: GmailMessagePart[] = [part];
     if (part.parts) {
@@ -386,10 +390,7 @@ export class GmailClient {
         }
 
         // Non-retryable error — throw immediately
-        throw new GmailApiError(
-          `Gmail API error: ${lastError.message}`,
-          statusCode,
-        );
+        throw new GmailApiError(`Gmail API error: ${lastError.message}`, statusCode);
       }
     }
 

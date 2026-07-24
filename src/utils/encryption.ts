@@ -48,19 +48,14 @@ export function encryptToken(plaintext: string): string {
       authTagLength: AUTH_TAG_LENGTH,
     });
 
-    const encrypted = Buffer.concat([
-      cipher.update(plaintext, 'utf8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
 
     const authTag = cipher.getAuthTag();
 
     // Format: iv:authTag:ciphertext (all base64)
-    return [
-      iv.toString('base64'),
-      authTag.toString('base64'),
-      encrypted.toString('base64'),
-    ].join(':');
+    return [iv.toString('base64'), authTag.toString('base64'), encrypted.toString('base64')].join(
+      ':',
+    );
   } catch (error) {
     if (error instanceof EncryptionError) throw error;
     throw new EncryptionError(
@@ -82,9 +77,7 @@ export function decryptToken(encryptedValue: string): string {
     const parts = encryptedValue.split(':');
 
     if (parts.length !== 3) {
-      throw new EncryptionError(
-        'Invalid encrypted token format: expected iv:authTag:ciphertext',
-      );
+      throw new EncryptionError('Invalid encrypted token format: expected iv:authTag:ciphertext');
     }
 
     const [ivB64, authTagB64, ciphertextB64] = parts as [string, string, string];
@@ -98,10 +91,7 @@ export function decryptToken(encryptedValue: string): string {
     });
     decipher.setAuthTag(authTag);
 
-    const decrypted = Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final(),
-    ]);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
     return decrypted.toString('utf8');
   } catch (error) {

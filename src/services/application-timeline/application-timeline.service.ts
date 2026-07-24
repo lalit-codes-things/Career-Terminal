@@ -1,11 +1,14 @@
-import {
-  ApplicationTimelineEventType,
-  PrismaClient,
-  Prisma,
-} from '@prisma/client';
+import { ApplicationTimelineEventType, PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
-import { JobEmailCategory, type ClassifiableEmail, type JobEmailClassification } from '../job-intelligence';
+import { ApplicationStatus, normalizeApplicationStatus } from '../../domain/application-status';
+import { resolvePagination, type PaginationInput } from '../../domain/pagination';
+import {
+  JobEmailCategory,
+  type ClassifiableEmail,
+  type JobEmailClassification,
+} from '../job-intelligence';
+import { ownershipGuard } from '../ownership/ownership.guard';
 
 type TimelineDb = PrismaClient | Prisma.TransactionClient;
 
@@ -53,25 +56,51 @@ export interface StatusTimelineContext {
 }
 
 export class ApplicationTimelineService {
-  public async listTimeline(applicationId: string, db: TimelineDb = prisma): Promise<readonly ApplicationTimelineRecord[]> {
+  public async listTimeline(
+    applicationId: string,
+    db: TimelineDb = prisma,
+    userId?: string,
+    pagination?: PaginationInput,
+  ): Promise<readonly ApplicationTimelineRecord[]> {
+    if (userId) {
+      await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
+    }
+
+    const paging = resolvePagination(pagination);
+
     const events = await db.applicationTimeline.findMany({
       where: { applicationId },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }],
+      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
     });
 
     return [...events]
-      .sort((left, right) =>
-        left.timestamp.getTime() - right.timestamp.getTime() ||
-        left.createdAt.getTime() - right.createdAt.getTime() ||
-        left.id.localeCompare(right.id)
+      .sort(
+        (left, right) =>
+          left.timestamp.getTime() - right.timestamp.getTime() ||
+          left.createdAt.getTime() - right.createdAt.getTime() ||
+          left.id.localeCompare(right.id),
       )
       .map((event) => this.mapRecord(event));
   }
 
-  public async getTimelineEvent(eventId: string, db: TimelineDb = prisma): Promise<ApplicationTimelineRecord> {
-    const event = await db.applicationTimeline.findUnique({
-      where: { id: eventId },
-    });
+  public async getTimelineEvent(
+    eventId: string,
+    db: TimelineDb = prisma,
+    userId?: string,
+  ): Promise<ApplicationTimelineRecord> {
+    const event = userId
+      ? await db.applicationTimeline.findFirst({
+          where: {
+            id: eventId,
+            application: {
+              userId,
+            },
+          },
+        })
+      : await db.applicationTimeline.findUnique({
+          where: { id: eventId },
+        });
 
     if (!event) {
       throw new NotFoundError('Timeline event', eventId);
@@ -80,7 +109,15 @@ export class ApplicationTimelineService {
     return this.mapRecord(event);
   }
 
-  public async createTimelineEvent(input: CreateTimelineEventInput, db: TimelineDb = prisma): Promise<ApplicationTimelineRecord> {
+  public async createTimelineEvent(
+    input: CreateTimelineEventInput,
+    db: TimelineDb = prisma,
+    userId?: string,
+  ): Promise<ApplicationTimelineRecord> {
+    if (userId) {
+      await ownershipGuard.ensureApplicationAccess(userId, input.applicationId, db);
+    }
+
     const event = await db.applicationTimeline.create({
       data: {
         applicationId: input.applicationId,
@@ -99,10 +136,20 @@ export class ApplicationTimelineService {
     eventId: string,
     input: UpdateTimelineEventInput,
     db: TimelineDb = prisma,
+    userId?: string,
   ): Promise<ApplicationTimelineRecord> {
-    const existingEvent = await db.applicationTimeline.findUnique({
-      where: { id: eventId },
-    });
+    const existingEvent = userId
+      ? await db.applicationTimeline.findFirst({
+          where: {
+            id: eventId,
+            application: {
+              userId,
+            },
+          },
+        })
+      : await db.applicationTimeline.findUnique({
+          where: { id: eventId },
+        });
 
     if (!existingEvent) {
       throw new NotFoundError('Timeline event', eventId);
@@ -182,20 +229,47 @@ export class ApplicationTimelineService {
 
     switch (classification.category) {
       case JobEmailCategory.JOB_APPLICATION:
-        return this.hasAny(searchText, ['received', 'confirmed', 'thank you for applying', 'application confirmation'])
+        return this.hasAny(searchText, [
+          'received',
+          'confirmed',
+          'thank you for applying',
+          'application confirmation',
+        ])
           ? ApplicationTimelineEventType.APPLICATION_CONFIRMED
           : ApplicationTimelineEventType.APPLICATION_SUBMITTED;
       case JobEmailCategory.RECRUITER_OUTREACH:
         return ApplicationTimelineEventType.RECRUITER_CONTACT;
       case JobEmailCategory.ASSESSMENT_TEST:
-        return this.hasAny(searchText, ['completed', 'completion', 'submitted', 'finished', 'passed'])
+        return this.hasAny(searchText, [
+          'completed',
+          'completion',
+          'submitted',
+          'finished',
+          'passed',
+        ])
           ? ApplicationTimelineEventType.ASSESSMENT_COMPLETED
           : ApplicationTimelineEventType.ASSESSMENT;
       case JobEmailCategory.INTERVIEW_INVITATION:
-        if (this.hasAny(searchText, ['final interview', 'final round', 'onsite', 'on-site', 'panel', 'loop'])) {
+        if (
+          this.hasAny(searchText, [
+            'final interview',
+            'final round',
+            'onsite',
+            'on-site',
+            'panel',
+            'loop',
+          ])
+        ) {
           return ApplicationTimelineEventType.FINAL_INTERVIEW;
         }
-        if (this.hasAny(searchText, ['phone screen', 'phone interview', 'screening call', 'screening'])) {
+        if (
+          this.hasAny(searchText, [
+            'phone screen',
+            'phone interview',
+            'screening call',
+            'screening',
+          ])
+        ) {
           return ApplicationTimelineEventType.PHONE_SCREEN;
         }
         return ApplicationTimelineEventType.INTERVIEW;
@@ -209,20 +283,22 @@ export class ApplicationTimelineService {
   }
 
   public mapStatusToEventType(status: string): ApplicationTimelineEventType | null {
-    switch (status.toUpperCase()) {
-      case 'APPLIED':
+    const normalizedStatus = normalizeApplicationStatus(status);
+
+    switch (normalizedStatus) {
+      case ApplicationStatus.APPLIED:
         return ApplicationTimelineEventType.APPLICATION_CONFIRMED;
-      case 'SCREENING':
+      case ApplicationStatus.SCREENING:
         return ApplicationTimelineEventType.RECRUITER_CONTACT;
-      case 'ASSESSMENT':
+      case ApplicationStatus.ASSESSMENT:
         return ApplicationTimelineEventType.ASSESSMENT;
-      case 'INTERVIEW':
+      case ApplicationStatus.INTERVIEW:
         return ApplicationTimelineEventType.INTERVIEW;
-      case 'OFFER':
+      case ApplicationStatus.OFFER:
         return ApplicationTimelineEventType.OFFER;
-      case 'REJECTED':
+      case ApplicationStatus.REJECTED:
         return ApplicationTimelineEventType.REJECTION;
-      case 'WITHDRAWN':
+      case ApplicationStatus.WITHDRAWN:
         return ApplicationTimelineEventType.WITHDRAWN;
       default:
         return null;

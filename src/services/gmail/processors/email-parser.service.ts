@@ -5,9 +5,15 @@ export class EmailParserService {
   /**
    * Main entrypoint: Parses a raw Gmail API message into a NormalizedEmail.
    */
-  public parse(rawMessage: { id?: string; payload?: GmailMessagePart; labelIds?: string[] }): NormalizedEmail {
+  public parse(rawMessage: {
+    id?: string;
+    payload?: GmailMessagePart;
+    labelIds?: string[];
+  }): NormalizedEmail {
     const headers = this.parseHeaders(rawMessage.payload?.headers);
-    const { textContent, htmlContent, attachments } = this.extractBodyAndAttachments(rawMessage.payload);
+    const { textContent, htmlContent, attachments } = this.extractBodyAndAttachments(
+      rawMessage.payload,
+    );
 
     return {
       id: rawMessage.id ?? 'unknown-id',
@@ -48,7 +54,10 @@ export class EmailParserService {
 
     const splitAddresses = (value: string): string[] => {
       if (!value) return [];
-      return value.split(',').map((s) => s.trim()).filter(Boolean);
+      return value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     };
 
     result.from = getHeader('From');
@@ -75,9 +84,9 @@ export class EmailParserService {
    * Normally Gmail passes internalDate at the root level, but if missing, fallback to now.
    */
   private parseInternalDate(_headers: GmailMessagePartHeader[]): number | null {
-     // Just a dummy implementation. The actual rawMessage.internalDate would be better
-     // if passed down, but for this signature, we just return null.
-     return null;
+    // Just a dummy implementation. The actual rawMessage.internalDate would be better
+    // if passed down, but for this signature, we just return null.
+    return null;
   }
 
   /**
@@ -120,12 +129,12 @@ export class EmailParserService {
           size: part.body?.size ?? 0,
           attachmentId,
         });
-      } 
+      }
       // 2. Check if it's body content (text/plain)
       else if (mimeType === 'text/plain' && bodyData && !attachmentId) {
         const decoded = decodeBase64Url(bodyData);
         textContent = textContent ? textContent + '\n' + decoded : decoded;
-      } 
+      }
       // 3. Check if it's body content (text/html)
       else if (mimeType === 'text/html' && bodyData && !attachmentId) {
         const decoded = decodeBase64Url(bodyData);
@@ -151,7 +160,7 @@ export class EmailParserService {
    */
   private fallbackHtmlToText(html: string | null): string | null {
     if (!html) return null;
-    
+
     return html
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove styles
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove scripts

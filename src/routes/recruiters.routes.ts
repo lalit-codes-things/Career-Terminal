@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { validateQuery } from '../middleware/validate';
 import { recruiterService } from '../services/recruiter';
 
@@ -10,6 +10,8 @@ export const recruitersRouter = Router();
 const listQuerySchema = z.object({
   company: z.string().optional(),
   name: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  pageSize: z.coerce.number().int().positive().max(100).optional(),
 });
 
 recruitersRouter.get(
@@ -20,13 +22,20 @@ recruitersRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
-      const company = typeof req.query.company === 'string' ? req.query.company : undefined;
-      const name = typeof req.query.name === 'string' ? req.query.name : undefined;
-
-      const recruiters = await recruiterService.listRecruiters(userId, { company, name });
+      const recruiters = await recruiterService.listRecruiters(
+        userId,
+        {
+          company: typeof req.query.company === 'string' ? req.query.company : undefined,
+          name: typeof req.query.name === 'string' ? req.query.name : undefined,
+        },
+        {
+          page: typeof req.query.page === 'number' ? req.query.page : undefined,
+          pageSize: typeof req.query.pageSize === 'number' ? req.query.pageSize : undefined,
+        },
+      );
       res.json({ success: true, data: recruiters });
     } catch (error) {
       next(error);
@@ -41,7 +50,7 @@ recruitersRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
       const recruiterId = typeof req.params.id === 'string' ? req.params.id : '';
@@ -61,7 +70,7 @@ recruitersRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
       const recruiterId = typeof req.params.id === 'string' ? req.params.id : '';

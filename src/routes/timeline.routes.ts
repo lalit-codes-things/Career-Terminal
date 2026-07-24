@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
+import { ApplicationTimelineEventType } from '@prisma/client';
+import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { applicationTrackingService } from '../services/application-tracking/application-tracking.service';
-import { ApplicationTimelineEventType } from '../services/application-timeline';
 
 export const timelineRouter = Router();
 
@@ -22,8 +22,13 @@ timelineRouter.patch(
   validateBody(patchTimelineSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
       const eventId = typeof req.params.id === 'string' ? req.params.id : '';
-      const result = await applicationTrackingService.updateTimelineEvent(eventId, {
+      const result = await applicationTrackingService.updateTimelineEvent(userId, eventId, {
         eventType: req.body.eventType,
         timestamp: req.body.timestamp,
         sourceEmailId: req.body.sourceEmailId,

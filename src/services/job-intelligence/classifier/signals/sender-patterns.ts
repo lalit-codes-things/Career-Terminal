@@ -54,7 +54,7 @@ export function parseSender(sender: string): ParsedSender | null {
 export function isRecruiterSender(parsed: ParsedSender): boolean {
   const local = parsed.localPart.replace(/[._+-]/g, '');
   return RECRUITER_LOCAL_PARTS.some(
-    (part) => local === part || local.startsWith(part) || local.includes(part)
+    (part) => local === part || local.startsWith(part) || local.includes(part),
   );
 }
 

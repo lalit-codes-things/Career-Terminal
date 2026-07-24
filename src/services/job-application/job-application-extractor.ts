@@ -1,16 +1,11 @@
-import type { ClassifiableEmail, JobEmailClassification } from '../job-intelligence/models/job-intelligence.types';
+import type {
+  ClassifiableEmail,
+  JobEmailClassification,
+} from '../job-intelligence/models/job-intelligence.types';
 import { JobEmailCategory } from '../job-intelligence/models/job-intelligence.types';
+import { ApplicationStatus } from '../../domain/application-status';
 
-export enum JobApplicationStatus {
-  SAVED = 'SAVED',
-  APPLIED = 'APPLIED',
-  SCREENING = 'SCREENING',
-  INTERVIEW = 'INTERVIEW',
-  ASSESSMENT = 'ASSESSMENT',
-  OFFER = 'OFFER',
-  REJECTED = 'REJECTED',
-  WITHDRAWN = 'WITHDRAWN',
-}
+export { ApplicationStatus as JobApplicationStatus };
 
 export interface JobApplicationCompany {
   readonly name: string;
@@ -44,7 +39,7 @@ export interface JobApplication {
   readonly userId: string;
   readonly company: JobApplicationCompany;
   readonly role: JobApplicationRole;
-  readonly status: JobApplicationStatus;
+  readonly status: ApplicationStatus;
   readonly appliedDate: Date;
   readonly recruiter: JobApplicationRecruiter;
   readonly sourceEmailId: string;
@@ -68,7 +63,10 @@ export class JobApplicationExtractor {
     const location = this.extractLocation(email.bodyText ?? '', email.subject);
     const employmentType = this.extractEmploymentType(email.bodyText ?? '', email.subject);
     const deadlines = this.extractDeadlines(email.bodyText ?? '');
-    const interviewRounds = this.extractInterviewRounds(email.bodyText ?? '', classification.category);
+    const interviewRounds = this.extractInterviewRounds(
+      email.bodyText ?? '',
+      classification.category,
+    );
     const currentStage = this.extractCurrentStage(status, classification.category);
 
     return {
@@ -157,7 +155,8 @@ export class JobApplicationExtractor {
 
   private extractRecruiter(email: ClassifiableEmail): JobApplicationRecruiter {
     const body = email.bodyText ?? '';
-    const senderEmail = this.extractEmailFromText(body) ?? this.extractEmailFromSender(email.sender);
+    const senderEmail =
+      this.extractEmailFromText(body) ?? this.extractEmailFromSender(email.sender);
     const senderName = this.extractNameFromText(body, senderEmail ?? email.sender);
     const inferredEmail = this.inferRecruiterEmail(senderName, senderEmail, email.sender);
 
@@ -217,7 +216,8 @@ export class JobApplicationExtractor {
   }
 
   private extractDeadlines(text: string): readonly string[] {
-    const matches = text.match(/(?:by|before)\s+([A-Za-z0-9,\s]+(?:\d{4}|\d{1,2}\s+[A-Za-z]+\s+\d{4}))/gi) ?? [];
+    const matches =
+      text.match(/(?:by|before)\s+([A-Za-z0-9,\s]+(?:\d{4}|\d{1,2}\s+[A-Za-z]+\s+\d{4}))/gi) ?? [];
     return matches.map((value) => value.trim());
   }
 
@@ -239,11 +239,11 @@ export class JobApplicationExtractor {
     return 0;
   }
 
-  private extractCurrentStage(status: JobApplicationStatus, category: JobEmailCategory): string {
-    if (status === JobApplicationStatus.INTERVIEW) {
+  private extractCurrentStage(status: ApplicationStatus, category: JobEmailCategory): string {
+    if (status === ApplicationStatus.INTERVIEW) {
       return 'Interview';
     }
-    if (status === JobApplicationStatus.ASSESSMENT) {
+    if (status === ApplicationStatus.ASSESSMENT) {
       return 'Assessment';
     }
     if (category === JobEmailCategory.REJECTION) {
@@ -252,28 +252,28 @@ export class JobApplicationExtractor {
     return 'Applied';
   }
 
-  private mapStatus(category: JobEmailCategory): JobApplicationStatus {
+  private mapStatus(category: JobEmailCategory): ApplicationStatus {
     switch (category) {
       case JobEmailCategory.JOB_APPLICATION:
-        return JobApplicationStatus.APPLIED;
+        return ApplicationStatus.APPLIED;
       case JobEmailCategory.INTERVIEW_INVITATION:
-        return JobApplicationStatus.INTERVIEW;
+        return ApplicationStatus.INTERVIEW;
       case JobEmailCategory.ASSESSMENT_TEST:
-        return JobApplicationStatus.ASSESSMENT;
+        return ApplicationStatus.ASSESSMENT;
       case JobEmailCategory.OFFER:
-        return JobApplicationStatus.OFFER;
+        return ApplicationStatus.OFFER;
       case JobEmailCategory.REJECTION:
-        return JobApplicationStatus.REJECTED;
+        return ApplicationStatus.REJECTED;
       case JobEmailCategory.RECRUITER_OUTREACH:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
       case JobEmailCategory.NETWORKING:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
       case JobEmailCategory.CAREER_NEWSLETTER:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
       case JobEmailCategory.NOT_JOB_RELATED:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
       default:
-        return JobApplicationStatus.SAVED;
+        return ApplicationStatus.SAVED;
     }
   }
 
@@ -302,10 +302,23 @@ export class JobApplicationExtractor {
     return emailMatch ? `${emailMatch[1]}@${emailMatch[2]}` : null;
   }
 
-  private inferRecruiterEmail(name: string | null, explicitEmail: string | null, sender: string): string | null {
+  private inferRecruiterEmail(
+    name: string | null,
+    explicitEmail: string | null,
+    sender: string,
+  ): string | null {
     if (explicitEmail) {
       const localPart = explicitEmail.split('@')[0]?.toLowerCase() ?? '';
-      const genericAliases = new Set(['recruiting', 'recruiter', 'hr', 'talent', 'noreply', 'jobs', 'careers', 'hello']);
+      const genericAliases = new Set([
+        'recruiting',
+        'recruiter',
+        'hr',
+        'talent',
+        'noreply',
+        'jobs',
+        'careers',
+        'hello',
+      ]);
       if (!genericAliases.has(localPart)) {
         return explicitEmail;
       }

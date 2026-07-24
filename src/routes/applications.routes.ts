@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth';
-import { validateQuery, validateBody } from '../middleware/validate';
+import { ApplicationStatus } from '../domain/application-status';
+import { requireAuth, UnauthorizedError } from '../middleware/auth';
+import { validateBody, validateQuery } from '../middleware/validate';
 import { applicationTrackingService } from '../services/application-tracking/application-tracking.service';
-import { JobApplicationStatus } from '../services/job-application';
 import { recruiterService } from '../services/recruiter';
 
 export const applicationsRouter = Router();
@@ -14,10 +14,12 @@ const listQuerySchema = z.object({
   company: z.string().optional(),
   date: z.string().optional(),
   role: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  pageSize: z.coerce.number().int().positive().max(100).optional(),
 });
 
 const statusPatchSchema = z.object({
-  status: z.nativeEnum(JobApplicationStatus),
+  status: z.nativeEnum(ApplicationStatus),
 });
 
 applicationsRouter.get(
@@ -28,22 +30,25 @@ applicationsRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
-      const statusFilter = typeof req.query.status === 'string' ? req.query.status : undefined;
-      const companyFilter = typeof req.query.company === 'string' ? req.query.company : undefined;
-      const dateFilter = typeof req.query.date === 'string' ? req.query.date : undefined;
-      const roleFilter = typeof req.query.role === 'string' ? req.query.role : undefined;
-
       const filters = {
-        status: statusFilter,
-        company: companyFilter,
-        date: dateFilter,
-        role: roleFilter,
+        status: typeof req.query.status === 'string' ? req.query.status : undefined,
+        company: typeof req.query.company === 'string' ? req.query.company : undefined,
+        date: typeof req.query.date === 'string' ? req.query.date : undefined,
+        role: typeof req.query.role === 'string' ? req.query.role : undefined,
+      };
+      const pagination = {
+        page: typeof req.query.page === 'number' ? req.query.page : undefined,
+        pageSize: typeof req.query.pageSize === 'number' ? req.query.pageSize : undefined,
       };
 
-      const applications = await applicationTrackingService.listApplications(userId, filters);
+      const applications = await applicationTrackingService.listApplications(
+        userId,
+        filters,
+        pagination,
+      );
 
       res.json({ success: true, data: applications });
     } catch (error) {
@@ -57,8 +62,13 @@ applicationsRouter.get(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
       const applicationId = typeof req.params.id === 'string' ? req.params.id : '';
-      const result = await applicationTrackingService.getApplication(applicationId);
+      const result = await applicationTrackingService.getApplication(userId, applicationId);
 
       res.json({ success: true, data: result });
     } catch (error) {
@@ -72,8 +82,20 @@ applicationsRouter.get(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
       const applicationId = typeof req.params.id === 'string' ? req.params.id : '';
-      const timeline = await applicationTrackingService.getApplicationTimeline(applicationId);
+      const timeline = await applicationTrackingService.getApplicationTimeline(
+        userId,
+        applicationId,
+        {
+          page: typeof req.query.page === 'number' ? req.query.page : undefined,
+          pageSize: typeof req.query.pageSize === 'number' ? req.query.pageSize : undefined,
+        },
+      );
 
       res.json({ success: true, data: timeline });
     } catch (error) {
@@ -87,8 +109,20 @@ applicationsRouter.get(
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
       const applicationId = typeof req.params.id === 'string' ? req.params.id : '';
-      const history = await applicationTrackingService.getApplicationStatusHistory(applicationId);
+      const history = await applicationTrackingService.getApplicationStatusHistory(
+        userId,
+        applicationId,
+        {
+          page: typeof req.query.page === 'number' ? req.query.page : undefined,
+          pageSize: typeof req.query.pageSize === 'number' ? req.query.pageSize : undefined,
+        },
+      );
 
       res.json({ success: true, data: history });
     } catch (error) {
@@ -104,7 +138,7 @@ applicationsRouter.get(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
       const applicationId = typeof req.params.id === 'string' ? req.params.id : '';
@@ -125,12 +159,18 @@ applicationsRouter.patch(
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
       if (!userId) {
-        throw new Error('Authentication required');
+        throw new UnauthorizedError('Authentication required');
       }
 
       const applicationId = typeof req.params.id === 'string' ? req.params.id : '';
-      const parsedStatus = typeof req.body.status === 'string' ? req.body.status : 'Applied';
-      const result = await applicationTrackingService.updateApplicationStatus(applicationId, parsedStatus, userId);
+      const parsedStatus =
+        typeof req.body.status === 'string' ? req.body.status : ApplicationStatus.APPLIED;
+      const result = await applicationTrackingService.updateApplicationStatus(
+        userId,
+        applicationId,
+        parsedStatus,
+        userId,
+      );
 
       res.json({ success: true, data: result });
     } catch (error) {

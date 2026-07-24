@@ -34,6 +34,6 @@ export const ATS_PLATFORM_DOMAINS: readonly string[] = [
 export function isAtsPlatformDomain(domain: string): boolean {
   const normalized = domain.toLowerCase();
   return ATS_PLATFORM_DOMAINS.some(
-    (atsDomain) => normalized === atsDomain || normalized.endsWith(`.${atsDomain}`)
+    (atsDomain) => normalized === atsDomain || normalized.endsWith(`.${atsDomain}`),
   );
 }

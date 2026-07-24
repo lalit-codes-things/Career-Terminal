@@ -1,6 +1,8 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
+import { ownershipGuard } from '../ownership/ownership.guard';
+import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -111,7 +113,7 @@ const CANONICAL_ALIAS_OVERRIDES: Record<string, string> = {
   'facebook.com': 'Meta',
   'facebook inc': 'Meta',
   'facebook llc': 'Meta',
-  'fb': 'Meta',
+  fb: 'Meta',
   'meta platforms': 'Meta',
   'meta platforms inc': 'Meta',
   'google llc': 'Google',
@@ -120,19 +122,30 @@ const CANONICAL_ALIAS_OVERRIDES: Record<string, string> = {
 };
 
 export class CompanyService {
-  public async resolveCompany(input: CompanyResolveInput, db: DbClient = prisma): Promise<CompanyRecord> {
+  public async resolveCompany(
+    input: CompanyResolveInput,
+    db: DbClient = prisma,
+  ): Promise<CompanyRecord> {
     const canonicalName = this.resolveCanonicalName(input.name, input.domain);
-    const aliasValues = this.buildAliasValues(input.name, input.domain, canonicalName, input.aliases);
-    const normalizedAliases = aliasValues.map((value) => this.normalizeAlias(value)).filter(Boolean);
+    const aliasValues = this.buildAliasValues(
+      input.name,
+      input.domain,
+      canonicalName,
+      input.aliases,
+    );
+    const normalizedAliases = aliasValues
+      .map((value) => this.normalizeAlias(value))
+      .filter(Boolean);
 
-    const aliasMatch = normalizedAliases.length > 0
-      ? await db.companyAlias.findFirst({
-          where: {
-            normalizedValue: { in: normalizedAliases },
-          },
-          include: { company: true },
-        })
-      : null;
+    const aliasMatch =
+      normalizedAliases.length > 0
+        ? await db.companyAlias.findFirst({
+            where: {
+              normalizedValue: { in: normalizedAliases },
+            },
+            include: { company: true },
+          })
+        : null;
 
     const domainMatch = await db.company.findUnique({
       where: { domain: input.domain },
@@ -176,12 +189,20 @@ export class CompanyService {
   public async listCompanies(
     userId: string,
     filters: CompanyListFilters = {},
+    pagination?: PaginationInput,
   ): Promise<readonly CompanyListItem[]> {
-    const companies = await prisma.company.findMany({
+    const paging = resolvePagination(pagination);
+    const companies = (await prisma.company.findMany({
       where: {
-        ...(filters.name ? { name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } } : {}),
-        ...(filters.domain ? { domain: { contains: filters.domain, mode: Prisma.QueryMode.insensitive } } : {}),
-        ...(filters.industry ? { industry: { contains: filters.industry, mode: Prisma.QueryMode.insensitive } } : {}),
+        ...(filters.name
+          ? { name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } }
+          : {}),
+        ...(filters.domain
+          ? { domain: { contains: filters.domain, mode: Prisma.QueryMode.insensitive } }
+          : {}),
+        ...(filters.industry
+          ? { industry: { contains: filters.industry, mode: Prisma.QueryMode.insensitive } }
+          : {}),
         applications: {
           some: { userId },
         },
@@ -204,18 +225,18 @@ export class CompanyService {
         },
       },
       orderBy: { updatedAt: 'desc' },
-    }) as CompanyWithRelations[];
+      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+    })) as CompanyWithRelations[];
 
     return companies.map((company) => this.mapListItem(company));
   }
 
   public async getCompany(userId: string, companyId: string): Promise<CompanyDetails> {
-    const company = await prisma.company.findFirst({
+    await ownershipGuard.ensureCompanyAccess(userId, companyId, prisma);
+
+    const company = (await prisma.company.findFirst({
       where: {
         id: companyId,
-        applications: {
-          some: { userId },
-        },
       },
       include: {
         aliases: true,
@@ -235,7 +256,7 @@ export class CompanyService {
           select: { id: true },
         },
       },
-    }) as CompanyWithRelations | null;
+    })) as CompanyWithRelations | null;
 
     if (!company) {
       throw new NotFoundError('Company', companyId);
@@ -251,20 +272,10 @@ export class CompanyService {
   public async getCompanyApplications(
     userId: string,
     companyId: string,
+    pagination?: PaginationInput,
   ): Promise<readonly CompanyApplicationListItem[]> {
-    const company = await prisma.company.findFirst({
-      where: {
-        id: companyId,
-        applications: {
-          some: { userId },
-        },
-      },
-      select: { id: true },
-    });
-
-    if (!company) {
-      throw new NotFoundError('Company', companyId);
-    }
+    await ownershipGuard.ensureCompanyAccess(userId, companyId, prisma);
+    const paging = resolvePagination(pagination);
 
     const applications = await prisma.jobApplication.findMany({
       where: {
@@ -272,6 +283,7 @@ export class CompanyService {
         companyId,
       },
       orderBy: { appliedDate: 'desc' },
+      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
       select: {
         id: true,
         userId: true,
@@ -300,7 +312,12 @@ export class CompanyService {
     applicationId: string,
     companyInput: CompanyResolveInput,
     db: DbClient = prisma,
+    userId?: string,
   ): Promise<CompanyRecord> {
+    if (userId) {
+      await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
+    }
+
     const company = await this.resolveCompany(companyInput, db);
     await db.jobApplication.update({
       where: { id: applicationId },
@@ -314,7 +331,11 @@ export class CompanyService {
     return company;
   }
 
-  private async upsertAliases(companyId: string, aliasValues: readonly string[], db: DbClient): Promise<void> {
+  private async upsertAliases(
+    companyId: string,
+    aliasValues: readonly string[],
+    db: DbClient,
+  ): Promise<void> {
     const uniqueValues = new Map<string, string>();
 
     for (const value of aliasValues) {
@@ -357,11 +378,14 @@ export class CompanyService {
       updatedAt: company.updatedAt.toISOString(),
       applicationCount: company.applications.length,
       recruiterCount: company.recruiters.length,
-      lastApplicationAt: company.applications.length > 0
-        ? new Date(
-            Math.max(...company.applications.map((application) => application.appliedDate.getTime())),
-          ).toISOString()
-        : null,
+      lastApplicationAt:
+        company.applications.length > 0
+          ? new Date(
+              Math.max(
+                ...company.applications.map((application) => application.appliedDate.getTime()),
+              ),
+            ).toISOString()
+          : null,
     };
   }
 
@@ -408,10 +432,7 @@ export class CompanyService {
   }
 
   private stripLegalSuffixes(value: string): string {
-    const parts = value
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+    const parts = value.trim().split(/\s+/).filter(Boolean);
 
     while (parts.length > 0) {
       const last = this.normalizeCompanyToken(parts[parts.length - 1] ?? '');
@@ -438,7 +459,10 @@ export class CompanyService {
       .toLowerCase()
       .replace(/https?:\/\//g, '')
       .replace(/[^a-z0-9]+/g, ' ')
-      .replace(/\b(incorporated|inc|llc|ltd|limited|corp|corporation|company|co|plc|gmbh|sarl|pte|sa|ag|bv)\b/g, ' ')
+      .replace(
+        /\b(incorporated|inc|llc|ltd|limited|corp|corporation|company|co|plc|gmbh|sarl|pte|sa|ag|bv)\b/g,
+        ' ',
+      )
       .replace(/\s+/g, ' ')
       .trim();
   }

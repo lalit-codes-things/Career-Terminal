@@ -60,7 +60,7 @@ export class SemanticMatcher {
 
     // Exact match short-circuit for testing/mocking
     if (cleanA === cleanB) return 1.0;
-    
+
     // Substring mock
     if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return 0.8;
 

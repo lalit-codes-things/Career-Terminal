@@ -47,8 +47,12 @@ describe('JobAnalyticsService', () => {
         appliedDate: new Date('2026-07-01T00:00:00Z'),
         updatedAt: new Date('2026-07-01T00:00:00Z'),
         timeline: [
-          { eventType: 'EMAIL_PROCESSED', description: 'Processed email', timestamp: new Date('2026-07-01T00:00:00Z') }
-        ]
+          {
+            eventType: 'EMAIL_PROCESSED',
+            description: 'Processed email',
+            timestamp: new Date('2026-07-01T00:00:00Z'),
+          },
+        ],
       },
       {
         id: '2',
@@ -59,9 +63,17 @@ describe('JobAnalyticsService', () => {
         appliedDate: new Date('2026-07-01T00:00:00Z'),
         updatedAt: new Date('2026-07-05T00:00:00Z'),
         timeline: [
-          { eventType: 'STATUS_CHANGED', description: 'Application status updated to SCREENING', timestamp: new Date('2026-07-03T00:00:00Z') }, // 2 days response time
-          { eventType: 'STATUS_CHANGED', description: 'Application status updated to INTERVIEW', timestamp: new Date('2026-07-05T00:00:00Z') }
-        ]
+          {
+            eventType: 'STATUS_CHANGED',
+            description: 'Application status updated to SCREENING',
+            timestamp: new Date('2026-07-03T00:00:00Z'),
+          }, // 2 days response time
+          {
+            eventType: 'STATUS_CHANGED',
+            description: 'Application status updated to INTERVIEW',
+            timestamp: new Date('2026-07-05T00:00:00Z'),
+          },
+        ],
       },
       {
         id: '3',
@@ -71,7 +83,7 @@ describe('JobAnalyticsService', () => {
         status: JobApplicationStatus.REJECTED,
         appliedDate: new Date('2026-07-01T00:00:00Z'),
         updatedAt: new Date('2026-07-07T00:00:00Z'), // 6 days response time via fallback
-        timeline: [] // Testing fallback
+        timeline: [], // Testing fallback
       },
       {
         id: '4',
@@ -82,10 +94,18 @@ describe('JobAnalyticsService', () => {
         appliedDate: new Date('2026-07-01T00:00:00Z'),
         updatedAt: new Date('2026-07-10T00:00:00Z'),
         timeline: [
-          { eventType: 'STATUS_CHANGED', description: 'Application status updated to INTERVIEW', timestamp: new Date('2026-07-05T00:00:00Z') }, // 4 days response
-          { eventType: 'STATUS_CHANGED', description: 'Application status updated to OFFER', timestamp: new Date('2026-07-10T00:00:00Z') }
-        ]
-      }
+          {
+            eventType: 'STATUS_CHANGED',
+            description: 'Application status updated to INTERVIEW',
+            timestamp: new Date('2026-07-05T00:00:00Z'),
+          }, // 4 days response
+          {
+            eventType: 'STATUS_CHANGED',
+            description: 'Application status updated to OFFER',
+            timestamp: new Date('2026-07-10T00:00:00Z'),
+          },
+        ],
+      },
     ];
 
     (prisma.jobApplication.findMany as jest.Mock).mockResolvedValueOnce(mockApplications);
@@ -96,15 +116,15 @@ describe('JobAnalyticsService', () => {
     // Responses: 3 (app 2, 3, 4)
     // Interviews: 2 (app 2, 4)
     // Offers: 1 (app 4)
-    
+
     // Response times:
     // App 2: 2 days
     // App 3: 6 days (fallback)
     // App 4: 4 days (from INTERVIEW event)
     // Average: (2 + 6 + 4) / 3 = 12 / 3 = 4.0 days
-    
+
     // Unique companies: 3 (google.com, meta.com, amazon.com)
-    
+
     // Categories:
     // Engineering: 2 apps, 1 interview (50%)
     // Design: 1 app, 1 interview (100%)
@@ -114,21 +134,21 @@ describe('JobAnalyticsService', () => {
     expect(result.responses).toBe(3);
     expect(result.interviews).toBe(2);
     expect(result.offers).toBe(1);
-    
+
     expect(result.conversionRates.responseRate).toBe(0.75);
     expect(result.conversionRates.interviewRate).toBe(0.5);
     expect(result.conversionRates.offerRate).toBe(0.25);
-    
+
     expect(result.averageResponseTimeDays).toBe(4);
     expect(result.companiesAppliedTo).toBe(3);
-    
+
     expect(result.mostSuccessfulJobCategories).toHaveLength(3);
     expect(result.mostSuccessfulJobCategories[0]!.category).toBe('Design'); // 100% interview rate
     expect(result.mostSuccessfulJobCategories[0]!.interviewRate).toBe(1);
-    
+
     expect(result.mostSuccessfulJobCategories[1]!.category).toBe('Engineering'); // 50% interview rate
     expect(result.mostSuccessfulJobCategories[1]!.interviewRate).toBe(0.5);
-    
+
     expect(result.mostSuccessfulJobCategories[2]!.category).toBe('Product'); // 0% interview rate
     expect(result.mostSuccessfulJobCategories[2]!.interviewRate).toBe(0);
   });

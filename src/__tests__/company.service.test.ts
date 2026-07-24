@@ -116,9 +116,7 @@ describe('CompanyService', () => {
         headquarters: 'Mountain View',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-02T00:00:00.000Z'),
-        applications: [
-          { id: 'app-1', appliedDate: new Date('2026-01-05T00:00:00.000Z') },
-        ],
+        applications: [{ id: 'app-1', appliedDate: new Date('2026-01-05T00:00:00.000Z') }],
         recruiters: [{ id: 'rec-1' }],
       },
     ]);

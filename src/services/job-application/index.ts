@@ -1,4 +1,8 @@
-export { JobApplicationExtractor, JobApplicationStatus, jobApplicationExtractor } from './job-application-extractor';
+export {
+  JobApplicationExtractor,
+  JobApplicationStatus,
+  jobApplicationExtractor,
+} from './job-application-extractor';
 export type {
   JobApplication,
   JobApplicationCompany,

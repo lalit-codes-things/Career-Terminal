@@ -1,0 +1,192 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ApplyWise — Docker Compose
+#
+# Services:
+#   postgres   — PostgreSQL 16 (primary database)
+#   pgbouncer  — Connection pooler (transaction mode, sits between api and pg)
+#   redis      — Redis 7 (cache + BullMQ queues)
+#   minio      — S3-compatible object storage (resume files)
+#   api        — ApplyWise Express backend (production build)
+#
+# Usage:
+#   cp .env.example .env        # fill in real values
+#   docker compose up --build
+#
+# Secrets are never hardcoded — all values come from the .env file.
+# ─────────────────────────────────────────────────────────────────────────────
+name: applywise
+
+networks:
+  applywise_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - applywise_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-applywise}
+      POSTGRES_USER:     ${POSTGRES_USER:-applywise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-applywise} -d ${POSTGRES_DB:-applywise}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── PgBouncer ───────────────────────────────────────────────────────────────
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    restart: unless-stopped
+    networks:
+      - applywise_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_HOST:         postgres
+      POSTGRESQL_PORT:         5432
+      POSTGRESQL_DATABASE:     ${POSTGRES_DB:-applywise}
+      POSTGRESQL_USERNAME:     ${POSTGRES_USER:-applywise}
+      POSTGRESQL_PASSWORD:     ${POSTGRES_PASSWORD}
+      PGBOUNCER_DATABASE:      ${POSTGRES_DB:-applywise}
+      PGBOUNCER_PORT:          6432
+      PGBOUNCER_POOL_MODE:     transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 200
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20
+      PGBOUNCER_MIN_POOL_SIZE:  5
+      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U ${POSTGRES_USER:-applywise}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    ports:
+      - "6432:6432"
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - applywise_net
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "6379:6379"
+
+  # ── MinIO ───────────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    networks:
+      - applywise_net
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO Console
+
+  # ── MinIO bucket initializer (runs once then exits) ─────────────────────────
+  minio_init:
+    image: minio/mc:latest
+    networks:
+      - applywise_net
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET:        ${MINIO_BUCKET:-applywise-resumes}
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+        mc mb --ignore-existing local/$$MINIO_BUCKET &&
+        mc anonymous set none local/$$MINIO_BUCKET &&
+        echo 'MinIO bucket initialised: '$$MINIO_BUCKET
+      "
+    restart: "no"
+
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    networks:
+      - applywise_net
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV:            production
+      PORT:                3000
+      DATABASE_URL:        postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=1
+      REDIS_HOST:          redis
+      REDIS_PORT:          6379
+      REDIS_PASSWORD:      ${REDIS_PASSWORD:-}
+      REDIS_DB:            0
+      AWS_ENDPOINT_URL_S3: http://minio:9000
+      AWS_REGION:          us-east-1
+      AWS_ACCESS_KEY_ID:   ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET:           ${MINIO_BUCKET:-applywise-resumes}
+      JWT_SECRET:          ${JWT_SECRET}
+      ENCRYPTION_KEY:      ${ENCRYPTION_KEY}
+      INTERNAL_API_KEY:    ${INTERNAL_API_KEY}
+      GOOGLE_CLIENT_ID:    ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      ALLOWED_ORIGINS:     ${ALLOWED_ORIGINS:-}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
