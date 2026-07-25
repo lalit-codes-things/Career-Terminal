@@ -3,12 +3,10 @@ import { OAuthError } from '../errors/app-errors';
 
 describe('OAuthStateService', () => {
   beforeEach(() => {
-    // Clear states before each test by generating and consuming, or destroying
+    // Clear states before each test by destroying the singleton's backend
     oauthStateService.destroy();
-    // In actual implementation, we might want to expose a clear() method for testing,
-    // but destroy() works for now. We need to re-instantiate it for tests to work properly if we destroyed it.
-    // However, since it's a singleton, we shouldn't destroy the timer permanently in tests without recreating it.
-    // Let's mock Date.now instead to test expiration.
+    // Note: destroy() resets the in-memory backend timer and clears the map.
+    // The singleton remains usable — subsequent generateState() calls work normally.
   });
 
   afterEach(() => {
@@ -24,29 +22,29 @@ describe('OAuthStateService', () => {
     expect(state.length).toBeGreaterThan(0);
   });
 
-  it('should validate and consume a valid state', () => {
+  it('should validate and consume a valid state', async () => {
     const userId = 'user_456';
     const state = oauthStateService.generateState(userId);
 
-    const validatedUserId = oauthStateService.validateAndConsume(state);
+    const validatedUserId = await oauthStateService.validateAndConsume(state);
     expect(validatedUserId).toBe(userId);
   });
 
-  it('should throw OAuthError on one-time use violation (second consumption)', () => {
+  it('should throw OAuthError on one-time use violation (second consumption)', async () => {
     const userId = 'user_789';
     const state = oauthStateService.generateState(userId);
 
-    oauthStateService.validateAndConsume(state); // First use works
+    await oauthStateService.validateAndConsume(state); // First use works
 
-    // Second use fails
-    expect(() => oauthStateService.validateAndConsume(state)).toThrow(OAuthError);
+    // Second use must fail
+    await expect(oauthStateService.validateAndConsume(state)).rejects.toThrow(OAuthError);
   });
 
-  it('should throw OAuthError for non-existent state', () => {
-    expect(() => oauthStateService.validateAndConsume('invalid_state')).toThrow(OAuthError);
+  it('should throw OAuthError for non-existent state', async () => {
+    await expect(oauthStateService.validateAndConsume('invalid_state')).rejects.toThrow(OAuthError);
   });
 
-  it('should throw OAuthError for expired state', () => {
+  it('should throw OAuthError for expired state', async () => {
     jest.useFakeTimers();
     const userId = 'user_exp';
     const state = oauthStateService.generateState(userId);
@@ -54,7 +52,13 @@ describe('OAuthStateService', () => {
     // Advance time by 16 minutes (TTL is 15 mins)
     jest.advanceTimersByTime(16 * 60 * 1000);
 
-    expect(() => oauthStateService.validateAndConsume(state)).toThrow(OAuthError);
-    expect(() => oauthStateService.validateAndConsume(state)).toThrow(/expired/);
+    await expect(oauthStateService.validateAndConsume(state)).rejects.toThrow(OAuthError);
+    await expect(oauthStateService.validateAndConsume(state)).rejects.toThrow(/expired/);
+  });
+
+  it('getActiveCount should return the number of active states', async () => {
+    const count = await oauthStateService.getActiveCount();
+    expect(typeof count).toBe('number');
+    expect(count).toBeGreaterThanOrEqual(0);
   });
 });

@@ -1,4 +1,10 @@
-import { encryptToken, decryptToken } from '../utils/encryption';
+/**
+ * Encryption utility — legacy test suite (updated for versioned envelope format).
+ *
+ * The new versioned envelope format is: v<N>:iv:authTag:ciphertext (4 parts).
+ * Tests for the full Epic 0.7 encryption suite are in epic-0.7-encryption.test.ts.
+ */
+import { encryptToken, decryptToken, invalidateKeyCache } from '../utils/encryption';
 import { EncryptionError } from '../errors/app-errors';
 
 describe('Encryption Utility', () => {
@@ -8,7 +14,14 @@ describe('Encryption Utility', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    invalidateKeyCache();
     process.env = { ...originalEnv, ENCRYPTION_KEY: mockKey };
+    delete process.env.ENCRYPTION_KEY_V2;
+    delete process.env.ACTIVE_ENCRYPTION_KEY_VERSION;
+  });
+
+  afterEach(() => {
+    invalidateKeyCache();
   });
 
   afterAll(() => {
@@ -18,7 +31,11 @@ describe('Encryption Utility', () => {
   it('should successfully encrypt and decrypt a string', () => {
     const encrypted = encryptToken(plaintext);
     expect(encrypted).not.toEqual(plaintext);
-    expect(encrypted.split(':')).toHaveLength(3); // iv:authTag:ciphertext
+
+    // Versioned envelope format: v<N>:iv:authTag:ciphertext = 4 parts
+    const parts = encrypted.split(':');
+    expect(parts).toHaveLength(4);
+    expect(parts[0]).toBe('v1');
 
     const decrypted = decryptToken(encrypted);
     expect(decrypted).toEqual(plaintext);
@@ -37,24 +54,26 @@ describe('Encryption Utility', () => {
 
   it('should throw EncryptionError if ENCRYPTION_KEY is missing', () => {
     delete process.env.ENCRYPTION_KEY;
+    invalidateKeyCache(); // force re-read from env
 
     expect(() => encryptToken(plaintext)).toThrow(EncryptionError);
-    expect(() => encryptToken(plaintext)).toThrow(/ENCRYPTION_KEY environment variable is not set/);
+    expect(() => encryptToken(plaintext)).toThrow(/ENCRYPTION_KEY is not set|is not configured/);
   });
 
   it('should throw EncryptionError if ENCRYPTION_KEY is wrong length', () => {
     process.env.ENCRYPTION_KEY = 'tooshort';
+    invalidateKeyCache(); // force re-read from env
 
     expect(() => encryptToken(plaintext)).toThrow(EncryptionError);
-    expect(() => encryptToken(plaintext)).toThrow(/must be 64 hex characters/);
+    expect(() => encryptToken(plaintext)).toThrow(/must be exactly 64 hex characters/);
   });
 
   it('should throw EncryptionError if ciphertext is tampered with', () => {
     const encrypted = encryptToken(plaintext);
     const parts = encrypted.split(':');
 
-    // Tamper with the ciphertext part
-    parts[2] = Buffer.from('tampered_data').toString('base64');
+    // Tamper with the ciphertext part (index 3 in versioned format)
+    parts[3] = Buffer.from('tampered_data').toString('base64');
     const tampered = parts.join(':');
 
     expect(() => decryptToken(tampered)).toThrow(EncryptionError);
@@ -65,6 +84,8 @@ describe('Encryption Utility', () => {
 
   it('should throw EncryptionError for invalid encrypted format', () => {
     expect(() => decryptToken('invalid_format_string')).toThrow(EncryptionError);
-    expect(() => decryptToken('invalid_format_string')).toThrow(/expected iv:authTag:ciphertext/);
+    expect(() => decryptToken('invalid_format_string')).toThrow(
+      /expected.*iv:authTag:ciphertext/,
+    );
   });
 });

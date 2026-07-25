@@ -97,8 +97,8 @@ export class GmailOAuthService {
    * @throws {OAuthError} If state is invalid or token exchange fails
    */
   async handleCallback(code: string, state: string): Promise<OAuthCallbackResult> {
-    // Step 1: Validate CSRF state
-    const userId = oauthStateService.validateAndConsume(state);
+    // Step 1: Validate CSRF state (now async — supports Redis backend)
+    const userId = await oauthStateService.validateAndConsume(state);
 
     // Step 2: Exchange code for tokens
     const tokens = await this.exchangeCodeForTokens(code);

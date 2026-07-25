@@ -1,7 +1,7 @@
 process.env.GOOGLE_CLIENT_ID ??= 'test-client-id';
 process.env.GOOGLE_CLIENT_SECRET ??= 'test-client-secret';
 process.env.GOOGLE_REDIRECT_URI ??= 'http://localhost/callback';
-process.env.ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef';
+// ENCRYPTION_KEY must be 64 hex chars (32 bytes) — set by jest.env.setup.js
 process.env.DATABASE_URL ??= 'postgresql://user:pass@localhost:5432/testdb';
 
 import { GmailOAuthService } from '../services/gmail/auth/gmail-oauth.service';
@@ -23,6 +23,14 @@ jest.mock('../config/database', () => ({
   },
 }));
 jest.mock('../utils/encryption');
+// Mock oauthStateService so validateAndConsume returns a Promise
+jest.mock('../services/gmail/auth/oauth-state.service', () => ({
+  oauthStateService: {
+    generateState: jest.fn((userId: string) => `mock-state-${userId}`),
+    validateAndConsume: jest.fn(),
+    destroy: jest.fn(),
+  },
+}));
 
 describe('GmailOAuthService', () => {
   let service: InstanceType<typeof GmailOAuthService>;
@@ -73,8 +81,9 @@ describe('GmailOAuthService', () => {
 
   describe('handleCallback', () => {
     it('should complete full oauth flow successfully', async () => {
-      // Mock state validation
+      // Mock state validation — validateAndConsume is now async
       const state = oauthStateService.generateState('user_1');
+      (oauthStateService.validateAndConsume as jest.Mock).mockResolvedValue('user_1');
 
       // Mock token exchange
       mockGetToken.mockResolvedValue({
@@ -115,6 +124,7 @@ describe('GmailOAuthService', () => {
 
     it('should throw OAuthError if token exchange fails', async () => {
       const state = oauthStateService.generateState('user_1');
+      (oauthStateService.validateAndConsume as jest.Mock).mockResolvedValue('user_1');
       mockGetToken.mockRejectedValue(new Error('Google API Error'));
 
       await expect(service.handleCallback('invalid_code', state)).rejects.toThrow(OAuthError);

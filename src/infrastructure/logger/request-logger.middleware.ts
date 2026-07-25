@@ -1,5 +1,20 @@
 /**
- * Request logger and metrics middleware.
+ * Request logger and metrics middleware (Epic 0.7 privacy hardened).
+ *
+ * Privacy controls added (Phase 22):
+ *   - Authorization header value is never logged (only presence noted).
+ *   - Cookie header value is never logged.
+ *   - Request body is NOT logged (prevents PII / token leakage).
+ *   - Query string is not included in the logged path to prevent
+ *     token-in-URL leakage (e.g. ?code=, ?token=, ?state=).
+ *   - x-user-id (test bypass header) is never logged.
+ *   - x-internal-api-key is never logged.
+ *
+ * What IS logged:
+ *   - requestId, correlationId (for correlation only — no user identity)
+ *   - HTTP method, path (without query string)
+ *   - Client IP (may be subject to regional privacy requirements)
+ *   - Response status code, duration
  */
 import { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import { randomUUID } from 'crypto';
@@ -15,6 +30,28 @@ declare module 'express-serve-static-core' {
     traceId?: string;
     spanId?: string;
   }
+}
+
+/**
+ * Headers that must never appear in logs — their presence may be noted but
+ * their values are always [REDACTED].
+ */
+const REDACTED_REQUEST_HEADERS = new Set([
+  'authorization',
+  'cookie',
+  'x-user-id',
+  'x-internal-api-key',
+  'x-api-key',
+  'x-auth-token',
+]);
+
+/**
+ * Sanitize the URL path for logging: strip query string to prevent
+ * tokens (e.g. ?code=..., ?state=...) from appearing in logs.
+ */
+function sanitizePathForLog(req: Request): string {
+  // Only log the pathname, not the query string
+  return req.path;
 }
 
 /**
@@ -38,20 +75,25 @@ export const requestLogger: RequestHandler = (
   res.setHeader('x-correlation-id', correlationId);
 
   const startAt = process.hrtime();
+  const safePath = sanitizePathForLog(req);
 
   logger.info('→ request', {
     requestId,
     correlationId,
     method: req.method,
-    path: req.path,
+    path: safePath,
+    // Log whether sensitive headers are present (not their values)
+    hasAuthorization: !!req.headers['authorization'],
+    hasCookie: !!req.headers['cookie'],
     ip: req.ip ?? req.socket.remoteAddress,
+    // DO NOT log: req.body, req.query, authorization value, cookie value
   });
 
   const requestSize = req.headers['content-length']
     ? parseInt(req.headers['content-length'], 10)
     : 0;
   if (requestSize > 0) {
-    metrics.httpRequestSize.observe({ method: req.method, path: req.path }, requestSize);
+    metrics.httpRequestSize.observe({ method: req.method, path: safePath }, requestSize);
   }
 
   res.on('finish', () => {
@@ -65,23 +107,23 @@ export const requestLogger: RequestHandler = (
       requestId,
       correlationId,
       method: req.method,
-      path: req.path,
+      path: safePath,
       status: res.statusCode,
       durationMs,
     });
 
-    // Record metrics
+    // Record metrics — use path without query string to avoid token cardinality explosion
     metrics.httpRequestCounter.inc({
       method: req.method,
-      path: req.path,
+      path: safePath,
       status_code: res.statusCode.toString(),
     });
 
-    metrics.httpRequestDuration.observe({ method: req.method, path: req.path }, durationSec);
+    metrics.httpRequestDuration.observe({ method: req.method, path: safePath }, durationSec);
 
     const responseSize = res.getHeader('content-length');
     if (typeof responseSize === 'number') {
-      metrics.httpResponseSize.observe({ method: req.method, path: req.path }, responseSize);
+      metrics.httpResponseSize.observe({ method: req.method, path: safePath }, responseSize);
     }
 
     // Slow request logging
@@ -90,7 +132,7 @@ export const requestLogger: RequestHandler = (
         requestId,
         correlationId,
         method: req.method,
-        path: req.path,
+        path: safePath,
         durationMs,
         thresholdMs: config.thresholds.slowRequest,
       });
@@ -99,3 +141,6 @@ export const requestLogger: RequestHandler = (
 
   next();
 };
+
+// Export for use in tests
+export { REDACTED_REQUEST_HEADERS };

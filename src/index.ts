@@ -17,6 +17,7 @@ import { applicationsRouter } from './routes/applications.routes';
 import { analyticsRouter } from './routes/analytics.routes';
 import { dashboardRouter } from './routes/dashboard.routes';
 import { resumeRouter } from './routes/resume.routes';
+import { userRouter } from './routes/user.routes';
 import { timelineRouter } from './routes/timeline.routes';
 import { recruitersRouter } from './routes/recruiters.routes';
 import { companiesRouter } from './routes/companies.routes';
@@ -224,6 +225,7 @@ app.use('/companies', companiesRouter);
 app.use('/analytics', analyticsRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/resume', resumeRouter);
+app.use('/user', userRouter);
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use(errorHandler);

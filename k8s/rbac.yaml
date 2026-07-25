@@ -1,0 +1,217 @@
+# Kubernetes RBAC — Workload Identity Secret Access (Epic 0.7, Phase 2-3)
+#
+# This manifest implements least-privilege secret access per workload.
+# Each ServiceAccount may only read the Secrets it requires.
+#
+# Architecture:
+#   ServiceAccount (per workload)
+#     └── RoleBinding → Role → Secret (named resource grants)
+#
+# In production with an External Secrets Operator or Vault Agent Injector,
+# these ServiceAccount identities are also presented to the external secret
+# manager to authenticate workloads without a static master credential.
+#
+# Application:
+#   kubectl apply -f k8s/rbac.yaml -n applywise
+#
+# Secret access matrix (Phase 31):
+#   applywise-api:            database, redis, jwt, encryption, internal-api-key, google-oauth
+#   applywise-gmail-worker:   database, redis, encryption, google-oauth
+#   applywise-resume-worker:  database, redis, storage-credentials
+#   applywise-tracking-worker: database, redis, encryption
+
+---
+# ── Namespace ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: applywise
+  labels:
+    app.kubernetes.io/name: applywise
+
+---
+# ── ServiceAccounts ────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: applywise-api
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/name: applywise
+  annotations:
+    # Vault k8s auth: vault will bind this SA to the applywise-api policy
+    vault.hashicorp.com/role: "applywise-api"
+    # AWS IRSA (if on EKS): replace with actual role ARN
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/applywise-api
+    # GCP Workload Identity (if on GKE): replace with actual service account
+    # iam.gke.io/gcp-service-account: applywise-api@PROJECT.iam.gserviceaccount.com
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: applywise-gmail-worker
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: gmail-worker
+    app.kubernetes.io/name: applywise
+  annotations:
+    vault.hashicorp.com/role: "applywise-gmail-worker"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: applywise-resume-worker
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: resume-worker
+    app.kubernetes.io/name: applywise
+  annotations:
+    vault.hashicorp.com/role: "applywise-resume-worker"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: applywise-tracking-worker
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: tracking-worker
+    app.kubernetes.io/name: applywise
+  annotations:
+    vault.hashicorp.com/role: "applywise-tracking-worker"
+
+---
+# ── Roles — named secret grants (least privilege) ─────────────────────────────
+
+# API: database, redis, jwt, encryption, internal-api-key, google-oauth
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: applywise-api-secrets
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: api
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - applywise-secrets      # main secret (database, jwt, encryption, google, internal-api)
+      - applywise-redis-secret # redis credentials
+    verbs: ["get"]
+
+---
+# Gmail worker: database, redis, encryption, google-oauth
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: applywise-gmail-worker-secrets
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: gmail-worker
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - applywise-gmail-secret  # database-url, encryption-key, google-oauth
+      - applywise-redis-secret
+    verbs: ["get"]
+
+---
+# Resume worker: database, redis, S3 storage credentials
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: applywise-resume-worker-secrets
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: resume-worker
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - applywise-resume-secret # database-url, aws credentials
+      - applywise-redis-secret
+    verbs: ["get"]
+
+---
+# Tracking worker: database, redis, encryption
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: applywise-tracking-worker-secrets
+  namespace: applywise
+  labels:
+    app.kubernetes.io/component: tracking-worker
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - applywise-tracking-secret # database-url, encryption-key
+      - applywise-redis-secret
+    verbs: ["get"]
+
+---
+# ── RoleBindings ──────────────────────────────────────────────────────────────
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: applywise-api-secrets-binding
+  namespace: applywise
+subjects:
+  - kind: ServiceAccount
+    name: applywise-api
+    namespace: applywise
+roleRef:
+  kind: Role
+  name: applywise-api-secrets
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: applywise-gmail-worker-secrets-binding
+  namespace: applywise
+subjects:
+  - kind: ServiceAccount
+    name: applywise-gmail-worker
+    namespace: applywise
+roleRef:
+  kind: Role
+  name: applywise-gmail-worker-secrets
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: applywise-resume-worker-secrets-binding
+  namespace: applywise
+subjects:
+  - kind: ServiceAccount
+    name: applywise-resume-worker
+    namespace: applywise
+roleRef:
+  kind: Role
+  name: applywise-resume-worker-secrets
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: applywise-tracking-worker-secrets-binding
+  namespace: applywise
+subjects:
+  - kind: ServiceAccount
+    name: applywise-tracking-worker
+    namespace: applywise
+roleRef:
+  kind: Role
+  name: applywise-tracking-worker-secrets
+  apiGroup: rbac.authorization.k8s.io

@@ -41,6 +41,10 @@ spec:
                 name: applywise-config
             - secretRef:
                 name: applywise-secrets
+          env:
+            # Epic 0.7: Workload identity — restricts secret access to API policy
+            - name: WORKLOAD_IDENTITY
+              value: "applywise-api"
           resources:
             requests:
               cpu: "100m"
