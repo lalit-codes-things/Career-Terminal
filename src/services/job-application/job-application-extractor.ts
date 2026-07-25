@@ -133,7 +133,8 @@ export class JobApplicationExtractor {
     return 'Unknown Role';
   }
 
-  private extractDepartment(text: string, roleTitle: string, subject: string): string {
+  private extractDepartment(rawText: string, roleTitle: string, subject: string): string {
+    const text = this.truncate(rawText);
     const patterns: ReadonlyArray<RegExp> = [
       /for the\s+([A-Za-z\s]+)\s+team/i,
       /department\s+([A-Za-z\s]+?)(?:\.|,|;|$)/i,
@@ -166,7 +167,8 @@ export class JobApplicationExtractor {
     };
   }
 
-  private extractAppliedDate(text: string, fallbackDate: Date | undefined): Date {
+  private extractAppliedDate(rawText: string, fallbackDate: Date | undefined): Date {
+    const text = this.truncate(rawText);
     const datePattern = /(\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Za-z]+\s+\d{4})/;
     const match = datePattern.exec(text);
     if (match?.[1]) {
@@ -179,7 +181,8 @@ export class JobApplicationExtractor {
     return fallbackDate ?? new Date();
   }
 
-  private extractLocation(text: string, subject: string): string {
+  private extractLocation(rawText: string, subject: string): string {
+    const text = this.truncate(rawText);
     const searchText = `${subject} ${text}`;
     const locationPatterns: ReadonlyArray<RegExp> = [
       /in\s+([A-Za-z\s]+?)(?:\.|,|;|$)/i,
@@ -201,7 +204,8 @@ export class JobApplicationExtractor {
     return 'Remote';
   }
 
-  private extractEmploymentType(text: string, subject: string): string {
+  private extractEmploymentType(rawText: string, subject: string): string {
+    const text = this.truncate(rawText);
     const searchText = `${subject} ${text}`;
     if (/full[- ]time/i.test(searchText)) {
       return 'Full-time';
@@ -215,13 +219,15 @@ export class JobApplicationExtractor {
     return 'Full-time';
   }
 
-  private extractDeadlines(text: string): readonly string[] {
+  private extractDeadlines(rawText: string): readonly string[] {
+    const text = this.truncate(rawText);
     const matches =
       text.match(/(?:by|before)\s+([A-Za-z0-9,\s]+(?:\d{4}|\d{1,2}\s+[A-Za-z]+\s+\d{4}))/gi) ?? [];
     return matches.map((value) => value.trim());
   }
 
-  private extractInterviewRounds(text: string, category: JobEmailCategory): number {
+  private extractInterviewRounds(rawText: string, category: JobEmailCategory): number {
+    const text = this.truncate(rawText);
     const roundMatch = /round\s+(\d+)/i.exec(text);
     if (roundMatch?.[1]) {
       return Number.parseInt(roundMatch[1], 10);
@@ -287,7 +293,8 @@ export class JobApplicationExtractor {
     return withoutTld.replace(/\b\w/g, (char: string) => char.toUpperCase());
   }
 
-  private extractNameFromText(text: string, sender: string): string | null {
+  private extractNameFromText(rawText: string, sender: string): string | null {
+    const text = this.truncate(rawText);
     const senderNameMatch = /hi\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i.exec(text);
     if (senderNameMatch?.[1]) {
       return this.capitalize(senderNameMatch[1].trim());
@@ -297,7 +304,8 @@ export class JobApplicationExtractor {
     return domain ? this.formatDomainLabel(domain) : null;
   }
 
-  private extractEmailFromText(text: string): string | null {
+  private extractEmailFromText(rawText: string): string | null {
+    const text = this.truncate(rawText);
     const emailMatch = /([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/i.exec(text);
     return emailMatch ? `${emailMatch[1]}@${emailMatch[2]}` : null;
   }
@@ -347,6 +355,10 @@ export class JobApplicationExtractor {
 
   private capitalize(value: string): string {
     return value.replace(/\b\w/g, (char: string) => char.toUpperCase());
+  }
+
+  private truncate(text: string, length = 10000): string {
+    return text.length > length ? text.slice(0, length) : text;
   }
 }
 

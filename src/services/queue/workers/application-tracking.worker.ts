@@ -12,7 +12,7 @@
 import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
-import { QUEUE_NAMES, type ApplicationTrackingJobPayload } from '../queue.types';
+import { QUEUE_NAMES, type ApplicationTrackingJobPayload, ApplicationTrackingJobPayloadSchema } from '../queue.types';
 
 // ---------------------------------------------------------------------------
 // Processor
@@ -21,7 +21,7 @@ import { QUEUE_NAMES, type ApplicationTrackingJobPayload } from '../queue.types'
 export async function processApplicationTrackingJob(
   job: Job<ApplicationTrackingJobPayload>,
 ): Promise<void> {
-  const { type, userId, applicationId, emailMessageId, metadata } = job.data;
+  const { type, userId, applicationId, emailMessageId, metadata } = ApplicationTrackingJobPayloadSchema.parse(job.data);
 
   logger.info('[AppTrackingWorker] Processing job', {
     jobId: job.id,

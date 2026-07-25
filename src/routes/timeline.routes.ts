@@ -3,8 +3,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { ApplicationTimelineEventType } from '@prisma/client';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateParams } from '../middleware/validate';
 import { applicationTrackingService } from '../services/application-tracking/application-tracking.service';
+import { writeLimiter } from '../middleware/rate-limiter';
 
 export const timelineRouter = Router();
 
@@ -16,9 +17,15 @@ const patchTimelineSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
+const paramIdSchema = z.object({
+  id: z.string().uuid(),
+});
+
 timelineRouter.patch(
   '/:id',
+  writeLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   validateBody(patchTimelineSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {

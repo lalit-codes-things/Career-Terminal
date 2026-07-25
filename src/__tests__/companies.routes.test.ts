@@ -23,6 +23,11 @@ const mockedCompanyService = companyService as unknown as {
   getCompanyApplications: jest.Mock;
 };
 
+// Fixed UUIDs
+const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
+const USER_ID    = '00000000-0000-0000-0000-000000000002';
+const APP_ID     = '00000000-0000-0000-0000-000000000001';
+
 describe('Companies routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,7 +36,7 @@ describe('Companies routes', () => {
   it('lists companies for the authenticated user', async () => {
     mockedCompanyService.listCompanies.mockResolvedValue([
       {
-        id: 'company-1',
+        id: COMPANY_ID,
         name: 'Google',
         domain: 'google.com',
         careersUrl: null,
@@ -47,13 +52,13 @@ describe('Companies routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/companies?name=Google').set('x-user-id', 'user-1');
+    const response = await request(app).get('/companies?name=Google').set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
     expect(mockedCompanyService.listCompanies).toHaveBeenCalledWith(
-      'user-1',
+      USER_ID,
       {
         name: 'Google',
         domain: undefined,
@@ -68,7 +73,7 @@ describe('Companies routes', () => {
 
   it('returns company details', async () => {
     mockedCompanyService.getCompany.mockResolvedValue({
-      id: 'company-1',
+      id: COMPANY_ID,
       name: 'Google',
       domain: 'google.com',
       careersUrl: null,
@@ -84,19 +89,21 @@ describe('Companies routes', () => {
       aliases: ['Google LLC'],
     });
 
-    const response = await request(app).get('/companies/company-1').set('x-user-id', 'user-1');
+    const response = await request(app)
+      .get(`/companies/${COMPANY_ID}`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.aliases).toContain('Google LLC');
-    expect(mockedCompanyService.getCompany).toHaveBeenCalledWith('user-1', 'company-1');
+    expect(mockedCompanyService.getCompany).toHaveBeenCalledWith(USER_ID, COMPANY_ID);
   });
 
   it('returns applications for a company', async () => {
     mockedCompanyService.getCompanyApplications.mockResolvedValue([
       {
-        id: 'app-1',
-        userId: 'user-1',
+        id: APP_ID,
+        userId: USER_ID,
         appliedDate: '2026-01-05T00:00:00.000Z',
         status: 'APPLIED',
         roleTitle: 'Engineer',
@@ -107,15 +114,15 @@ describe('Companies routes', () => {
     ]);
 
     const response = await request(app)
-      .get('/companies/company-1/applications')
-      .set('x-user-id', 'user-1');
+      .get(`/companies/${COMPANY_ID}/applications`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
     expect(mockedCompanyService.getCompanyApplications).toHaveBeenCalledWith(
-      'user-1',
-      'company-1',
+      USER_ID,
+      COMPANY_ID,
       {
         page: undefined,
         pageSize: undefined,

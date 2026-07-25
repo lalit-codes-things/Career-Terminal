@@ -18,6 +18,8 @@ interface AppConfig {
   gitCommit: string;
   /** Build timestamp */
   buildTimestamp: string;
+  /** Trust proxy config */
+  trustProxy: string;
 
   /** Google OAuth2 credentials */
   google: {
@@ -91,6 +93,9 @@ interface AppConfig {
     maxMultipartSize: string;
     maxHeaderSize: number;
     requestTimeoutMs: number;
+    maxObjectDepth: number;
+    maxArraySize: number;
+    maxStringLength: number;
   };
 
   /** Validation configuration */
@@ -157,6 +162,12 @@ function validateSecrets(cfg: {
   }
 }
 
+function validateSecurityConfig(cfg: AppConfig): void {
+  if (cfg.cors.credentials && cfg.cors.allowedOrigins.includes('*')) {
+    throw new Error('CORS: Wildcard origin "*" is not allowed when credentials are enabled.');
+  }
+}
+
 function loadConfig(): AppConfig {
   const env = parseEnv();
 
@@ -167,6 +178,7 @@ function loadConfig(): AppConfig {
     appVersion: env.APP_VERSION,
     gitCommit: env.GIT_COMMIT,
     buildTimestamp: env.BUILD_TIMESTAMP,
+    trustProxy: env.TRUST_PROXY,
 
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
@@ -234,6 +246,9 @@ function loadConfig(): AppConfig {
       maxMultipartSize: env.MAX_MULTIPART_SIZE,
       maxHeaderSize: env.MAX_HEADER_SIZE,
       requestTimeoutMs: env.REQUEST_TIMEOUT_MS,
+      maxObjectDepth: env.MAX_OBJECT_DEPTH,
+      maxArraySize: env.MAX_ARRAY_SIZE,
+      maxStringLength: env.MAX_STRING_LENGTH,
     },
 
     validation: {
@@ -275,6 +290,7 @@ function loadConfig(): AppConfig {
   };
 
   validateSecrets(cfg);
+  validateSecurityConfig(cfg);
   return cfg;
 }
 

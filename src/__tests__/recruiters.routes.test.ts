@@ -23,6 +23,11 @@ const mockedRecruiterService = recruiterService as unknown as {
   getRecruiterInsights: jest.Mock;
 };
 
+// Fixed UUIDs
+const REC_ID     = '00000000-0000-0000-0000-000000000007';
+const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
+const USER_ID    = '00000000-0000-0000-0000-000000000002';
+
 describe('Recruiters routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,9 +36,9 @@ describe('Recruiters routes', () => {
   it('lists recruiters for the authenticated user', async () => {
     mockedRecruiterService.listRecruiters.mockResolvedValue([
       {
-        id: 'rec-1',
-        companyId: 'company-1',
-        company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+        id: REC_ID,
+        companyId: COMPANY_ID,
+        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -46,13 +51,13 @@ describe('Recruiters routes', () => {
 
     const response = await request(app)
       .get('/recruiters?company=Stripe')
-      .set('x-user-id', 'user-1');
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
     expect(mockedRecruiterService.listRecruiters).toHaveBeenCalledWith(
-      'user-1',
+      USER_ID,
       {
         company: 'Stripe',
         name: undefined,
@@ -67,9 +72,9 @@ describe('Recruiters routes', () => {
   it('returns recruiter details', async () => {
     mockedRecruiterService.getRecruiter.mockResolvedValue({
       recruiter: {
-        id: 'rec-1',
-        companyId: 'company-1',
-        company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+        id: REC_ID,
+        companyId: COMPANY_ID,
+        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -83,20 +88,20 @@ describe('Recruiters routes', () => {
       linkedEmailConversations: [],
     });
 
-    const response = await request(app).get('/recruiters/rec-1').set('x-user-id', 'user-1');
+    const response = await request(app).get(`/recruiters/${REC_ID}`).set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.recruiter.id).toBe('rec-1');
-    expect(mockedRecruiterService.getRecruiter).toHaveBeenCalledWith('user-1', 'rec-1');
+    expect(response.body.data.recruiter.id).toBe(REC_ID);
+    expect(mockedRecruiterService.getRecruiter).toHaveBeenCalledWith(USER_ID, REC_ID);
   });
 
   it('returns recruiter insights', async () => {
     mockedRecruiterService.getRecruiterInsights.mockResolvedValue({
       recruiter: {
-        id: 'rec-1',
-        companyId: 'company-1',
-        company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+        id: REC_ID,
+        companyId: COMPANY_ID,
+        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -111,12 +116,12 @@ describe('Recruiters routes', () => {
     });
 
     const response = await request(app)
-      .get('/recruiters/rec-1/insights')
-      .set('x-user-id', 'user-1');
+      .get(`/recruiters/${REC_ID}/insights`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.totalEmails).toBe(2);
-    expect(mockedRecruiterService.getRecruiterInsights).toHaveBeenCalledWith('user-1', 'rec-1');
+    expect(mockedRecruiterService.getRecruiterInsights).toHaveBeenCalledWith(USER_ID, REC_ID);
   });
 });

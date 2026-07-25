@@ -38,10 +38,22 @@ const g = globalThis as unknown as {
 const logLevels: ('query' | 'warn' | 'error')[] =
   process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'];
 
+function enrichUrl(baseUrl: string | undefined): string | undefined {
+  if (!baseUrl) return undefined;
+  try {
+    const url = new URL(baseUrl);
+    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '20');
+    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '10');
+    return url.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
 export const prisma: PrismaClient =
   g.prisma ??
   new PrismaClient({
-    datasources: { db: { url: process.env.DATABASE_URL } },
+    datasources: { db: { url: enrichUrl(process.env.DATABASE_URL) } },
     log: logLevels,
   });
 
@@ -60,7 +72,7 @@ export const prismaReplica: PrismaClient =
   g.prismaReplica ??
   (replicaUrl
     ? new PrismaClient({
-        datasources: { db: { url: replicaUrl } },
+        datasources: { db: { url: enrichUrl(replicaUrl) } },
         log: logLevels,
       })
     : prisma); // same reference → zero overhead when no replica is configured

@@ -165,7 +165,7 @@ services:
     environment:
       NODE_ENV:            production
       PORT:                3000
-      DATABASE_URL:        postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=1
+      DATABASE_URL:        postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=20
       REDIS_HOST:          redis
       REDIS_PORT:          6379
       REDIS_PASSWORD:      ${REDIS_PASSWORD:-}

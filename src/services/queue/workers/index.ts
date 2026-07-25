@@ -24,10 +24,32 @@ export function startAllWorkers(): void {
   logger.info('[Workers] All workers started', { count: workers.length });
 }
 
+let isShuttingDown = false;
+
 export async function stopAllWorkers(): Promise<void> {
+  if (isShuttingDown) {
+    logger.warn('[Workers] Shutdown already in progress.');
+    return;
+  }
+  isShuttingDown = true;
   logger.info('[Workers] Shutting down workers…');
-  await Promise.all(workers.map((w) => w.close()));
-  logger.info('[Workers] All workers stopped');
+
+  const timeoutId = setTimeout(() => {
+    logger.error('[Workers] Shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 15000);
+
+  try {
+    await Promise.allSettled(workers.map((w) => w.close()));
+    logger.info('[Workers] All workers stopped');
+    clearTimeout(timeoutId);
+  } catch (err) {
+    logger.error('[Workers] Error shutting down workers', {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    clearTimeout(timeoutId);
+    throw err;
+  }
 }
 
 // ── Standalone entrypoint ────────────────────────────────────────────────────
@@ -43,10 +65,10 @@ if (require.main === module) {
   }
 
   process.on('SIGTERM', () => {
-    void stopAllWorkers().then(() => process.exit(0));
+    void stopAllWorkers().then(() => process.exit(0)).catch(() => process.exit(1));
   });
 
   process.on('SIGINT', () => {
-    void stopAllWorkers().then(() => process.exit(0));
+    void stopAllWorkers().then(() => process.exit(0)).catch(() => process.exit(1));
   });
 }

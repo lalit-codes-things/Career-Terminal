@@ -45,8 +45,15 @@ export function createRedisClient(label = 'redis'): Redis {
     password: cfg.password,
     db: cfg.db,
     maxRetriesPerRequest: cfg.maxRetriesPerRequest,
-    // Reconnect with exponential backoff, cap at 10 s
-    retryStrategy: (times) => Math.min(times * 200, 10_000),
+    // Reconnect with exponential backoff, cap at 10 s, stop after 20 attempts
+    retryStrategy: (times) => {
+      if (times > 20) {
+        logger.error(`[${label}] Redis max retries reached. Failing permanently.`);
+        return null;
+      }
+      return Math.min(times * 200, 10_000);
+    },
+    commandTimeout: 5000,
     enableReadyCheck: false,
     lazyConnect: false,
   });

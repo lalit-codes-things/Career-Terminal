@@ -7,6 +7,7 @@ export const envSchema = z.object({
   APP_VERSION: z.string().default('unknown'),
   GIT_COMMIT: z.string().default('unknown'),
   BUILD_TIMESTAMP: z.string().default('unknown'),
+  TRUST_PROXY: z.string().default('1'),
 
   // Database
   DATABASE_URL: z.string().min(1),
@@ -83,6 +84,9 @@ export const envSchema = z.object({
   MAX_MULTIPART_SIZE: z.string().default('10mb'),
   MAX_HEADER_SIZE: z.coerce.number().int().positive().default(8192),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
+  MAX_OBJECT_DEPTH: z.coerce.number().int().positive().default(10),
+  MAX_ARRAY_SIZE: z.coerce.number().int().positive().default(100),
+  MAX_STRING_LENGTH: z.coerce.number().int().positive().default(5000),
 
   // Validation
   VALIDATION_STRIP_UNKNOWN: z.coerce.boolean().default(true),

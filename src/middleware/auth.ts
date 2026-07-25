@@ -85,6 +85,16 @@ export const requireAuth = (req: Request, _res: Response, next: NextFunction): v
 
     next();
   } catch (err) {
+    // Log security event — no credential values included
+    logger.warn('[security] auth_failure', {
+      event: 'auth_failure',
+      ip: req.ip,
+      path: req.path,
+      method: req.method,
+      reason: err instanceof Error ? err.message : 'unknown',
+      requestId: req.requestId,
+    });
+
     // Re-wrap all errors as UnauthorizedError so the API surface is consistent:
     // callers always receive a 401 UNAUTHORIZED, regardless of the internal
     // error type (TokenError, generic Error, etc.).

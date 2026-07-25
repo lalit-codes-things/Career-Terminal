@@ -42,6 +42,16 @@ const mockedRecruiterService = recruiterService as unknown as {
   getRecruiterByApplication: jest.Mock;
 };
 
+// Fixed UUIDs used across all test assertions
+const APP_ID    = '00000000-0000-0000-0000-000000000001';
+const USER_ID   = '00000000-0000-0000-0000-000000000002';
+const EMAIL_ID  = '00000000-0000-0000-0000-000000000003';
+const EVT_ID_1  = '00000000-0000-0000-0000-000000000004';
+const EVT_ID_2  = '00000000-0000-0000-0000-000000000005';
+const HIST_ID   = '00000000-0000-0000-0000-000000000006';
+const REC_ID    = '00000000-0000-0000-0000-000000000007';
+const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
+
 describe('Applications routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,26 +60,26 @@ describe('Applications routes', () => {
   it('lists applications with filters', async () => {
     mockedService.listApplications.mockResolvedValue([
       {
-        id: 'app-1',
-        userId: 'user-1',
+        id: APP_ID,
+        userId: USER_ID,
         company: { name: 'Stripe', domain: 'stripe.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'APPLIED',
         appliedDate: '2026-01-01T00:00:00.000Z',
         recruiter: { name: 'Maya', email: 'maya@stripe.com' },
-        sourceEmailId: 'email-1',
+        sourceEmailId: EMAIL_ID,
       },
     ]);
 
     const response = await request(app)
       .get('/applications?status=APPLIED&company=Stripe&role=Engineer')
-      .set('x-user-id', 'user-1');
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
     expect(mockedService.listApplications).toHaveBeenCalledWith(
-      'user-1',
+      USER_ID,
       {
         status: 'APPLIED',
         company: 'Stripe',
@@ -86,19 +96,19 @@ describe('Applications routes', () => {
   it('returns application details with email history and timeline', async () => {
     mockedService.getApplication.mockResolvedValue({
       application: {
-        id: 'app-1',
-        userId: 'user-1',
+        id: APP_ID,
+        userId: USER_ID,
         company: { name: 'Stripe', domain: 'stripe.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'APPLIED',
         appliedDate: '2026-01-01T00:00:00.000Z',
         recruiter: { name: 'Maya', email: 'maya@stripe.com' },
-        sourceEmailId: 'email-1',
+        sourceEmailId: EMAIL_ID,
       },
-      emailHistory: [{ id: 'email-1', subject: 'Application received' }],
+      emailHistory: [{ id: EMAIL_ID, subject: 'Application received' }],
       timeline: [
         {
-          id: 'evt-1',
+          id: EVT_ID_1,
           eventType: 'STATUS_CHANGED',
           description: 'Application saved',
           timestamp: '2026-01-01T00:00:00.000Z',
@@ -106,11 +116,11 @@ describe('Applications routes', () => {
       ],
     });
 
-    const response = await request(app).get('/applications/app-1').set('x-user-id', 'user-1');
+    const response = await request(app).get(`/applications/${APP_ID}`).set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.application.id).toBe('app-1');
+    expect(response.body.data.application.id).toBe(APP_ID);
     expect(response.body.data.emailHistory).toHaveLength(1);
     expect(response.body.data.timeline).toHaveLength(1);
   });
@@ -118,33 +128,33 @@ describe('Applications routes', () => {
   it('returns a chronological application timeline', async () => {
     mockedService.getApplicationTimeline.mockResolvedValue([
       {
-        id: 'evt-1',
-        applicationId: 'app-1',
+        id: EVT_ID_1,
+        applicationId: APP_ID,
         eventType: 'APPLICATION_SUBMITTED',
         timestamp: '2026-01-01T00:00:00.000Z',
-        sourceEmailId: 'email-1',
+        sourceEmailId: EMAIL_ID,
         metadata: { subject: 'Application received' },
         description: 'APPLICATION SUBMITTED from Application received',
       },
       {
-        id: 'evt-2',
-        applicationId: 'app-1',
+        id: EVT_ID_2,
+        applicationId: APP_ID,
         eventType: 'INTERVIEW',
         timestamp: '2026-01-02T00:00:00.000Z',
-        sourceEmailId: 'email-2',
+        sourceEmailId: EMAIL_ID,
         metadata: { subject: 'Interview scheduled' },
         description: 'INTERVIEW from Interview scheduled',
       },
     ]);
 
     const response = await request(app)
-      .get('/applications/app-1/timeline')
-      .set('x-user-id', 'user-1');
+      .get(`/applications/${APP_ID}/timeline`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(2);
-    expect(mockedService.getApplicationTimeline).toHaveBeenCalledWith('user-1', 'app-1', {
+    expect(mockedService.getApplicationTimeline).toHaveBeenCalledWith(USER_ID, APP_ID, {
       page: undefined,
       pageSize: undefined,
     });
@@ -153,12 +163,12 @@ describe('Applications routes', () => {
   it('returns status history for an application', async () => {
     mockedService.getApplicationStatusHistory.mockResolvedValue([
       {
-        id: 'hist-1',
-        applicationId: 'app-1',
+        id: HIST_ID,
+        applicationId: APP_ID,
         previousStatus: null,
         status: 'APPLIED',
         source: 'EMAIL',
-        sourceEmailId: 'email-1',
+        sourceEmailId: EMAIL_ID,
         changedByUserId: null,
         timestamp: '2026-01-01T00:00:00.000Z',
         metadata: null,
@@ -168,13 +178,13 @@ describe('Applications routes', () => {
     ]);
 
     const response = await request(app)
-      .get('/applications/app-1/status-history')
-      .set('x-user-id', 'user-1');
+      .get(`/applications/${APP_ID}/status-history`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedService.getApplicationStatusHistory).toHaveBeenCalledWith('user-1', 'app-1', {
+    expect(mockedService.getApplicationStatusHistory).toHaveBeenCalledWith(USER_ID, APP_ID, {
       page: undefined,
       pageSize: undefined,
     });
@@ -183,17 +193,17 @@ describe('Applications routes', () => {
   it('updates application status and creates a timeline event', async () => {
     mockedService.updateApplicationStatus.mockResolvedValue({
       application: {
-        id: 'app-1',
-        userId: 'user-1',
+        id: APP_ID,
+        userId: USER_ID,
         company: { name: 'Stripe', domain: 'stripe.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'INTERVIEW',
         appliedDate: '2026-01-01T00:00:00.000Z',
         recruiter: { name: 'Maya', email: 'maya@stripe.com' },
-        sourceEmailId: 'email-1',
+        sourceEmailId: EMAIL_ID,
       },
       timelineEvent: {
-        id: 'evt-2',
+        id: EVT_ID_2,
         eventType: 'STATUS_CHANGED',
         description: 'Application status updated to INTERVIEW',
         timestamp: '2026-01-02T00:00:00.000Z',
@@ -201,8 +211,8 @@ describe('Applications routes', () => {
     });
 
     const response = await request(app)
-      .patch('/applications/app-1/status')
-      .set('x-user-id', 'user-1')
+      .patch(`/applications/${APP_ID}/status`)
+      .set('x-user-id', USER_ID)
       .send({ status: 'INTERVIEW' });
 
     expect(response.status).toBe(200);
@@ -210,33 +220,33 @@ describe('Applications routes', () => {
     expect(response.body.data.application.status).toBe('INTERVIEW');
     expect(response.body.data.timelineEvent.description).toContain('INTERVIEW');
     expect(mockedService.updateApplicationStatus).toHaveBeenCalledWith(
-      'user-1',
-      'app-1',
+      USER_ID,
+      APP_ID,
       'INTERVIEW',
-      'user-1',
+      USER_ID,
     );
   });
 
   it('patches a timeline event', async () => {
     mockedService.updateTimelineEvent.mockResolvedValue({
-      id: 'evt-2',
-      applicationId: 'app-1',
+      id: EVT_ID_2,
+      applicationId: APP_ID,
       eventType: 'INTERVIEW',
       timestamp: '2026-01-02T00:00:00.000Z',
-      sourceEmailId: 'email-2',
+      sourceEmailId: EMAIL_ID,
       metadata: { note: 'Updated' },
       description: 'INTERVIEW from Interview scheduled',
     });
 
     const response = await request(app)
-      .patch('/timeline/evt-2')
-      .set('x-user-id', 'user-1')
+      .patch(`/timeline/${EVT_ID_2}`)
+      .set('x-user-id', USER_ID)
       .send({ metadata: { note: 'Updated' } });
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.id).toBe('evt-2');
-    expect(mockedService.updateTimelineEvent).toHaveBeenCalledWith('user-1', 'evt-2', {
+    expect(response.body.data.id).toBe(EVT_ID_2);
+    expect(mockedService.updateTimelineEvent).toHaveBeenCalledWith(USER_ID, EVT_ID_2, {
       eventType: undefined,
       timestamp: undefined,
       sourceEmailId: undefined,
@@ -248,9 +258,9 @@ describe('Applications routes', () => {
   it('returns recruiter details for an application', async () => {
     mockedRecruiterService.getRecruiterByApplication.mockResolvedValue({
       recruiter: {
-        id: 'rec-1',
-        companyId: 'company-1',
-        company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+        id: REC_ID,
+        companyId: COMPANY_ID,
+        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -265,22 +275,22 @@ describe('Applications routes', () => {
     });
 
     const response = await request(app)
-      .get('/applications/app-1/recruiter')
-      .set('x-user-id', 'user-1');
+      .get(`/applications/${APP_ID}/recruiter`)
+      .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.recruiter.id).toBe('rec-1');
+    expect(response.body.data.recruiter.id).toBe(REC_ID);
     expect(mockedRecruiterService.getRecruiterByApplication).toHaveBeenCalledWith(
-      'user-1',
-      'app-1',
+      USER_ID,
+      APP_ID,
     );
   });
 
   it('rejects invalid statuses', async () => {
     const response = await request(app)
-      .patch('/applications/app-1/status')
-      .set('x-user-id', 'user-1')
+      .patch(`/applications/${APP_ID}/status`)
+      .set('x-user-id', USER_ID)
       .send({ status: 'Pending' });
 
     expect(response.status).toBe(400);

@@ -71,11 +71,27 @@ export function normalizePath(path: string): string {
 }
 
 /**
+ * Validate that origin is a structurally well-formed URL without CRLF injection
+ */
+export function isValidOriginUrl(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return (url.protocol === 'http:' || url.protocol === 'https:') && !/[\r\n]/.test(origin);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Validate origin against allowed list
  */
 export function isValidOrigin(origin: string | undefined): boolean {
   if (!origin) {
     return true;
+  }
+
+  if (!isValidOriginUrl(origin)) {
+    return false;
   }
 
   const { allowedOrigins } = config.cors;

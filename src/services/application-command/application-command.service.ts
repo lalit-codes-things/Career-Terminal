@@ -3,6 +3,8 @@ import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { DomainValidationError } from '../../errors/domain-errors';
 import { ApplicationSourceProvider } from '../../domain/application-source';
+import { executeWithTransientRetry } from '../../db/transaction-utils';
+import { acquireLock, releaseLock } from '../../lib/mutex';
 import { applicationMergeService } from '../application-merge/application-merge.service';
 import { applicationReadModelService } from '../application-read-model/application-read-model.service';
 import { applicationTimelineService } from '../application-timeline';
@@ -63,7 +65,7 @@ export class ApplicationCommandService {
   ): Promise<ApplicationStatusUpdateResult> {
     await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await executeWithTransientRetry(prisma, async (tx) => {
       const change = await statusEngine.overrideStatus(
         applicationId,
         newStatus,
@@ -119,11 +121,22 @@ export class ApplicationCommandService {
     classification: JobEmailClassification,
     userId: string,
   ): Promise<void> {
-    const extractedData = jobApplicationExtractor.extract(email, userId, classification);
+    const lockKey = `lock:process_email:${email.emailId}`;
+    const lockToken = await acquireLock(lockKey, 60);
+    if (!lockToken) return; // Prevent concurrent processing of same email
 
-    const mergeDecision = await applicationMergeService.findMatch(userId, extractedData, email);
+    try {
+      // Idempotency check: don't process if already in DB
+      const existing = await prisma.applicationSource.findFirst({
+        where: { providerMessageId: email.emailId, provider: ApplicationSourceProvider.GMAIL },
+      });
+      if (existing) return;
 
-    await prisma.$transaction(async (tx) => {
+      const extractedData = jobApplicationExtractor.extract(email, userId, classification);
+
+      const mergeDecision = await applicationMergeService.findMatch(userId, extractedData, email);
+
+      await executeWithTransientRetry(prisma, async (tx) => {
       const company = await companyService.resolveCompany(
         {
           name: extractedData.company.name,
@@ -283,6 +296,9 @@ export class ApplicationCommandService {
     });
 
     dashboardService.invalidateUser(userId);
+    } finally {
+      if (lockToken) await releaseLock(lockKey, lockToken);
+    }
   }
 }
 

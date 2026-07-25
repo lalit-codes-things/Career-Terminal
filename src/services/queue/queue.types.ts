@@ -2,8 +2,9 @@
  * Job queue payload type definitions.
  *
  * Every job type has a strongly-typed payload so workers and producers
- * share the same contract at compile time.
+ * share the same contract at compile time, and schemas for runtime validation.
  */
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Queue names — one queue per job family
@@ -20,52 +21,45 @@ export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 // Email job
 // ---------------------------------------------------------------------------
 
-export type EmailJobType = 'SEND_NOTIFICATION' | 'SEND_DIGEST' | 'SEND_STATUS_UPDATE';
+export const EmailJobTypeSchema = z.enum(['SEND_NOTIFICATION', 'SEND_DIGEST', 'SEND_STATUS_UPDATE']);
+export type EmailJobType = z.infer<typeof EmailJobTypeSchema>;
 
-export interface EmailJobPayload {
-  type: EmailJobType;
-  /** Recipient's user id — used to resolve address from DB. */
-  userId: string;
-  /** Email address override (when userId lookup would be redundant). */
-  toAddress?: string;
-  subject: string;
-  /** Plain-text fallback. */
-  bodyText: string;
-  /** Optional rich HTML version. */
-  bodyHtml?: string;
-  /** ISO timestamp — useful for digest deduplication. */
-  scheduledAt?: string;
-}
+export const EmailJobPayloadSchema = z.object({
+  type: EmailJobTypeSchema,
+  userId: z.string().min(1),
+  toAddress: z.string().email().optional(),
+  subject: z.string(),
+  bodyText: z.string(),
+  bodyHtml: z.string().optional(),
+  scheduledAt: z.string().datetime().optional(),
+});
+export type EmailJobPayload = z.infer<typeof EmailJobPayloadSchema>;
 
 // ---------------------------------------------------------------------------
 // Resume parsing job
 // ---------------------------------------------------------------------------
 
-export interface ResumeParsingJobPayload {
-  userId: string;
-  /** S3/GCS object key pointing to the uploaded resume file. */
-  storageKey: string;
-  /** Original filename — preserved for display purposes. */
-  originalFilename: string;
-  /** MIME type (application/pdf, application/vnd.openxmlformats...). */
-  mimeType: string;
-  /** SHA-256 hash of the file — pre-computed by the upload handler. */
-  fileHash: string;
-}
+export const ResumeParsingJobPayloadSchema = z.object({
+  userId: z.string().min(1),
+  storageKey: z.string().min(1),
+  originalFilename: z.string().min(1),
+  mimeType: z.string().min(1),
+  fileHash: z.string().min(1),
+});
+export type ResumeParsingJobPayload = z.infer<typeof ResumeParsingJobPayloadSchema>;
 
 // ---------------------------------------------------------------------------
 // Application tracking job
 // ---------------------------------------------------------------------------
 
-export type ApplicationTrackingJobType = 'PROCESS_EMAIL' | 'REFRESH_STATUS' | 'SYNC_ATS';
+export const ApplicationTrackingJobTypeSchema = z.enum(['PROCESS_EMAIL', 'REFRESH_STATUS', 'SYNC_ATS']);
+export type ApplicationTrackingJobType = z.infer<typeof ApplicationTrackingJobTypeSchema>;
 
-export interface ApplicationTrackingJobPayload {
-  type: ApplicationTrackingJobType;
-  userId: string;
-  /** Present for PROCESS_EMAIL and REFRESH_STATUS jobs. */
-  applicationId?: string;
-  /** Present for PROCESS_EMAIL jobs — the raw email message id. */
-  emailMessageId?: string;
-  /** Provider-specific metadata (e.g. Gmail historyId). */
-  metadata?: Record<string, unknown>;
-}
+export const ApplicationTrackingJobPayloadSchema = z.object({
+  type: ApplicationTrackingJobTypeSchema,
+  userId: z.string().min(1),
+  applicationId: z.string().min(1).optional(),
+  emailMessageId: z.string().min(1).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type ApplicationTrackingJobPayload = z.infer<typeof ApplicationTrackingJobPayloadSchema>;

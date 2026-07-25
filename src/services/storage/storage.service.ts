@@ -21,6 +21,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from '../../lib/logger';
+import { CircuitBreaker } from '../../lib/circuit-breaker';
 
 // ---------------------------------------------------------------------------
 // Interface
@@ -68,6 +69,7 @@ export interface IStorageService {
 export class S3StorageService implements IStorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
+  private readonly circuitBreaker: CircuitBreaker;
 
   constructor() {
     this.bucket = process.env.S3_BUCKET ?? '';
@@ -80,18 +82,26 @@ export class S3StorageService implements IStorageService {
       // Credentials are picked up from env vars (AWS_ACCESS_KEY_ID /
       // AWS_SECRET_ACCESS_KEY) or the EC2 instance metadata service automatically.
     });
+
+    this.circuitBreaker = new CircuitBreaker('S3Storage', {
+      failureThreshold: 3,
+      resetTimeout: 30000,
+      requestTimeout: 10000, // 10 seconds timeout for S3 calls
+    });
   }
 
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult> {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-        // Server-side encryption — use your KMS key ARN in production
-        ServerSideEncryption: 'AES256',
-      }),
+    await this.circuitBreaker.fire(() =>
+      this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: mimeType,
+          // Server-side encryption — use your KMS key ARN in production
+          ServerSideEncryption: 'AES256',
+        }),
+      )
     );
 
     const presignedUrl = await this.getPresignedUrl(key);
@@ -102,14 +112,18 @@ export class S3StorageService implements IStorageService {
   }
 
   async getPresignedUrl(key: string, ttlSec = 3_600): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: ttlSec,
-    });
+    return this.circuitBreaker.fire(() =>
+      getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+        expiresIn: ttlSec,
+      })
+    );
   }
 
   async exists(key: string): Promise<boolean> {
     try {
-      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      await this.circuitBreaker.fire(() =>
+        this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }))
+      );
       return true;
     } catch {
       return false;
@@ -117,7 +131,9 @@ export class S3StorageService implements IStorageService {
   }
 
   async delete(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.circuitBreaker.fire(() =>
+      this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))
+    );
     logger.info('[StorageService] File deleted', { key });
   }
 }

@@ -20,6 +20,8 @@ const CHECK_TIMEOUT_MS = 5_000;
 export class HealthService {
   private readonly checkers: IHealthChecker[];
   private readonly startTime: Date;
+  private isAppReady = false;
+  private isShuttingDown = false;
 
   constructor(checkers?: IHealthChecker[]) {
     this.checkers = checkers ?? [postgresChecker, redisChecker, storageChecker];
@@ -28,6 +30,14 @@ export class HealthService {
 
   async runAll(): Promise<HealthCheckResult[]> {
     return Promise.all(this.checkers.map((checker) => this.runWithTimeout(checker)));
+  }
+
+  setReady(ready: boolean) {
+    this.isAppReady = ready;
+  }
+
+  setShuttingDown(shuttingDown: boolean) {
+    this.isShuttingDown = shuttingDown;
   }
 
   async getHealthReport(): Promise<HealthReport> {
@@ -45,6 +55,13 @@ export class HealthService {
   }
 
   async getReadinessReport(): Promise<ReadinessResponse> {
+    if (this.isShuttingDown) {
+      return { status: 'unhealthy', timestamp: new Date().toISOString(), checks: [] };
+    }
+    if (!this.isAppReady) {
+      return { status: 'unhealthy', timestamp: new Date().toISOString(), checks: [] };
+    }
+
     const checks = await this.runAll();
     return {
       status: this.aggregate(checks),

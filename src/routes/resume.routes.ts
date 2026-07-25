@@ -11,6 +11,18 @@ import { requireAuth } from '../middleware/auth';
 import { ValidationError } from '../errors/app-errors';
 import { resumeMatcherService } from '../services/resume-matcher/resume-matcher.service';
 import { resumeUploadService } from '../services/resume/resume-upload.service';
+import { uploadLimiter, expensiveLimiter } from '../middleware/rate-limiter';
+import { sanitizeFilename } from '../infrastructure/security/utils';
+
+// Allowed MIME types for resume uploads
+const ALLOWED_RESUME_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+]);
+
+const MAX_JOB_DESCRIPTION_LENGTH = 50_000;
 
 // multer: keep file in memory so we can hash it before deciding whether to upload
 const upload = multer({
@@ -26,6 +38,7 @@ export const resumeRouter = Router();
 
 resumeRouter.post(
   '/upload',
+  uploadLimiter,
   requireAuth,
   upload.single('resume'),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -37,10 +50,20 @@ resumeRouter.post(
         throw new ValidationError('Resume file is required (field name: "resume")');
       }
 
+      // MIME type validation
+      if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
+        throw new ValidationError(
+          `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX, TXT`,
+        );
+      }
+
+      // Filename sanitization
+      const safeFilename = sanitizeFilename(file.originalname);
+
       const result = await resumeUploadService.upload({
         userId,
         fileBuffer: file.buffer,
-        originalFilename: file.originalname,
+        originalFilename: safeFilename,
         mimeType: file.mimetype,
       });
 
@@ -97,6 +120,7 @@ resumeRouter.get(
 
 resumeRouter.post(
   '/match',
+  expensiveLimiter,
   requireAuth,
   upload.single('resume'),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -109,6 +133,11 @@ resumeRouter.post(
       }
       if (!jobDescription || typeof jobDescription !== 'string') {
         throw new ValidationError('Job description text is required');
+      }
+      if (jobDescription.length > MAX_JOB_DESCRIPTION_LENGTH) {
+        throw new ValidationError(
+          `Job description must not exceed ${MAX_JOB_DESCRIPTION_LENGTH} characters`,
+        );
       }
 
       const resumeText = await resumeMatcherService.extractTextFromBuffer(

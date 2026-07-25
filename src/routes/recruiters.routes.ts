@@ -2,20 +2,26 @@ import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
-import { validateQuery } from '../middleware/validate';
+import { validateQuery, validateParams } from '../middleware/validate';
 import { recruiterService } from '../services/recruiter';
+import { generalApiLimiter, expensiveLimiter } from '../middleware/rate-limiter';
 
 export const recruitersRouter = Router();
 
 const listQuerySchema = z.object({
-  company: z.string().optional(),
-  name: z.string().optional(),
-  page: z.coerce.number().int().positive().optional(),
+  company: z.string().max(100).optional(),
+  name: z.string().max(100).optional(),
+  page: z.coerce.number().int().positive().max(10000).optional(),
   pageSize: z.coerce.number().int().positive().max(100).optional(),
+});
+
+const paramIdSchema = z.object({
+  id: z.string().uuid(),
 });
 
 recruitersRouter.get(
   '/',
+  generalApiLimiter,
   requireAuth,
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -45,7 +51,9 @@ recruitersRouter.get(
 
 recruitersRouter.get(
   '/:id',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -65,7 +73,9 @@ recruitersRouter.get(
 
 recruitersRouter.get(
   '/:id/insights',
+  expensiveLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;

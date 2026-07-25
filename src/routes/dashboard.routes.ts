@@ -4,6 +4,7 @@ import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { validateQuery } from '../middleware/validate';
 import { dashboardService } from '../services/dashboard';
 import { z } from 'zod';
+import { generalApiLimiter } from '../middleware/rate-limiter';
 
 const pagingSchema = z.object({
   page: z.coerce.number().int().positive().optional(),
@@ -12,7 +13,7 @@ const pagingSchema = z.object({
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get('/', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+dashboardRouter.get('/', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as Request & { user?: { id: string } }).user?.id;
     if (!userId) {
@@ -28,6 +29,7 @@ dashboardRouter.get('/', requireAuth, async (req: Request, res: Response, next: 
 
 dashboardRouter.get(
   '/activity',
+  generalApiLimiter,
   requireAuth,
   validateQuery(pagingSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -50,6 +52,7 @@ dashboardRouter.get(
 
 dashboardRouter.get(
   '/upcoming',
+  generalApiLimiter,
   requireAuth,
   validateQuery(pagingSchema),
   async (req: Request, res: Response, next: NextFunction) => {

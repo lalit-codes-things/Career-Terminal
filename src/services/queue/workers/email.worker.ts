@@ -11,14 +11,14 @@
 import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
-import { QUEUE_NAMES, type EmailJobPayload } from '../queue.types';
+import { QUEUE_NAMES, type EmailJobPayload, EmailJobPayloadSchema } from '../queue.types';
 
 // ---------------------------------------------------------------------------
 // Processor — pure function, easy to unit-test in isolation
 // ---------------------------------------------------------------------------
 
 export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> {
-  const { type, userId, toAddress, subject, bodyText, bodyHtml } = job.data;
+  const { type, userId, toAddress, subject, bodyText, bodyHtml } = EmailJobPayloadSchema.parse(job.data);
 
   logger.info('[EmailWorker] Processing job', {
     jobId: job.id,

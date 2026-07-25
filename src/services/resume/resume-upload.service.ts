@@ -25,6 +25,7 @@ import { storageService as defaultStorageService } from '../storage/storage.serv
 import { queueService } from '../queue/queue.service';
 import { ValidationError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
+import { sanitizeFilename } from '../../infrastructure/security/utils';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -78,6 +79,7 @@ export class ResumeUploadService {
 
     // ── Validate ──────────────────────────────────────────────────────────
     this.validateFile(fileBuffer, mimeType, originalFilename);
+    const safeFilename = sanitizeFilename(originalFilename);
 
     // ── Step 1: Compute SHA-256 hash ──────────────────────────────────────
     const hash = createHash('sha256').update(fileBuffer).digest('hex');
@@ -151,7 +153,7 @@ export class ResumeUploadService {
     const userResume = await prisma.userResume.create({
       data: {
         userId,
-        originalName: originalFilename,
+        originalName: safeFilename,
         resumeHashId,
         isActive: true,
       },
@@ -161,7 +163,7 @@ export class ResumeUploadService {
     await queueService.addResumeParsingJob({
       userId,
       storageKey,
-      originalFilename,
+      originalFilename: safeFilename,
       mimeType,
       fileHash: hash,
     });

@@ -2,21 +2,27 @@ import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
-import { validateQuery } from '../middleware/validate';
+import { validateQuery, validateParams } from '../middleware/validate';
 import { companyService } from '../services/company';
+import { generalApiLimiter } from '../middleware/rate-limiter';
 
 export const companiesRouter = Router();
 
 const listQuerySchema = z.object({
-  name: z.string().optional(),
-  domain: z.string().optional(),
-  industry: z.string().optional(),
-  page: z.coerce.number().int().positive().optional(),
+  name: z.string().max(100).optional(),
+  domain: z.string().max(100).optional(),
+  industry: z.string().max(100).optional(),
+  page: z.coerce.number().int().positive().max(10000).optional(),
   pageSize: z.coerce.number().int().positive().max(100).optional(),
+});
+
+const paramIdSchema = z.object({
+  id: z.string().uuid(),
 });
 
 companiesRouter.get(
   '/',
+  generalApiLimiter,
   requireAuth,
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -48,7 +54,9 @@ companiesRouter.get(
 
 companiesRouter.get(
   '/:id',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -66,9 +74,17 @@ companiesRouter.get(
   },
 );
 
+const companyApplicationsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().max(10000).optional(),
+  pageSize: z.coerce.number().int().positive().max(100).optional(),
+});
+
 companiesRouter.get(
   '/:id/applications',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
+  validateQuery(companyApplicationsQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;

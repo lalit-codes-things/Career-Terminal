@@ -24,7 +24,9 @@ import { errorHandler } from './middleware/error-handler';
 import { logger } from './lib/logger';
 import { initTracing, shutdownTracing } from './infrastructure/telemetry/tracing';
 import { initMetrics, metrics } from './infrastructure/telemetry/metrics';
+import { healthService } from './infrastructure/health/health.service';
 import blocked from 'blocked-at';
+import { createHttpTerminator } from 'http-terminator';
 import {
   httpMethodProtection,
   requestLimits,
@@ -34,6 +36,22 @@ import {
 } from './infrastructure/security/middleware';
 
 const app = express();
+
+export let isShuttingDown = false;
+export let isAppReady = false;
+
+app.use((req, res, next) => {
+  if (isShuttingDown) {
+    if (req.path === '/health' || req.path === '/live' || req.path === '/ready') {
+      res.status(503).json({ status: 'shutting_down' });
+      return;
+    }
+    res.set('Connection', 'close');
+    res.status(503).json({ error: 'Service is shutting down' });
+    return;
+  }
+  next();
+});
 
 // ── Startup Diagnostics ────────────────────────────────────────────────────────
 const startupTime = Date.now();
@@ -72,6 +90,9 @@ async function runStartupDiagnostics(): Promise<void> {
   logger.info('Startup diagnostics complete', {
     startupDurationMs: Date.now() - startupTime,
   });
+  
+  isAppReady = true;
+  healthService.setReady(true);
 }
 
 // ── Initialize Observability ───────────────────────────────────────────────────
@@ -94,7 +115,8 @@ function initObservability(): void {
 }
 
 // ── 1. Trust proxy ────────────────────────────────────────────────────────────
-app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.set('trust proxy', config.trustProxy);
 
 // ── 2. Request logger — attach requestId/correlationId ───────────────────────
 app.use(requestLogger);
@@ -176,18 +198,18 @@ app.use(
   }),
 );
 
-// ── 5. Compression ────────────────────────────────────────────────────────────
-app.use(compression({ threshold: 1024 }));
-
-// ── 6. Security middleware ────────────────────────────────────────────────────
+// ── 5. Security middleware (Pre-Body Parsing) ─────────────────────────────────
 app.use(httpMethodProtection());
 app.use(requestLimits());
 app.use(requestTimeout());
-app.use(parameterPollutionProtection());
 
-// ── 7. Body parsing — explicit size limit to prevent DoS ─────────────────────
+// ── 6. Body parsing — explicit size limit to prevent DoS ─────────────────────
 app.use(express.json({ limit: config.limits.maxJsonSize, strict: config.validation.strict }));
 app.use(express.urlencoded({ extended: true, limit: config.limits.maxBodySize }));
+
+// ── 7. Parameter pollution & Compression (Post-Body Parsing) ─────────────────
+app.use(parameterPollutionProtection());
+app.use(compression({ threshold: 1024 }));
 
 // ── Health endpoints (unauthenticated) ───────────────────────────────────────
 app.use(healthRouter);
@@ -217,41 +239,53 @@ export const server = app.listen(config.port, () => {
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
+const httpTerminator = createHttpTerminator({ server });
+
 async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    logger.warn(`${signal} received, but shutdown already in progress.`);
+    return;
+  }
+  
+  isShuttingDown = true;
+  healthService.setShuttingDown(true);
   logger.info(`${signal} received — shutting down gracefully`);
 
-  server.close(() => {
-    (async () => {
-      try {
-        await shutdownTracing();
-        await queueService.close();
-        await prisma.$disconnect();
-        if (cacheService instanceof RedisCacheService) {
-          await cacheService.disconnect();
-        }
-        logger.info('All connections closed — process exiting');
-        process.exit(0);
-      } catch (err) {
-        logger.error('Error during shutdown', {
-          message: err instanceof Error ? err.message : String(err),
-        });
-        process.exit(1);
-      }
-    })();
-  });
-
-  // Force shutdown after timeout
-  setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     logger.error('Shutdown timed out, forcing exit');
     process.exit(1);
   }, config.timeouts.shutdown);
+
+  try {
+    // 1. Stop accepting new connections and gracefully drain active requests
+    await httpTerminator.terminate();
+    logger.info('HTTP server stopped');
+
+    // 2. Shut down remaining components safely without throwing
+    await Promise.allSettled([
+      shutdownTracing(),
+      queueService.close(),
+      prisma.$disconnect(),
+      cacheService instanceof RedisCacheService ? cacheService.disconnect() : Promise.resolve(),
+    ]);
+
+    logger.info('All connections closed — process exiting');
+    clearTimeout(timeoutId);
+    process.exit(0);
+  } catch (err) {
+    logger.error('Error during shutdown', {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    clearTimeout(timeoutId);
+    process.exit(1);
+  }
 }
 
 process.on('SIGTERM', () => {
-  gracefulShutdown('SIGTERM').catch((err) => logger.error('Failed to shutdown', { error: err }));
+  void gracefulShutdown('SIGTERM');
 });
 process.on('SIGINT', () => {
-  gracefulShutdown('SIGINT').catch((err) => logger.error('Failed to shutdown', { error: err }));
+  void gracefulShutdown('SIGINT');
 });
 
 // ── Unhandled rejection / exception safety nets ───────────────────────────────

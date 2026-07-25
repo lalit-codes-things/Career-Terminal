@@ -18,14 +18,14 @@
 import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
-import { QUEUE_NAMES, type ResumeParsingJobPayload } from '../queue.types';
+import { QUEUE_NAMES, type ResumeParsingJobPayload, ResumeParsingJobPayloadSchema } from '../queue.types';
 
 // ---------------------------------------------------------------------------
 // Processor
 // ---------------------------------------------------------------------------
 
 export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>): Promise<void> {
-  const { userId, storageKey, originalFilename, mimeType, fileHash } = job.data;
+  const { userId, storageKey, originalFilename, mimeType, fileHash } = ResumeParsingJobPayloadSchema.parse(job.data);
 
   logger.info('[ResumeParsingWorker] Processing job', {
     jobId: job.id,

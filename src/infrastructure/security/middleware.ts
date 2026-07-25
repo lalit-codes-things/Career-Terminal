@@ -12,6 +12,20 @@ export function httpMethodProtection(): RequestHandler {
     if (!allowedMethods.includes(req.method)) {
       throw new ValidationError(`HTTP method ${req.method} is not allowed`);
     }
+
+    if (!config.http.methodOverrideEnabled) {
+      const overrideHeaders = [
+        'x-http-method-override',
+        'x-http-method',
+        'x-method-override'
+      ];
+      for (const header of overrideHeaders) {
+        if (req.headers[header]) {
+          throw new ValidationError('Method override is not permitted');
+        }
+      }
+    }
+
     next();
   };
 }
@@ -32,8 +46,40 @@ export function requestLimits(): RequestHandler {
       throw new ValidationError('Too many query parameters');
     }
 
+    // Host header validation
+    const host = req.headers.host;
+    if (host && !/^[a-zA-Z0-9.-]+(:\d+)?$/.test(host)) {
+      throw new ValidationError('Invalid Host header format');
+    }
+
     next();
   };
+}
+
+/**
+ * Check structural limits of parsed request bodies
+ */
+function checkStructureLimits(obj: any, depth: number, maxDepth: number, maxArray: number, maxString: number): void {
+  if (depth > maxDepth) {
+    throw new ValidationError('Request body exceeds maximum nesting depth');
+  }
+
+  if (typeof obj === 'string' && obj.length > maxString) {
+    throw new ValidationError('String length exceeds maximum allowed');
+  }
+
+  if (Array.isArray(obj)) {
+    if (obj.length > maxArray) {
+      throw new ValidationError('Array size exceeds maximum allowed');
+    }
+    for (const item of obj) {
+      checkStructureLimits(item, depth + 1, maxDepth, maxArray, maxString);
+    }
+  } else if (obj !== null && typeof obj === 'object') {
+    for (const key of Object.keys(obj)) {
+      checkStructureLimits(obj[key], depth + 1, maxDepth, maxArray, maxString);
+    }
+  }
 }
 
 /**
@@ -49,9 +95,25 @@ export function parameterPollutionProtection(): RequestHandler {
       }
     }
 
+    // Limit structural depth and size of request body
+    if (req.body) {
+      checkStructureLimits(
+        req.body,
+        0,
+        config.limits.maxObjectDepth,
+        config.limits.maxArraySize,
+        config.limits.maxStringLength
+      );
+    }
+
     // Sanitize request body
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
       req.body = sanitizeObject(req.body);
+    }
+    
+    // Also sanitize query params just in case
+    if (req.query && typeof req.query === 'object') {
+      req.query = sanitizeObject(req.query);
     }
 
     next();
@@ -62,8 +124,12 @@ export function parameterPollutionProtection(): RequestHandler {
  * Request timeout middleware
  */
 export function requestTimeout(): RequestHandler {
-  return (_req, res, next) => {
+  return (req, res, next) => {
+    const controller = new AbortController();
+    (req as any).abortController = controller;
+
     const timer = setTimeout(() => {
+      controller.abort();
       if (!res.headersSent) {
         res.status(408).json({
           success: false,
@@ -76,6 +142,11 @@ export function requestTimeout(): RequestHandler {
     }, config.limits.requestTimeoutMs);
 
     res.on('finish', () => clearTimeout(timer));
+    res.on('close', () => {
+      clearTimeout(timer);
+      controller.abort();
+    });
+
     next();
   };
 }
@@ -94,6 +165,27 @@ export function securityHeaders(): RequestHandler {
     res.setHeader('Cross-Origin-Opener-Policy', config.security.coop);
     res.setHeader('Cross-Origin-Embedder-Policy', config.security.coep);
     res.setHeader('Cross-Origin-Resource-Policy', config.security.corp);
+    
+    // Permissions-Policy
+    if (config.security.permissionsPolicy) {
+      res.setHeader('Permissions-Policy', config.security.permissionsPolicy);
+    }
+
+    // Header Splitting Protection (intercept setHeader)
+    const originalSetHeader = res.setHeader;
+    res.setHeader = function(name: string, value: string | number | readonly string[]) {
+      if (typeof value === 'string' && /[\r\n]/.test(value)) {
+        throw new Error('CRLF injection detected in header value');
+      }
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          if (typeof v === 'string' && /[\r\n]/.test(v)) {
+            throw new Error('CRLF injection detected in header value array');
+          }
+        }
+      }
+      return originalSetHeader.call(this, name, value);
+    };
 
     // X-Content-Type-Options is already set by helmet
     next();

@@ -3,18 +3,19 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { ApplicationStatus } from '../domain/application-status';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
-import { validateBody, validateQuery } from '../middleware/validate';
+import { validateBody, validateQuery, validateParams } from '../middleware/validate';
 import { applicationTrackingService } from '../services/application-tracking/application-tracking.service';
 import { recruiterService } from '../services/recruiter';
+import { generalApiLimiter, writeLimiter } from '../middleware/rate-limiter';
 
 export const applicationsRouter = Router();
 
 const listQuerySchema = z.object({
-  status: z.string().optional(),
-  company: z.string().optional(),
-  date: z.string().optional(),
-  role: z.string().optional(),
-  page: z.coerce.number().int().positive().optional(),
+  status: z.string().max(50).optional(),
+  company: z.string().max(100).optional(),
+  date: z.string().max(30).optional(),
+  role: z.string().max(100).optional(),
+  page: z.coerce.number().int().positive().max(10000).optional(),
   pageSize: z.coerce.number().int().positive().max(100).optional(),
 });
 
@@ -22,8 +23,13 @@ const statusPatchSchema = z.object({
   status: z.nativeEnum(ApplicationStatus),
 });
 
+const paramIdSchema = z.object({
+  id: z.string().uuid(),
+});
+
 applicationsRouter.get(
   '/',
+  generalApiLimiter,
   requireAuth,
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -59,7 +65,9 @@ applicationsRouter.get(
 
 applicationsRouter.get(
   '/:id',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -79,7 +87,9 @@ applicationsRouter.get(
 
 applicationsRouter.get(
   '/:id/timeline',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -106,7 +116,9 @@ applicationsRouter.get(
 
 applicationsRouter.get(
   '/:id/status-history',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -133,7 +145,9 @@ applicationsRouter.get(
 
 applicationsRouter.get(
   '/:id/recruiter',
+  generalApiLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = (req as Request & { user?: { id: string } }).user?.id;
@@ -153,7 +167,9 @@ applicationsRouter.get(
 
 applicationsRouter.patch(
   '/:id/status',
+  writeLimiter,
   requireAuth,
+  validateParams(paramIdSchema),
   validateBody(statusPatchSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
