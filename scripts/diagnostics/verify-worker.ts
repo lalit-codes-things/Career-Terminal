@@ -1,9 +1,9 @@
-import { gmailSyncWorker } from './src/workers/gmail-sync.worker';
-import { jobQueueService } from './src/workers/job-queue.service';
+import { gmailSyncWorker } from '../src/workers/gmail-sync.worker';
+import { jobQueueService } from '../src/workers/job-queue.service';
 
 /**
  * Helper script to manually verify the database-backed worker loop.
- * Run this via: npx ts-node verify-worker.ts
+ * Run this via: npx ts-node scripts/diagnostics/verify-worker.ts
  */
 async function run() {
   console.log('--- Gmail Sync Worker Verification ---');

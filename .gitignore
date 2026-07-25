@@ -32,3 +32,10 @@ coverage/
 
 # Misc
 *.tsbuildinfo
+# Personal notes / local vault
+Startup/
+.obsidian/
+
+# Local caches
+.cache/
+node_modules/.cache/

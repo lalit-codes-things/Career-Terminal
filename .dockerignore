@@ -34,7 +34,7 @@ coverage
 # Misc
 README.md
 SECURITY.md
-verify-worker.ts
+scripts/diagnostics/verify-worker.ts
 
 # Logs
 logs
