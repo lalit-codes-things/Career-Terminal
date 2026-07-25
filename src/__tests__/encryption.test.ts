@@ -84,8 +84,6 @@ describe('Encryption Utility', () => {
 
   it('should throw EncryptionError for invalid encrypted format', () => {
     expect(() => decryptToken('invalid_format_string')).toThrow(EncryptionError);
-    expect(() => decryptToken('invalid_format_string')).toThrow(
-      /expected.*iv:authTag:ciphertext/,
-    );
+    expect(() => decryptToken('invalid_format_string')).toThrow(/expected.*iv:authTag:ciphertext/);
   });
 });

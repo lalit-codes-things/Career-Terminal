@@ -137,91 +137,111 @@ export class ApplicationCommandService {
       const mergeDecision = await applicationMergeService.findMatch(userId, extractedData, email);
 
       await executeWithTransientRetry(prisma, async (tx) => {
-      const company = await companyService.resolveCompany(
-        {
-          name: extractedData.company.name,
-          domain: extractedData.company.domain,
-        },
-        tx,
-      );
+        const company = await companyService.resolveCompany(
+          {
+            name: extractedData.company.name,
+            domain: extractedData.company.domain,
+          },
+          tx,
+        );
 
-      let app: JobApplicationRecord | null = null;
+        let app: JobApplicationRecord | null = null;
 
-      if (mergeDecision.targetApplication) {
-        app = await tx.jobApplication.findUnique({
-          where: { id: mergeDecision.targetApplication.id },
-        });
-      }
-
-      if (app) {
-        const threadIds = app.threadIds || [];
-        const isNewThread = email.threadId ? !threadIds.includes(email.threadId) : false;
-
-        const updateData: Prisma.JobApplicationUpdateInput = { updatedAt: new Date() };
-        let shouldWriteApp = false;
-
-        if (app.companyId !== company.id) {
-          updateData.company = {
-            connect: {
-              id: company.id,
-            },
-          };
-          shouldWriteApp = true;
-        }
-
-        if (isNewThread && email.threadId) {
-          updateData.threadIds = { push: email.threadId };
-          shouldWriteApp = true;
-        }
-
-        if (shouldWriteApp) {
-          app = await tx.jobApplication.update({
-            where: { id: app.id },
-            data: updateData,
+        if (mergeDecision.targetApplication) {
+          app = await tx.jobApplication.findUnique({
+            where: { id: mergeDecision.targetApplication.id },
           });
         }
-      } else {
-        const deadlinesAsStrings = [...extractedData.hiringProcess.deadlines];
-        const threadIds = email.threadId ? [email.threadId] : [];
 
-        app = await tx.jobApplication.create({
+        if (app) {
+          const threadIds = app.threadIds || [];
+          const isNewThread = email.threadId ? !threadIds.includes(email.threadId) : false;
+
+          const updateData: Prisma.JobApplicationUpdateInput = { updatedAt: new Date() };
+          let shouldWriteApp = false;
+
+          if (app.companyId !== company.id) {
+            updateData.company = {
+              connect: {
+                id: company.id,
+              },
+            };
+            shouldWriteApp = true;
+          }
+
+          if (isNewThread && email.threadId) {
+            updateData.threadIds = { push: email.threadId };
+            shouldWriteApp = true;
+          }
+
+          if (shouldWriteApp) {
+            app = await tx.jobApplication.update({
+              where: { id: app.id },
+              data: updateData,
+            });
+          }
+        } else {
+          const deadlinesAsStrings = [...extractedData.hiringProcess.deadlines];
+          const threadIds = email.threadId ? [email.threadId] : [];
+
+          app = await tx.jobApplication.create({
+            data: {
+              userId: extractedData.userId,
+              companyId: company.id,
+              companyName: extractedData.company.name,
+              companyDomain: extractedData.company.domain,
+              roleTitle: extractedData.role.title,
+              roleDepartment: extractedData.role.department ?? '',
+              status: extractedData.status,
+              appliedDate: extractedData.appliedDate,
+              recruiterName: extractedData.recruiter.name ?? '',
+              recruiterEmail: extractedData.recruiter.email ?? '',
+              sourceEmailId: extractedData.sourceEmailId ?? '',
+              location: extractedData.details.location ?? '',
+              employmentType: extractedData.details.employmentType ?? '',
+              currentStage: extractedData.hiringProcess.currentStage ?? '',
+              interviewRounds: extractedData.hiringProcess.interviewRounds ?? 0,
+              deadlines: deadlinesAsStrings,
+              threadIds,
+            },
+          });
+        }
+
+        await tx.applicationSource.create({
           data: {
-            userId: extractedData.userId,
-            companyId: company.id,
-            companyName: extractedData.company.name,
-            companyDomain: extractedData.company.domain,
-            roleTitle: extractedData.role.title,
-            roleDepartment: extractedData.role.department ?? '',
-            status: extractedData.status,
-            appliedDate: extractedData.appliedDate,
-            recruiterName: extractedData.recruiter.name ?? '',
-            recruiterEmail: extractedData.recruiter.email ?? '',
-            sourceEmailId: extractedData.sourceEmailId ?? '',
-            location: extractedData.details.location ?? '',
-            employmentType: extractedData.details.employmentType ?? '',
-            currentStage: extractedData.hiringProcess.currentStage ?? '',
-            interviewRounds: extractedData.hiringProcess.interviewRounds ?? 0,
-            deadlines: deadlinesAsStrings,
-            threadIds,
+            applicationId: app.id,
+            provider: ApplicationSourceProvider.GMAIL,
+            providerMessageId: email.emailId,
+            providerThreadId: email.threadId ?? null,
+            providerConversationId: email.threadId ?? null,
+            providerMetadata: {
+              sender: email.sender,
+              subject: email.subject,
+              classification: {
+                category: classification.category,
+                confidence: classification.confidence,
+                detectedCompany: classification.detectedCompany,
+                detectedRole: classification.detectedRole,
+              },
+              extractedData: {
+                company: extractedData.company,
+                role: extractedData.role,
+                status: extractedData.status,
+                currentStage: extractedData.hiringProcess.currentStage,
+              },
+            } as unknown as Prisma.InputJsonValue,
           },
         });
-      }
 
-      await tx.applicationSource.create({
-        data: {
+        const timelineInput = applicationTimelineService.buildEmailTimelineEvent({
           applicationId: app.id,
-          provider: ApplicationSourceProvider.GMAIL,
-          providerMessageId: email.emailId,
-          providerThreadId: email.threadId ?? null,
-          providerConversationId: email.threadId ?? null,
-          providerMetadata: {
-            sender: email.sender,
-            subject: email.subject,
-            classification: {
-              category: classification.category,
-              confidence: classification.confidence,
-              detectedCompany: classification.detectedCompany,
-              detectedRole: classification.detectedRole,
+          email,
+          classification,
+          metadata: {
+            mergeDecision: {
+              matched: Boolean(mergeDecision.targetApplication),
+              confidenceScore: mergeDecision.confidenceScore,
+              reasons: mergeDecision.reasons,
             },
             extractedData: {
               company: extractedData.company,
@@ -229,73 +249,53 @@ export class ApplicationCommandService {
               status: extractedData.status,
               currentStage: extractedData.hiringProcess.currentStage,
             },
-          } as unknown as Prisma.InputJsonValue,
-        },
-      });
-
-      const timelineInput = applicationTimelineService.buildEmailTimelineEvent({
-        applicationId: app.id,
-        email,
-        classification,
-        metadata: {
-          mergeDecision: {
-            matched: Boolean(mergeDecision.targetApplication),
-            confidenceScore: mergeDecision.confidenceScore,
-            reasons: mergeDecision.reasons,
           },
-          extractedData: {
-            company: extractedData.company,
-            role: extractedData.role,
-            status: extractedData.status,
-            currentStage: extractedData.hiringProcess.currentStage,
-          },
-        },
-      });
+        });
 
-      if (timelineInput) {
-        await applicationTimelineService.createTimelineEvent(timelineInput, tx, userId);
-      }
+        if (timelineInput) {
+          await applicationTimelineService.createTimelineEvent(timelineInput, tx, userId);
+        }
 
-      await statusEngine.applyEmailStatus(
-        app.id,
-        classification,
-        {
-          emailId: email.emailId,
-          receivedAt: email.receivedAt,
-          subject: email.subject,
-        },
-        tx,
-        userId,
-      );
-
-      await recruiterService.syncRecruiterFromEmail(
-        {
-          userId,
-          application: {
-            id: app.id,
-            userId: app.userId,
-            companyName: app.companyName,
-            companyDomain: app.companyDomain,
-            roleTitle: app.roleTitle,
-            recruiterName: app.recruiterName ?? extractedData.recruiter.name ?? 'Recruiter',
-            recruiterEmail: app.recruiterEmail ?? extractedData.recruiter.email ?? email.sender,
-          },
-          email: {
+        await statusEngine.applyEmailStatus(
+          app.id,
+          classification,
+          {
             emailId: email.emailId,
-            sender: email.sender,
-            subject: email.subject,
-            bodyText: email.bodyText,
             receivedAt: email.receivedAt,
-            threadId: email.threadId,
+            subject: email.subject,
           },
-          company: extractedData.company,
-          recruiter: extractedData.recruiter,
-        },
-        tx,
-      );
-    });
+          tx,
+          userId,
+        );
 
-    dashboardService.invalidateUser(userId);
+        await recruiterService.syncRecruiterFromEmail(
+          {
+            userId,
+            application: {
+              id: app.id,
+              userId: app.userId,
+              companyName: app.companyName,
+              companyDomain: app.companyDomain,
+              roleTitle: app.roleTitle,
+              recruiterName: app.recruiterName ?? extractedData.recruiter.name ?? 'Recruiter',
+              recruiterEmail: app.recruiterEmail ?? extractedData.recruiter.email ?? email.sender,
+            },
+            email: {
+              emailId: email.emailId,
+              sender: email.sender,
+              subject: email.subject,
+              bodyText: email.bodyText,
+              receivedAt: email.receivedAt,
+              threadId: email.threadId,
+            },
+            company: extractedData.company,
+            recruiter: extractedData.recruiter,
+          },
+          tx,
+        );
+      });
+
+      dashboardService.invalidateUser(userId);
     } finally {
       if (lockToken) await releaseLock(lockKey, lockToken);
     }

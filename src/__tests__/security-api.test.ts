@@ -13,11 +13,7 @@
  */
 import { z } from 'zod';
 import { createUserAwareRateLimiter, RateLimitError } from '../middleware/rate-limiter';
-import {
-  validateOutboundUrl,
-  isSafeOutboundUrl,
-  SsrfError,
-} from '../lib/ssrf-guard';
+import { validateOutboundUrl, isSafeOutboundUrl, SsrfError } from '../lib/ssrf-guard';
 import { sanitizeObject, isSafeKey } from '../infrastructure/security/utils';
 import express, { type Request, type Response } from 'express';
 import request from 'supertest';
@@ -75,7 +71,11 @@ describe('User-Aware Rate Limiter', () => {
     const userA = `user-A-${Math.random().toString(36).slice(2)}`;
     const userB = `user-B-${Math.random().toString(36).slice(2)}`;
     const makeReq = (userId: string) =>
-      ({ user: { id: userId }, ip: '10.0.0.1', socket: { remoteAddress: '10.0.0.1' } } as unknown as Request);
+      ({
+        user: { id: userId },
+        ip: '10.0.0.1',
+        socket: { remoteAddress: '10.0.0.1' },
+      }) as unknown as Request;
     const mockRes = { setHeader: jest.fn() } as unknown as Response;
     const mockNext = jest.fn();
 

@@ -13,19 +13,24 @@ const pagingSchema = z.object({
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get('/', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = (req as Request & { user?: { id: string } }).user?.id;
-    if (!userId) {
-      throw new UnauthorizedError('Authentication required');
-    }
+dashboardRouter.get(
+  '/',
+  generalApiLimiter,
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      if (!userId) {
+        throw new UnauthorizedError('Authentication required');
+      }
 
-    const data = await dashboardService.getDashboard(userId);
-    res.json({ success: true, data });
-  } catch (error) {
-    next(error);
-  }
-});
+      const data = await dashboardService.getDashboard(userId);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 dashboardRouter.get(
   '/activity',

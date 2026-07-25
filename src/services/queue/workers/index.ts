@@ -18,10 +18,28 @@ import { logger } from '../../../lib/logger';
 
 let workers: Worker[] = [];
 
-export function startAllWorkers(): void {
-  workers = [startEmailWorker(), startResumeParsingWorker(), startApplicationTrackingWorker()];
+const workerFactories = {
+  email: startEmailWorker,
+  'resume-parsing': startResumeParsingWorker,
+  'application-tracking': startApplicationTrackingWorker,
+} as const;
 
-  logger.info('[Workers] All workers started', { count: workers.length });
+export type WorkerQueue = keyof typeof workerFactories;
+
+export function startAllWorkers(queueNames = process.env.WORKER_QUEUES): void {
+  const requested = (queueNames ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const selected = requested.length === 0 ? Object.keys(workerFactories) : requested;
+  const invalid = selected.filter((name) => !(name in workerFactories));
+  if (invalid.length > 0) {
+    throw new Error(`Unknown worker queue(s): ${invalid.join(', ')}`);
+  }
+
+  workers = (selected as WorkerQueue[]).map((name) => workerFactories[name]());
+
+  logger.info('[Workers] Workers started', { queues: selected, count: workers.length });
 }
 
 let isShuttingDown = false;
@@ -34,10 +52,13 @@ export async function stopAllWorkers(): Promise<void> {
   isShuttingDown = true;
   logger.info('[Workers] Shutting down workers…');
 
-  const timeoutId = setTimeout(() => {
-    logger.error('[Workers] Shutdown timed out, forcing exit');
-    process.exit(1);
-  }, 15000);
+  const timeoutId = setTimeout(
+    () => {
+      logger.error('[Workers] Shutdown timed out, forcing exit');
+      process.exit(1);
+    },
+    Number.parseInt(process.env.WORKER_SHUTDOWN_TIMEOUT ?? '30000', 10),
+  );
 
   try {
     await Promise.allSettled(workers.map((w) => w.close()));
@@ -65,10 +86,14 @@ if (require.main === module) {
   }
 
   process.on('SIGTERM', () => {
-    void stopAllWorkers().then(() => process.exit(0)).catch(() => process.exit(1));
+    void stopAllWorkers()
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
   });
 
   process.on('SIGINT', () => {
-    void stopAllWorkers().then(() => process.exit(0)).catch(() => process.exit(1));
+    void stopAllWorkers()
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
   });
 }

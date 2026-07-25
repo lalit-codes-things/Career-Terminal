@@ -14,11 +14,7 @@ export function httpMethodProtection(): RequestHandler {
     }
 
     if (!config.http.methodOverrideEnabled) {
-      const overrideHeaders = [
-        'x-http-method-override',
-        'x-http-method',
-        'x-method-override'
-      ];
+      const overrideHeaders = ['x-http-method-override', 'x-http-method', 'x-method-override'];
       for (const header of overrideHeaders) {
         if (req.headers[header]) {
           throw new ValidationError('Method override is not permitted');
@@ -59,7 +55,13 @@ export function requestLimits(): RequestHandler {
 /**
  * Check structural limits of parsed request bodies
  */
-function checkStructureLimits(obj: any, depth: number, maxDepth: number, maxArray: number, maxString: number): void {
+function checkStructureLimits(
+  obj: any,
+  depth: number,
+  maxDepth: number,
+  maxArray: number,
+  maxString: number,
+): void {
   if (depth > maxDepth) {
     throw new ValidationError('Request body exceeds maximum nesting depth');
   }
@@ -102,7 +104,7 @@ export function parameterPollutionProtection(): RequestHandler {
         0,
         config.limits.maxObjectDepth,
         config.limits.maxArraySize,
-        config.limits.maxStringLength
+        config.limits.maxStringLength,
       );
     }
 
@@ -110,7 +112,7 @@ export function parameterPollutionProtection(): RequestHandler {
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
       req.body = sanitizeObject(req.body);
     }
-    
+
     // Also sanitize query params just in case
     if (req.query && typeof req.query === 'object') {
       req.query = sanitizeObject(req.query);
@@ -165,7 +167,7 @@ export function securityHeaders(): RequestHandler {
     res.setHeader('Cross-Origin-Opener-Policy', config.security.coop);
     res.setHeader('Cross-Origin-Embedder-Policy', config.security.coep);
     res.setHeader('Cross-Origin-Resource-Policy', config.security.corp);
-    
+
     // Permissions-Policy
     if (config.security.permissionsPolicy) {
       res.setHeader('Permissions-Policy', config.security.permissionsPolicy);
@@ -173,7 +175,7 @@ export function securityHeaders(): RequestHandler {
 
     // Header Splitting Protection (intercept setHeader)
     const originalSetHeader = res.setHeader;
-    res.setHeader = function(name: string, value: string | number | readonly string[]) {
+    res.setHeader = function (name: string, value: string | number | readonly string[]) {
       if (typeof value === 'string' && /[\r\n]/.test(value)) {
         throw new Error('CRLF injection detected in header value');
       }

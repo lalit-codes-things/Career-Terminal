@@ -88,9 +88,7 @@ export async function processReEncryptionJob(job: Job<ReEncryptionJobPayload>): 
     : {
         OR: [
           // Legacy format (no v prefix at all = version 1)
-          ...(targetVersion !== 1
-            ? [{ accessTokenEncrypted: { not: { startsWith: 'v' } } }]
-            : []),
+          ...(targetVersion !== 1 ? [{ accessTokenEncrypted: { not: { startsWith: 'v' } } }] : []),
           // Has a version prefix but it's not the target version
           {
             AND: [

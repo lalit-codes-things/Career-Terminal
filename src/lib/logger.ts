@@ -68,7 +68,7 @@ const SENSITIVE_KEYS = new Set([
   'bearerToken',
   'bearer_token',
   // OAuth
-  'code',          // OAuth authorization code
+  'code', // OAuth authorization code
   'clientSecret',
   'client_secret',
   // Email content (PII)

@@ -26,7 +26,9 @@ function getRedis(): Redis {
     });
 
     _redis.on('connect', () => logger.info('[mutex] Connected to Redis'));
-    _redis.on('error', (err: Error) => logger.error('[mutex] Redis error', { message: err.message }));
+    _redis.on('error', (err: Error) =>
+      logger.error('[mutex] Redis error', { message: err.message }),
+    );
     _redis.on('reconnecting', () => logger.warn('[mutex] Reconnecting to Redis...'));
   }
   return _redis;

@@ -148,7 +148,8 @@ export const PII_INVENTORY: PIIField[] = [
     externalProcessors: [],
     encryptedAtRest: false,
     mustRedactFromLogs: true,
-    notes: 'revokeAllRefreshTokens() deletes all redis:refresh:{userId}:* keys on account deletion.',
+    notes:
+      'revokeAllRefreshTokens() deletes all redis:refresh:{userId}:* keys on account deletion.',
   },
 
   // ── Email Content ──────────────────────────────────────────────────────────
@@ -296,7 +297,9 @@ export const PII_INVENTORY: PIIField[] = [
   {
     name: 'Job Application History',
     dbLocation: 'job_applications (full table)',
-    storageLocations: ['PostgreSQL: job_applications, application_timeline, application_status_history'],
+    storageLocations: [
+      'PostgreSQL: job_applications, application_timeline, application_status_history',
+    ],
     sensitivity: 'medium',
     purpose: 'Core product feature — tracking job search progress',
     legalBasis: 'contract',
@@ -320,7 +323,8 @@ export const PII_INVENTORY: PIIField[] = [
     externalProcessors: [],
     encryptedAtRest: false,
     mustRedactFromLogs: false,
-    notes: 'Log retention controlled by infrastructure log rotation policy. Not linked to userId in logs.',
+    notes:
+      'Log retention controlled by infrastructure log rotation policy. Not linked to userId in logs.',
   },
 ];
 

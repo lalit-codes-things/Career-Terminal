@@ -118,7 +118,7 @@ function serializeForPatternCheck(data: unknown): string {
     try {
       return JSON.stringify(data);
     } catch {
-      return String(data);
+      return '[Unserializable object]';
     }
   }
   return String(data);

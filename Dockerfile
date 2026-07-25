@@ -2,7 +2,7 @@
 # Stage 1: Builder
 # Compiles TypeScript and generates Prisma client.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20.19.3-alpine3.21 AS builder
 
 WORKDIR /app
 
@@ -18,11 +18,24 @@ COPY src ./src/
 RUN npx prisma generate
 RUN npm run build
 
+# Migration image: built and published as a separate tag by CI. It retains the
+# Prisma CLI and schema only because migrations require them; the API/worker
+# runtime image below intentionally does not include development tooling.
+FROM builder AS migrator
+
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+ENV NODE_ENV=production
+ENTRYPOINT ["npx", "prisma", "migrate", "deploy"]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2: Runtime
 # Minimal production image — no dev tools, no source, non-root user.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+FROM node:20.19.3-alpine3.21 AS runtime
 
 LABEL org.opencontainers.image.title="applywise-api" \
       org.opencontainers.image.description="ApplyWise backend API" \
@@ -56,9 +69,10 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Health check — uses /health which is intentionally unauthenticated
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:3000/live || exit 1
 
 # tini as PID 1 ensures correct signal forwarding to Node
 ENTRYPOINT ["/sbin/tini", "--"]
+STOPSIGNAL SIGTERM
 CMD ["node", "dist/index.js"]

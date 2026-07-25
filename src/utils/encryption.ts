@@ -146,9 +146,12 @@ function getActiveKey(): { version: number; keyBuffer: Buffer } {
  *   Versioned (new): `v<N>:<iv_b64>:<authTag_b64>:<ciphertext_b64>`
  *   Legacy (v1 only): `<iv_b64>:<authTag_b64>:<ciphertext_b64>`
  */
-function parseEnvelope(
-  encryptedValue: string,
-): { version: number; iv: Buffer; authTag: Buffer; ciphertext: Buffer } {
+function parseEnvelope(encryptedValue: string): {
+  version: number;
+  iv: Buffer;
+  authTag: Buffer;
+  ciphertext: Buffer;
+} {
   if (encryptedValue.startsWith('v') && /^v\d+:/.test(encryptedValue)) {
     // Versioned format
     const firstColon = encryptedValue.indexOf(':');
@@ -335,7 +338,7 @@ export function validateEncryptionConfig(): void {
   if (!v1Key) {
     throw new EncryptionError(
       'ENCRYPTION_KEY is not set. ' +
-        'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+        "Generate with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
     );
   }
 

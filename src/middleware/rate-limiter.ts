@@ -97,7 +97,11 @@ function buildLimiterPair(
 // Internal helper — emit security log event on rate limit exceeded
 // ---------------------------------------------------------------------------
 
-function logRateLimitExceeded(req: Request, retryAfterSeconds: number, keyType: 'ip' | 'user'): void {
+function logRateLimitExceeded(
+  req: Request,
+  retryAfterSeconds: number,
+  keyType: 'ip' | 'user',
+): void {
   logger.warn('[security] rate_limit_exceeded', {
     event: 'rate_limit_exceeded',
     keyType,

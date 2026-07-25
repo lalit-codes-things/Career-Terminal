@@ -101,7 +101,7 @@ export class S3StorageService implements IStorageService {
           // Server-side encryption — use your KMS key ARN in production
           ServerSideEncryption: 'AES256',
         }),
-      )
+      ),
     );
 
     const presignedUrl = await this.getPresignedUrl(key);
@@ -115,14 +115,14 @@ export class S3StorageService implements IStorageService {
     return this.circuitBreaker.fire(() =>
       getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
         expiresIn: ttlSec,
-      })
+      }),
     );
   }
 
   async exists(key: string): Promise<boolean> {
     try {
       await this.circuitBreaker.fire(() =>
-        this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }))
+        this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key })),
       );
       return true;
     } catch {
@@ -132,7 +132,7 @@ export class S3StorageService implements IStorageService {
 
   async delete(key: string): Promise<void> {
     await this.circuitBreaker.fire(() =>
-      this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))
+      this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })),
     );
     logger.info('[StorageService] File deleted', { key });
   }

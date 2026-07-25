@@ -21,7 +21,11 @@ export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 // Email job
 // ---------------------------------------------------------------------------
 
-export const EmailJobTypeSchema = z.enum(['SEND_NOTIFICATION', 'SEND_DIGEST', 'SEND_STATUS_UPDATE']);
+export const EmailJobTypeSchema = z.enum([
+  'SEND_NOTIFICATION',
+  'SEND_DIGEST',
+  'SEND_STATUS_UPDATE',
+]);
 export type EmailJobType = z.infer<typeof EmailJobTypeSchema>;
 
 export const EmailJobPayloadSchema = z.object({
@@ -52,7 +56,11 @@ export type ResumeParsingJobPayload = z.infer<typeof ResumeParsingJobPayloadSche
 // Application tracking job
 // ---------------------------------------------------------------------------
 
-export const ApplicationTrackingJobTypeSchema = z.enum(['PROCESS_EMAIL', 'REFRESH_STATUS', 'SYNC_ATS']);
+export const ApplicationTrackingJobTypeSchema = z.enum([
+  'PROCESS_EMAIL',
+  'REFRESH_STATUS',
+  'SYNC_ATS',
+]);
 export type ApplicationTrackingJobType = z.infer<typeof ApplicationTrackingJobTypeSchema>;
 
 export const ApplicationTrackingJobPayloadSchema = z.object({

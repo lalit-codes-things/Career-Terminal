@@ -24,9 +24,9 @@ const mockedRecruiterService = recruiterService as unknown as {
 };
 
 // Fixed UUIDs
-const REC_ID     = '00000000-0000-0000-0000-000000000007';
+const REC_ID = '00000000-0000-0000-0000-000000000007';
 const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
-const USER_ID    = '00000000-0000-0000-0000-000000000002';
+const USER_ID = '00000000-0000-0000-0000-000000000002';
 
 describe('Recruiters routes', () => {
   beforeEach(() => {
@@ -49,9 +49,7 @@ describe('Recruiters routes', () => {
       },
     ]);
 
-    const response = await request(app)
-      .get('/recruiters?company=Stripe')
-      .set('x-user-id', USER_ID);
+    const response = await request(app).get('/recruiters?company=Stripe').set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);

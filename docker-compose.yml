@@ -105,7 +105,7 @@ services:
 
   # ── MinIO ───────────────────────────────────────────────────────────────────
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     restart: unless-stopped
     networks:
       - applywise_net
@@ -127,7 +127,7 @@ services:
 
   # ── MinIO bucket initializer (runs once then exits) ─────────────────────────
   minio_init:
-    image: minio/mc:latest
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     networks:
       - applywise_net
     depends_on:
@@ -165,7 +165,8 @@ services:
     environment:
       NODE_ENV:            production
       PORT:                3000
-      DATABASE_URL:        postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=20
+      DATABASE_URL:        postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
+      DATABASE_CONNECTION_LIMIT: 5
       REDIS_HOST:          redis
       REDIS_PORT:          6379
       REDIS_PASSWORD:      ${REDIS_PASSWORD:-}
@@ -185,8 +186,28 @@ services:
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/live"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # Workers use the identical portable image but run independently of the API.
+  # Scale this service separately; set WORKER_QUEUES to isolate a job family.
+  worker:
+    extends:
+      service: api
+    command: ["node", "dist/services/queue/workers/index.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-applywise}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-applywise}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
+      DATABASE_CONNECTION_LIMIT: 5
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: 0
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      WORKER_QUEUES: ${WORKER_QUEUES:-email,resume-parsing,application-tracking}
+    ports: []
+    healthcheck:
+      disable: true

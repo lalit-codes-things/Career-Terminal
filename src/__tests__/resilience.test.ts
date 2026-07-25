@@ -13,25 +13,29 @@ describe('Resilience Utilities', () => {
     });
 
     it('should open after failure threshold and fallback to half-open after reset timeout', async () => {
-      const breaker = new CircuitBreaker('test', { failureThreshold: 2, resetTimeout: 1000, requestTimeout: 100 });
-      
+      const breaker = new CircuitBreaker('test', {
+        failureThreshold: 2,
+        resetTimeout: 1000,
+        requestTimeout: 100,
+      });
+
       const failingAction = jest.fn().mockRejectedValue(new Error('fail'));
-      
+
       await expect(breaker.fire(failingAction)).rejects.toThrow('fail');
       await expect(breaker.fire(failingAction)).rejects.toThrow('fail');
-      
+
       expect(breaker.getState()).toBe(CircuitState.OPEN);
-      
+
       // Fast-fail
       await expect(breaker.fire(failingAction)).rejects.toThrow(/Circuit \[test\] is OPEN/);
-      
+
       // Advance time
       jest.advanceTimersByTime(1100);
-      
+
       // Should attempt again
       const successAction = jest.fn().mockResolvedValue('success');
       await expect(breaker.fire(successAction)).resolves.toBe('success');
-      
+
       expect(breaker.getState()).toBe(CircuitState.CLOSED);
     });
   });
@@ -53,8 +57,11 @@ describe('Resilience Utilities', () => {
 
       const action = jest.fn();
 
-      const result = await executeWithTransientRetry(mockPrisma, action, { maxRetries: 2, baseDelayMs: 1 });
-      
+      const result = await executeWithTransientRetry(mockPrisma, action, {
+        maxRetries: 2,
+        baseDelayMs: 1,
+      });
+
       expect(result).toBe('success');
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(2);
     });

@@ -43,13 +43,13 @@ const mockedRecruiterService = recruiterService as unknown as {
 };
 
 // Fixed UUIDs used across all test assertions
-const APP_ID    = '00000000-0000-0000-0000-000000000001';
-const USER_ID   = '00000000-0000-0000-0000-000000000002';
-const EMAIL_ID  = '00000000-0000-0000-0000-000000000003';
-const EVT_ID_1  = '00000000-0000-0000-0000-000000000004';
-const EVT_ID_2  = '00000000-0000-0000-0000-000000000005';
-const HIST_ID   = '00000000-0000-0000-0000-000000000006';
-const REC_ID    = '00000000-0000-0000-0000-000000000007';
+const APP_ID = '00000000-0000-0000-0000-000000000001';
+const USER_ID = '00000000-0000-0000-0000-000000000002';
+const EMAIL_ID = '00000000-0000-0000-0000-000000000003';
+const EVT_ID_1 = '00000000-0000-0000-0000-000000000004';
+const EVT_ID_2 = '00000000-0000-0000-0000-000000000005';
+const HIST_ID = '00000000-0000-0000-0000-000000000006';
+const REC_ID = '00000000-0000-0000-0000-000000000007';
 const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
 
 describe('Applications routes', () => {
@@ -281,10 +281,7 @@ describe('Applications routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data.recruiter.id).toBe(REC_ID);
-    expect(mockedRecruiterService.getRecruiterByApplication).toHaveBeenCalledWith(
-      USER_ID,
-      APP_ID,
-    );
+    expect(mockedRecruiterService.getRecruiterByApplication).toHaveBeenCalledWith(USER_ID, APP_ID);
   });
 
   it('rejects invalid statuses', async () => {

@@ -14,6 +14,8 @@ export const envSchema = z.object({
   DATABASE_REPLICA_URL: z.string().optional(),
   DATABASE_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_POOL_TIMEOUT: z.coerce.number().int().positive().default(30000),
+  DATABASE_CONNECTION_LIMIT: z.coerce.number().int().positive().max(100).default(5),
+  DATABASE_CONNECT_TIMEOUT: z.coerce.number().int().positive().default(10),
 
   // PostgreSQL (used by docker-compose / migrations)
   POSTGRES_USER: z.string().default('applywise'),
@@ -60,6 +62,12 @@ export const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   REDIS_DB: z.coerce.number().int().min(0).max(15).default(0),
   REDIS_TIMEOUT: z.coerce.number().int().positive().default(10000),
+
+  // Worker execution. Keep this bounded so replicas cannot overwhelm PostgreSQL
+  // or downstream providers; scale worker replicas before increasing concurrency.
+  WORKER_CONCURRENCY: z.coerce.number().int().positive().max(100).default(5),
+  WORKER_QUEUES: z.string().default('email,resume-parsing,application-tracking'),
+  WORKER_SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(30000),
 
   // AWS / S3
   AWS_REGION: z.string().default('us-east-1'),

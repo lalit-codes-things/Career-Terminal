@@ -2,199 +2,328 @@ name: CI Pipeline
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
   CI: true
+  IMAGE_NAME: applywise-api
+  MIGRATOR_IMAGE_NAME: applywise-migrator
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
 
 jobs:
-  setup:
-    name: Setup & Dependencies
+  dependency-validation:
+    name: Dependency Validation
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Verify lockfile install
+        run: npm ci --ignore-scripts
 
-  security-scan:
-    name: Security Scans
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+  static-analysis:
+    name: Static Analysis
     runs-on: ubuntu-latest
-    needs: setup
+    needs: dependency-validation
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Secret scanning (Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: --verbose --redact
 
-  lint-format:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      
+
       - name: Install dependencies
         run: npm ci
-      
-      - name: Run TypeScript typecheck
+
+      - name: TypeScript typecheck
         run: npm run typecheck
-      
-      - name: Run ESLint
+
+      - name: ESLint
         run: npm run lint
-      
-      - name: Check Prettier formatting
+
+      - name: Prettier check
         run: npm run format:check
 
-  test:
-    name: Tests & Coverage
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-    needs: setup
+    needs: dependency-validation
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run Jest tests
-        run: npm run test:coverage
-      
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage/lcov.info
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  dependency-audit:
-    name: Dependency Audit
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run npm audit
-        run: npm run audit
-      
-      - name: Check for outdated packages
-        run: npm outdated --long
 
-  sbom:
-    name: SBOM Generation
-    runs-on: ubuntu-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      
       - name: Install dependencies
         run: npm ci
-      
-      - name: Generate CycloneDX SBOM
-        uses: CycloneDX/cyclonedx-action@v2.4
-        with:
-          args: --output=bom.json
-      
-      - name: Upload SBOM as artifact
+
+      - name: Run Jest coverage
+        run: npm run test:coverage -- --runInBand
+
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: sbom-cyclonedx
-          path: bom.json
+          name: jest-coverage
+          path: coverage/
+          if-no-files-found: warn
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: dependency-validation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run configured integration tests
+        run: npm run test:integration -- --runInBand
+
+  security-scanning:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: dependency-validation
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --source . --config .gitleaks.toml --redact --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=high
+
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/nodejs
+          generateSarif: "1"
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
 
   build:
-    name: Build
+    name: Application Build
     runs-on: ubuntu-latest
-    needs: setup
+    needs: [static-analysis, unit-tests, integration-tests, security-scanning]
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Build TypeScript
         run: npm run build
 
-  docker:
-    name: Docker Image Build & Scan
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  sbom:
+    name: SBOM
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate dependency SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-dependencies.cdx.json
+
+      - name: Upload dependency SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-dependencies
+          path: sbom-dependencies.cdx.json
+
+  container:
+    name: Container Build and Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build runtime image
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: runtime
           load: true
-          tags: applywise-api:ci
+          tags: ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trivy Docker image scan
-        uses: aquasecurity/trivy-action@v0.20.0
+      - name: Build migrator image
+        uses: docker/build-push-action@v6
         with:
-          image-ref: applywise-api:ci
-          scan-type: image
-          format: table
+          context: .
+          target: migrator
+          load: true
+          tags: ${{ env.MIGRATOR_IMAGE_NAME }}:ci-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify runtime image user
+        run: test "$(docker inspect --format='{{.Config.User}}' $IMAGE_NAME:ci-${GITHUB_SHA})" = "appuser"
+
+      - name: Scan runtime image vulnerabilities
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+          format: sarif
+          output: trivy-runtime.sarif
           exit-code: 1
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+
+      - name: Scan runtime image secrets
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+          scanners: secret
+          format: table
+          exit-code: 1
+
+      - name: Generate container SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE_NAME }}:ci-${{ github.sha }}
+          format: spdx-json
+          output-file: sbom-container.spdx.json
+
+      - name: Upload container scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-security-artifacts
+          path: |
+            trivy-runtime.sarif
+            sbom-container.spdx.json
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-runtime.sarif
+
+  infrastructure-validation:
+    name: Infrastructure Validation
+    runs-on: ubuntu-latest
+    needs: dependency-validation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose syntax
+        run: docker compose config --quiet
+
+      - name: Validate Kubernetes manifests
+        run: docker run --rm -v "$PWD/k8s:/k8s:ro" ghcr.io/yannh/kubeconform:v0.6.7 -strict -summary /k8s
+
+      - name: Reject mutable Kubernetes image tags
+        run: npm run ci:validate-k8s-images
+
+  deployment-verification:
+    name: Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [container, infrastructure-validation, sbom]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify deployment runbook exists
+        run: test -f docs/production-readiness.md
+
+      - name: Record deployment artifact identity
+        run: |
+          mkdir -p deployment-artifacts
+          printf 'source_commit=%s\nruntime_image=%s:%s\nmigrator_image=%s:%s\n' \
+            "$GITHUB_SHA" "$IMAGE_NAME" "ci-$GITHUB_SHA" "$MIGRATOR_IMAGE_NAME" "ci-$GITHUB_SHA" \
+            > deployment-artifacts/artifact-identity.txt
+
+      - name: Upload deployment artifact identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifact-identity
+          path: deployment-artifacts/artifact-identity.txt

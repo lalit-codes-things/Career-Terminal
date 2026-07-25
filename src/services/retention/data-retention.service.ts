@@ -218,7 +218,7 @@ export class DataRetentionService {
     let total = 0;
 
     // Process in batches to avoid locking the table
-    while (true) {
+    for (;;) {
       const batch = await this.db.userEmailConnection.findMany({
         where: {
           status: { in: ['EXPIRED', 'REVOKED'] },
@@ -262,7 +262,7 @@ export class DataRetentionService {
     const cutoff = daysAgo(SYNC_JOB_RETENTION_DAYS);
     let total = 0;
 
-    while (true) {
+    for (;;) {
       const batch = await this.db.syncJob.findMany({
         where: {
           status: { in: ['SUCCESS', 'FAILED'] },

@@ -1,0 +1,52 @@
+# Run once per deployment release from CI/CD. Do not include this Job in a
+# replica Deployment: concurrent Prisma migrations are intentionally avoided.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: applywise-migrate
+  namespace: applywise
+  labels:
+    app: applywise-migrate
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: applywise-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: applywise-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      containers:
+        - name: migrate
+          # Publish Dockerfile target `migrator` under this distinct tag.
+          image: applywise-migrator:0.1.0
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: applywise-config
+            - secretRef:
+                name: applywise-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

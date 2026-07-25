@@ -12,7 +12,11 @@
 import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
-import { QUEUE_NAMES, type ApplicationTrackingJobPayload, ApplicationTrackingJobPayloadSchema } from '../queue.types';
+import {
+  QUEUE_NAMES,
+  type ApplicationTrackingJobPayload,
+  ApplicationTrackingJobPayloadSchema,
+} from '../queue.types';
 
 // ---------------------------------------------------------------------------
 // Processor
@@ -21,7 +25,8 @@ import { QUEUE_NAMES, type ApplicationTrackingJobPayload, ApplicationTrackingJob
 export async function processApplicationTrackingJob(
   job: Job<ApplicationTrackingJobPayload>,
 ): Promise<void> {
-  const { type, userId, applicationId, emailMessageId, metadata } = ApplicationTrackingJobPayloadSchema.parse(job.data);
+  const { type, userId, applicationId, emailMessageId, metadata } =
+    ApplicationTrackingJobPayloadSchema.parse(job.data);
 
   logger.info('[AppTrackingWorker] Processing job', {
     jobId: job.id,
@@ -90,7 +95,7 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
     processApplicationTrackingJob,
     {
       connection: bullMQConnection,
-      concurrency: 5,
+      concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
     },
   );
 
@@ -115,6 +120,6 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
     logger.error('[AppTrackingWorker] Worker error', { message: err.message }),
   );
 
-  logger.info('[AppTrackingWorker] Started (concurrency=5)');
+  logger.info('[AppTrackingWorker] Started', { concurrency: worker.opts.concurrency });
   return worker;
 }

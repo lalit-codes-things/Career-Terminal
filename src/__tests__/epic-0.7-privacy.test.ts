@@ -20,6 +20,7 @@ import {
   getCriticalFields,
   getEncryptedFields,
 } from '../infrastructure/privacy/pii-inventory';
+import { createHmac } from 'crypto';
 
 import {
   AI_DATA_PROTECTION_POLICY,
@@ -92,8 +93,8 @@ describe('Epic 0.7 — PII Inventory (Phase 20)', () => {
     // OAuth tokens must be encrypted; JWT/opaque refresh tokens are not stored in DB
     // so encryptedAtRest=false is correct for those. Verify no unexpected critical plain fields.
     const unexpectedPlainCritical = criticalNotEncrypted.filter(
-      (f) => f.dbLocation !== 'N/A (stateless — not stored in DB)' &&
-             !f.dbLocation.includes('Redis'),
+      (f) =>
+        f.dbLocation !== 'N/A (stateless — not stored in DB)' && !f.dbLocation.includes('Redis'),
     );
     expect(unexpectedPlainCritical).toHaveLength(0);
   });
@@ -175,7 +176,8 @@ describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
 
   it('2e. blocks JWT token (eyJ... format)', () => {
     const data = {
-      prompt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEyMyJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+      prompt:
+        'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyLTEyMyJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
     };
     expect(() => assertAiDataMinimisation(data)).toThrow(/JWT access token/);
   });
@@ -215,9 +217,9 @@ describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
   });
 
   it('2m. error message includes remediation guidance', () => {
-    expect(() =>
-      assertAiDataMinimisation({ url: 'postgresql://u:p@host/db' }),
-    ).toThrow(/Strip all credentials/);
+    expect(() => assertAiDataMinimisation({ url: 'postgresql://u:p@host/db' })).toThrow(
+      /Strip all credentials/,
+    );
   });
 });
 
@@ -430,7 +432,7 @@ describe('Epic 0.7 — Cryptographic Token Utilities (Phases 12 & 28)', () => {
   it('5d. generateVerificationToken returns token and matching hash', () => {
     const { token, hash } = generateVerificationToken();
     expect(token).toHaveLength(64); // 32 bytes hex
-    expect(hash).toHaveLength(64);  // sha256 hex
+    expect(hash).toHaveLength(64); // sha256 hex
     expect(hash).toBe(hashToken(token));
   });
 
@@ -528,7 +530,6 @@ describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
 
   describe('verifyHmacSha256', () => {
     it('6j. returns true for a valid HMAC-SHA256 signature', () => {
-      const { createHmac } = require('crypto');
       const payload = 'webhook-body-payload';
       const secret = 'my-webhook-secret';
       const signature = createHmac('sha256', secret).update(payload).digest('hex');
@@ -537,7 +538,6 @@ describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
     });
 
     it('6k. returns false for a tampered payload', () => {
-      const { createHmac } = require('crypto');
       const secret = 'my-webhook-secret';
       const originalSignature = createHmac('sha256', secret).update('original').digest('hex');
 
@@ -545,7 +545,6 @@ describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
     });
 
     it('6l. returns false for a wrong secret', () => {
-      const { createHmac } = require('crypto');
       const payload = 'payload';
       const signature = createHmac('sha256', 'correct-secret').update(payload).digest('hex');
 
@@ -553,7 +552,6 @@ describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
     });
 
     it('6m. works with Buffer payload', () => {
-      const { createHmac } = require('crypto');
       const payload = Buffer.from('binary-payload');
       const secret = 'secret';
       const signature = createHmac('sha256', secret).update(payload).digest('hex');
@@ -633,7 +631,7 @@ describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
 
   it('8b. logger does not emit email values', async () => {
     const { logger } = await import('../lib/logger');
-    logger.info('test event', { email: 'user@example.com' as any });
+    logger.info('test event', { email: 'user@example.com' });
 
     const output = capturedOutput.join('');
     expect(output).not.toContain('user@example.com');
@@ -642,7 +640,7 @@ describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
 
   it('8c. logger does not emit refreshTokenEncrypted values', async () => {
     const { logger } = await import('../lib/logger');
-    logger.info('test event', { refreshTokenEncrypted: 'v1:someIV:someTag:someCipher' as any });
+    logger.info('test event', { refreshTokenEncrypted: 'v1:someIV:someTag:someCipher' });
 
     const output = capturedOutput.join('');
     expect(output).not.toContain('v1:someIV:someTag:someCipher');
@@ -651,7 +649,7 @@ describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
 
   it('8d. logger does not emit encryptionKey values', async () => {
     const { logger } = await import('../lib/logger');
-    logger.info('test event', { encryptionKey: TEST_KEY as any });
+    logger.info('test event', { encryptionKey: TEST_KEY });
 
     const output = capturedOutput.join('');
     expect(output).not.toContain(TEST_KEY);
@@ -676,7 +674,7 @@ describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
     const { logger } = await import('../lib/logger');
     logger.info('nested test', {
       connection: { accessToken: 'nested-secret', id: 'conn-1' },
-    } as any);
+    });
 
     const output = capturedOutput.join('');
     expect(output).not.toContain('nested-secret');

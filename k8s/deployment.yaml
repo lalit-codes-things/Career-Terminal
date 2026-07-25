@@ -30,7 +30,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: api
-          image: applywise-api:latest
+          image: applywise-api:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

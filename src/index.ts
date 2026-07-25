@@ -91,7 +91,7 @@ async function runStartupDiagnostics(): Promise<void> {
   logger.info('Startup diagnostics complete', {
     startupDurationMs: Date.now() - startupTime,
   });
-  
+
   isAppReady = true;
   healthService.setReady(true);
 }
@@ -248,7 +248,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn(`${signal} received, but shutdown already in progress.`);
     return;
   }
-  
+
   isShuttingDown = true;
   healthService.setShuttingDown(true);
   logger.info(`${signal} received — shutting down gracefully`);

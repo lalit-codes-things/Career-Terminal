@@ -42,12 +42,8 @@ describe('Security Hardening & Middleware Pipeline', () => {
       expect(response.headers['cross-origin-resource-policy']).toBeDefined();
     });
 
-
-
     it('should reject Method Override headers', async () => {
-      const response = await request(server)
-        .get('/health')
-        .set('X-HTTP-Method-Override', 'DELETE');
+      const response = await request(server).get('/health').set('X-HTTP-Method-Override', 'DELETE');
       expect(response.status).toBe(400);
       expect(response.body.error.message).toContain('Method override is not permitted');
     });
@@ -55,13 +51,9 @@ describe('Security Hardening & Middleware Pipeline', () => {
 
   describe('Path Parameter Validation', () => {
     const app = express();
-    app.get(
-      '/test/:id',
-      validateParams(z.object({ id: z.string().uuid() })),
-      (req, res) => {
-        res.json({ id: req.params.id });
-      },
-    );
+    app.get('/test/:id', validateParams(z.object({ id: z.string().uuid() })), (req, res) => {
+      res.json({ id: req.params.id });
+    });
     app.use(errorHandler);
 
     it('should accept valid UUIDs', async () => {
@@ -81,7 +73,7 @@ describe('Security Hardening & Middleware Pipeline', () => {
     it('should truncate extremely long text to prevent regex backtracking', () => {
       const longString = 'round 1 ' + 'A'.repeat(50000);
       const start = Date.now();
-      
+
       // We test a private method indirectly via extract if possible, or just mock it.
       // We can pass a huge body text to extract
       const email = {

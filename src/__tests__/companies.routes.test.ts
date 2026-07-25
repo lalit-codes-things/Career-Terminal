@@ -25,8 +25,8 @@ const mockedCompanyService = companyService as unknown as {
 
 // Fixed UUIDs
 const COMPANY_ID = '00000000-0000-0000-0000-000000000008';
-const USER_ID    = '00000000-0000-0000-0000-000000000002';
-const APP_ID     = '00000000-0000-0000-0000-000000000001';
+const USER_ID = '00000000-0000-0000-0000-000000000002';
+const APP_ID = '00000000-0000-0000-0000-000000000001';
 
 describe('Companies routes', () => {
   beforeEach(() => {
@@ -89,9 +89,7 @@ describe('Companies routes', () => {
       aliases: ['Google LLC'],
     });
 
-    const response = await request(app)
-      .get(`/companies/${COMPANY_ID}`)
-      .set('x-user-id', USER_ID);
+    const response = await request(app).get(`/companies/${COMPANY_ID}`).set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -120,13 +118,9 @@ describe('Companies routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.data).toHaveLength(1);
-    expect(mockedCompanyService.getCompanyApplications).toHaveBeenCalledWith(
-      USER_ID,
-      COMPANY_ID,
-      {
-        page: undefined,
-        pageSize: undefined,
-      },
-    );
+    expect(mockedCompanyService.getCompanyApplications).toHaveBeenCalledWith(USER_ID, COMPANY_ID, {
+      page: undefined,
+      pageSize: undefined,
+    });
   });
 });

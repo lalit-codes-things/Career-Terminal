@@ -59,10 +59,12 @@ export function timingSafeBufferEqual(a: Buffer, b: Buffer): boolean {
  * @param provided - The signature supplied by the caller
  * @returns true if the signature is valid
  */
-export function verifyHmacSha256(payload: string | Buffer, secret: string, provided: string): boolean {
-  const expected = createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+export function verifyHmacSha256(
+  payload: string | Buffer,
+  secret: string,
+  provided: string,
+): boolean {
+  const expected = createHmac('sha256', secret).update(payload).digest('hex');
 
   return timingSafeStringEqual(expected, provided);
 }

@@ -18,7 +18,9 @@ import { QUEUE_NAMES, type EmailJobPayload, EmailJobPayloadSchema } from '../que
 // ---------------------------------------------------------------------------
 
 export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> {
-  const { type, userId, toAddress, subject, bodyText, bodyHtml } = EmailJobPayloadSchema.parse(job.data);
+  const { type, userId, toAddress, subject, bodyText, bodyHtml } = EmailJobPayloadSchema.parse(
+    job.data,
+  );
 
   logger.info('[EmailWorker] Processing job', {
     jobId: job.id,
@@ -52,7 +54,7 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
 export function startEmailWorker(): Worker<EmailJobPayload> {
   const worker = new Worker<EmailJobPayload>(QUEUE_NAMES.EMAIL, processEmailJob, {
     connection: bullMQConnection,
-    concurrency: 5,
+    concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
     // BullMQ handles retries per the job's `attempts` + `backoff` options set
     // by the producer — no additional config needed here.
   });
@@ -71,6 +73,6 @@ export function startEmailWorker(): Worker<EmailJobPayload> {
 
   worker.on('error', (err) => logger.error('[EmailWorker] Worker error', { message: err.message }));
 
-  logger.info('[EmailWorker] Started (concurrency=5)');
+  logger.info('[EmailWorker] Started', { concurrency: worker.opts.concurrency });
   return worker;
 }

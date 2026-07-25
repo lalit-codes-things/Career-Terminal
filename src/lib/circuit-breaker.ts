@@ -84,7 +84,10 @@ export class CircuitBreaker {
 
   private onFailure(): void {
     this.failureCount++;
-    if (this.state === CircuitState.HALF_OPEN || this.failureCount >= this.options.failureThreshold) {
+    if (
+      this.state === CircuitState.HALF_OPEN ||
+      this.failureCount >= this.options.failureThreshold
+    ) {
       this.state = CircuitState.OPEN;
       this.nextAttemptAt = Date.now() + this.options.resetTimeout;
     }

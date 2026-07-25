@@ -42,8 +42,17 @@ function enrichUrl(baseUrl: string | undefined): string | undefined {
   if (!baseUrl) return undefined;
   try {
     const url = new URL(baseUrl);
-    if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', '20');
-    if (!url.searchParams.has('pool_timeout')) url.searchParams.set('pool_timeout', '10');
+    // Keep each process deliberately small behind PgBouncer. API and worker
+    // replicas each get an explicit, independently configurable ceiling.
+    if (!url.searchParams.has('connection_limit')) {
+      url.searchParams.set('connection_limit', process.env.DATABASE_CONNECTION_LIMIT ?? '5');
+    }
+    if (!url.searchParams.has('pool_timeout')) {
+      url.searchParams.set('pool_timeout', process.env.DATABASE_POOL_TIMEOUT ?? '10');
+    }
+    if (!url.searchParams.has('connect_timeout')) {
+      url.searchParams.set('connect_timeout', process.env.DATABASE_CONNECT_TIMEOUT ?? '10');
+    }
     return url.toString();
   } catch {
     return baseUrl;

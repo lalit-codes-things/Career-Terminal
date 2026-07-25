@@ -181,7 +181,9 @@ class RedisStateBackend implements IOAuthStateBackend {
 
   destroy(): void {
     if (this.client) {
-      void this.client.quit().catch(() => {/* silently ignored on shutdown */});
+      void this.client.quit().catch(() => {
+        /* silently ignored on shutdown */
+      });
       this.client = null;
     }
   }

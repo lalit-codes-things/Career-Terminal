@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: applywise-worker
+  namespace: applywise
+  labels:
+    app: applywise-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: applywise-worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: applywise-worker
+    spec:
+      # Use a dedicated workload identity/secret binding in each environment.
+      serviceAccountName: applywise-api
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: worker
+          image: applywise-api:0.1.0
+          imagePullPolicy: Always
+          command: ["node", "dist/services/queue/workers/index.js"]
+          envFrom:
+            - configMapRef:
+                name: applywise-config
+            - secretRef:
+                name: applywise-secrets
+          env:
+            - name: WORKLOAD_IDENTITY
+              value: applywise-worker
+            # Deploy separate worker Deployments with a single value here to
+            # isolate queues and scale them independently.
+            - name: WORKER_QUEUES
+              value: email,resume-parsing,application-tracking
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

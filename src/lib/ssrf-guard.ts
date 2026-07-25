@@ -62,13 +62,13 @@ function inRange(ip: number, network: number, prefixLen: number): boolean {
 }
 
 const PRIVATE_RANGES_V4: Array<{ network: number; prefix: number; label: string }> = [
-  { network: parseIPv4('127.0.0.0')!,   prefix: 8,  label: 'loopback'      },
-  { network: parseIPv4('10.0.0.0')!,    prefix: 8,  label: 'RFC1918'       },
-  { network: parseIPv4('172.16.0.0')!,  prefix: 12, label: 'RFC1918'       },
-  { network: parseIPv4('192.168.0.0')!, prefix: 16, label: 'RFC1918'       },
-  { network: parseIPv4('169.254.0.0')!, prefix: 16, label: 'link-local'    },
-  { network: parseIPv4('0.0.0.0')!,     prefix: 8,  label: 'unspecified'   },
-  { network: parseIPv4('100.64.0.0')!,  prefix: 10, label: 'shared-space'  }, // RFC 6598
+  { network: parseIPv4('127.0.0.0')!, prefix: 8, label: 'loopback' },
+  { network: parseIPv4('10.0.0.0')!, prefix: 8, label: 'RFC1918' },
+  { network: parseIPv4('172.16.0.0')!, prefix: 12, label: 'RFC1918' },
+  { network: parseIPv4('192.168.0.0')!, prefix: 16, label: 'RFC1918' },
+  { network: parseIPv4('169.254.0.0')!, prefix: 16, label: 'link-local' },
+  { network: parseIPv4('0.0.0.0')!, prefix: 8, label: 'unspecified' },
+  { network: parseIPv4('100.64.0.0')!, prefix: 10, label: 'shared-space' }, // RFC 6598
 ];
 
 function isPrivateIPv4(ip: string): boolean {
@@ -82,10 +82,10 @@ function isPrivateIPv4(ip: string): boolean {
 // ---------------------------------------------------------------------------
 
 const BLOCKED_IPV6_PATTERNS = [
-  /^::1$/,                          // loopback
-  /^fe80:/i,                        // link-local
-  /^fc00:/i,                        // unique-local
-  /^fd[0-9a-f]{2}:/i,               // unique-local (fd00::/8)
+  /^::1$/, // loopback
+  /^fe80:/i, // link-local
+  /^fc00:/i, // unique-local
+  /^fd[0-9a-f]{2}:/i, // unique-local (fd00::/8)
   /^0{0,4}:0{0,4}:0{0,4}:0{0,4}:0{0,4}:ffff:7f/i, // ::ffff:127.x.x.x
 ];
 
@@ -101,7 +101,7 @@ const BLOCKED_HOSTNAMES = new Set([
   'localhost',
   'metadata.google.internal',
   'metadata.google',
-  'instance-data',                   // Azure IMDS alternative hostname
+  'instance-data', // Azure IMDS alternative hostname
 ]);
 
 // ---------------------------------------------------------------------------

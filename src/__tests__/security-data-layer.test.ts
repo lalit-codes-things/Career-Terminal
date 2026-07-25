@@ -3,6 +3,7 @@ import { acquireLock, releaseLock } from '../lib/mutex';
 import { processEmailJob } from '../services/queue/workers/email.worker';
 import { processResumeParsingJob } from '../services/queue/workers/resume-parsing.worker';
 import { processApplicationTrackingJob } from '../services/queue/workers/application-tracking.worker';
+import Redis from 'ioredis';
 
 // Mock the Redis client for Mutex testing
 jest.mock('ioredis', () => {
@@ -35,8 +36,7 @@ describe('Epic 0.6: Security Data Layer', () => {
 
     beforeEach(() => {
       // Get the mocked instance by importing normally, then pulling the mock
-      const RedisMock = require('ioredis');
-      mockRedis = new RedisMock();
+      mockRedis = new Redis();
       mockRedis.__store.clear();
     });
 
