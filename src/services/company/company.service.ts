@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { ownershipGuard } from '../ownership/ownership.guard';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -204,12 +205,12 @@ export class CompanyService {
           ? { industry: { contains: filters.industry, mode: Prisma.QueryMode.insensitive } }
           : {}),
         applications: {
-          some: { userId },
+          some: userOwnershipFilter(userId),
         },
       },
       include: {
         applications: {
-          where: { userId },
+          where: userOwnershipFilter(userId),
           select: {
             id: true,
             appliedDate: true,
@@ -218,7 +219,7 @@ export class CompanyService {
         recruiters: {
           where: {
             applications: {
-              some: { userId },
+              some: userOwnershipFilter(userId),
             },
           },
           select: { id: true },
@@ -241,7 +242,7 @@ export class CompanyService {
       include: {
         aliases: true,
         applications: {
-          where: { userId },
+          where: userOwnershipFilter(userId),
           select: {
             id: true,
             appliedDate: true,
@@ -250,7 +251,7 @@ export class CompanyService {
         recruiters: {
           where: {
             applications: {
-              some: { userId },
+              some: userOwnershipFilter(userId),
             },
           },
           select: { id: true },
@@ -279,7 +280,7 @@ export class CompanyService {
 
     const applications = await prisma.jobApplication.findMany({
       where: {
-        userId,
+        ...userOwnershipFilter(userId),
         companyId,
       },
       orderBy: { appliedDate: 'desc' },
@@ -287,6 +288,7 @@ export class CompanyService {
       select: {
         id: true,
         userId: true,
+        legacyUserId: true,
         appliedDate: true,
         status: true,
         roleTitle: true,
@@ -298,13 +300,13 @@ export class CompanyService {
 
     return applications.map((application) => ({
       id: application.id,
-      userId: application.userId,
+      userId: application.userId ?? application.legacyUserId,
       appliedDate: application.appliedDate.toISOString(),
       status: application.status,
       roleTitle: application.roleTitle,
       companyName: application.companyName,
-      recruiterName: application.recruiterName,
-      recruiterEmail: application.recruiterEmail,
+      recruiterName: application.recruiterName ?? '',
+      recruiterEmail: application.recruiterEmail ?? '',
     }));
   }
 

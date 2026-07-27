@@ -2,6 +2,7 @@ import { prisma } from '../../config/database';
 import type { JobApplication } from '@prisma/client';
 import type { ExtractedJobData } from '../application-tracking/application-tracking.service';
 import type { ClassifiableEmail } from '../job-intelligence';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 
 export interface MergeDecision {
   targetApplication: JobApplication | null;
@@ -12,6 +13,10 @@ export interface MergeDecision {
 export class ApplicationMergeService {
   /**
    * Evaluates incoming job application data against existing records to find a suitable merge target.
+   *
+   * When `incomingOpportunityId` is provided (from canonical Opportunity resolution),
+   * any existing application sharing the same `opportunity_id` is treated as a near-certain
+   * match (100 confidence) — this is the strongest deduplication signal.
    */
   public async findMatch(
     userId: string,
@@ -19,13 +24,14 @@ export class ApplicationMergeService {
     sourceEmail: ClassifiableEmail,
     candidateEmail?: string,
     atsApplicationId?: string,
+    incomingOpportunityId?: string,
   ): Promise<MergeDecision> {
     // 1. Fetch potential candidates for the user
     // To be efficient, we fetch all applications for the user, but in a real massive scale system
     // we would filter by companyDomain first. Since a user has bounded applications, fetching all or
     // filtering by company is fine.
     const candidates = await prisma.jobApplication.findMany({
-      where: { userId },
+      where: userOwnershipFilter(userId),
     });
 
     let bestMatch: JobApplication | null = null;
@@ -39,6 +45,7 @@ export class ApplicationMergeService {
         sourceEmail,
         candidateEmail,
         atsApplicationId,
+        incomingOpportunityId,
       );
 
       // Always track the best reasons for debugging (including strict rejects at 0)
@@ -70,9 +77,24 @@ export class ApplicationMergeService {
     sourceEmail: ClassifiableEmail,
     candidateEmail?: string,
     atsApplicationId?: string,
+    incomingOpportunityId?: string,
   ): { confidence: number; reasons: string[] } {
     let confidence = 0;
     const reasons: string[] = [];
+
+    // ── Strongest signal: canonical opportunity_id match ────────────────────
+    // When both sides have resolved to the same opportunity, treat it as a
+    // definitive match.  This short-circuits the company/role text checks.
+    if (
+      incomingOpportunityId &&
+      (existingApp as JobApplication & { opportunityId?: string | null }).opportunityId ===
+        incomingOpportunityId
+    ) {
+      return {
+        confidence: 100,
+        reasons: ['+100: Exact canonical opportunity_id match'],
+      };
+    }
 
     // STRICT REJECT: Different Companies
     // We check domains or exact name matches

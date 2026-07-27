@@ -27,6 +27,7 @@
 import { PrismaClient } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { logger } from '../../lib/logger';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 
 // ---------------------------------------------------------------------------
 // Retention configuration
@@ -90,64 +91,86 @@ export class DataRetentionService {
    */
   async deleteUserData(userId: string): Promise<Record<string, number>> {
     logger.info('[DataRetention] Starting user data deletion', { userId });
+    const scope = userOwnershipFilter(userId);
 
     const counts: Record<string, number> = {};
 
     try {
       // 1. Email messages
       const emailResult = await this.db.emailMessage.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.emailMessages = emailResult.count;
 
       // 2. Gmail sync state
       const syncStateResult = await this.db.gmailSyncState.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.gmailSyncStates = syncStateResult.count;
 
       // 3. OAuth connections (encrypted tokens are deleted with the row)
       const connectionResult = await this.db.userEmailConnection.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.emailConnections = connectionResult.count;
 
       // 4. Application timeline entries (via cascade from JobApplication,
       //    but explicit delete ensures it runs even if cascade is removed)
       const timelineResult = await this.db.applicationTimeline.deleteMany({
-        where: { application: { userId } },
+        where: { application: scope },
       });
       counts.timelineEntries = timelineResult.count;
 
       // 5. Application status history
       const statusHistoryResult = await this.db.applicationStatusHistory.deleteMany({
-        where: { application: { userId } },
+        where: { application: scope },
       });
       counts.statusHistoryEntries = statusHistoryResult.count;
 
       // 6. Application sources
       const sourcesResult = await this.db.applicationSource.deleteMany({
-        where: { application: { userId } },
+        where: { application: scope },
       });
       counts.applicationSources = sourcesResult.count;
 
       // 7. Job applications
       const applicationResult = await this.db.jobApplication.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.jobApplications = applicationResult.count;
 
       // 8. User resumes (DB records)
       const resumeResult = await this.db.userResume.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.userResumes = resumeResult.count;
 
       // 9. Sync jobs
       const syncJobResult = await this.db.syncJob.deleteMany({
-        where: { userId },
+        where: scope,
       });
       counts.syncJobs = syncJobResult.count;
+
+      // 10. Candidate profile and user identity
+      const internalId = await this.db.userIdMapping.findUnique({
+        where: { externalId: userId },
+        select: { userId: true },
+      });
+      const resolvedUserId = internalId?.userId ?? userId;
+
+      const profileResult = await this.db.candidateProfile.deleteMany({
+        where: { userId: resolvedUserId },
+      });
+      counts.candidateProfiles = profileResult.count;
+
+      await this.db.userIdMapping.deleteMany({
+        where: { OR: [{ externalId: userId }, { userId: resolvedUserId }] },
+      });
+
+      const userResult = await this.db.user.deleteMany({
+        where: { id: resolvedUserId },
+      });
+      counts.users = userResult.count;
 
       logger.info('[DataRetention] User data deletion complete', {
         userId,

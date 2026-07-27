@@ -152,3 +152,45 @@ resumeRouter.post(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// GET /resume/versions
+// ---------------------------------------------------------------------------
+
+resumeRouter.get(
+  '/versions',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const versions = await resumeUploadService.listVersions(userId);
+      res.json({ success: true, data: versions });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// DELETE /resume/versions/:id
+// ---------------------------------------------------------------------------
+
+resumeRouter.delete(
+  '/versions/:id',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const userResumeId = Array.isArray(req.params.id)
+        ? req.params.id[0]
+        : req.params.id;
+      if (!userResumeId) {
+        throw new ValidationError('Resume version id is required.');
+      }
+      await resumeUploadService.deleteVersion(userId, userResumeId);
+      res.json({ success: true, message: 'Resume version deleted.' });
+    } catch (error) {
+      next(error);
+    }
+  },
+);

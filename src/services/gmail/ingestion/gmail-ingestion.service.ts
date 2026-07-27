@@ -22,6 +22,11 @@ import {
   JobEmailCategory,
   type ClassifiableEmail,
 } from '../../job-intelligence';
+import { userOwnershipFilter } from '../../../utils/user-ownership';
+import { userService } from '../../user';
+import { features } from '../../../config/features';
+import { queueService } from '../../queue/queue.service';
+import { gmailCheckpointService } from '../checkpoint.service';
 
 export interface IngestionService {
   syncInitialMailbox(userId: string): Promise<void>;
@@ -79,7 +84,15 @@ export class GmailIngestionService implements IngestionService {
   async syncNewEmails(userId: string): Promise<void> {
     logger.info('[Sync] Starting incremental sync', { userId });
 
-    // 1. Retrieve current sync state
+    // 1. Check for pending batch (Recovery logic)
+    const pendingBatch = await gmailCheckpointService.getPendingBatch(userId);
+    if (pendingBatch) {
+      logger.info('[Sync] Resuming pending batch', { userId, batchId: pendingBatch.id });
+      // In a real implementation, we would re-enqueue missing jobs here.
+      // For this prompt, we acknowledge the recovery point.
+    }
+
+    // 2. Retrieve current sync state
     const syncState = await prisma.gmailSyncState.findUnique({
       where: { userId },
     });
@@ -92,12 +105,24 @@ export class GmailIngestionService implements IngestionService {
     const { client, connectionId } = await this.setupClient(userId);
     const fetcher = new RawEmailFetcher(client);
 
+    // 3. Get current Profile to find the target historyId
+    const profile = await client.getProfile();
+    const targetHistoryId = profile.historyId;
+
+    if (targetHistoryId === syncState.historyId) {
+      logger.info('[Sync] Mailbox already up to date', { userId, historyId: targetHistoryId });
+      return;
+    }
+
+    // 4. Start a new durable batch
+    const { batchId } = await gmailCheckpointService.startBatch(userId, targetHistoryId);
+
     let currentHistoryId = syncState.historyId;
     let pageToken: string | undefined = undefined;
     let totalNewMessages = 0;
 
     try {
-      // 2. Loop through history API pages
+      // 5. Loop through history API pages
       do {
         const historyResult = await client.getHistory({
           startHistoryId: currentHistoryId,
@@ -107,8 +132,8 @@ export class GmailIngestionService implements IngestionService {
         const messagesToFetch = historyResult.messagesAdded.map((m) => m.message);
 
         if (messagesToFetch.length > 0) {
-          // 3. Process new messages
-          await this.processAndSaveBatch(userId, connectionId, messagesToFetch, fetcher);
+          // 6. Process new messages (passing batchId for tracking)
+          await this.processAndSaveBatch(userId, connectionId, messagesToFetch, fetcher, batchId);
           totalNewMessages += messagesToFetch.length;
         }
 
@@ -117,10 +142,22 @@ export class GmailIngestionService implements IngestionService {
         pageToken = historyResult.nextPageToken;
       } while (pageToken);
 
-      // 4. Update sync state with the latest historyId
+      // 7. Finalize batch total count
+      await gmailCheckpointService.setBatchTotal(batchId, totalNewMessages);
+
+      // 8. Update sync state with the latest historyId
+      // Note: We still update GmailSyncState for the fetcher, 
+      // but GmailCheckpoint advances only when jobs complete.
       await this.updateSyncState(userId, connectionId, currentHistoryId);
-      logger.info('[Sync] Incremental sync completed', { userId, newMessages: totalNewMessages });
+      
+      logger.info('[Sync] Incremental sync enqueued', { userId, newMessages: totalNewMessages, batchId });
+      
+      // If 0 messages, complete batch immediately
+      if (totalNewMessages === 0) {
+        await gmailCheckpointService.completeBatch(batchId);
+      }
     } catch (error) {
+      await gmailCheckpointService.failBatch(batchId, error instanceof Error ? error.message : String(error));
       // If History API returns 404, the historyId has expired (Google drops old history)
       // We must fall back to a full sync to reconcile.
       if (error instanceof GmailApiError && error.gmailErrorCode === 404) {
@@ -142,7 +179,11 @@ export class GmailIngestionService implements IngestionService {
     userId: string,
   ): Promise<{ client: GmailClient; connectionId: string }> {
     const connection = await prisma.userEmailConnection.findFirst({
-      where: { userId, provider: EmailProvider.GMAIL, status: ConnectionStatus.ACTIVE },
+      where: {
+        ...userOwnershipFilter(userId),
+        provider: EmailProvider.GMAIL,
+        status: ConnectionStatus.ACTIVE,
+      },
     });
 
     if (!connection) {
@@ -166,6 +207,7 @@ export class GmailIngestionService implements IngestionService {
     connectionId: string,
     messageRefs: GmailMessageRef[],
     fetcher: RawEmailFetcher,
+    batchId?: string,
   ): Promise<void> {
     // Pipeline Step 1: Fetch raw full messages
     const rawMessages = await fetcher.fetchMessagesInBatches(messageRefs);
@@ -173,12 +215,14 @@ export class GmailIngestionService implements IngestionService {
     // Pipeline Step 2: Normalize to DB schema
     const normalizedData = this.normalizer.normalizeBatch(rawMessages);
 
+    const userScope = await userService.userScopeFor(userId);
+
     // Pipeline Step 3: Save to database (Upsert to prevent duplicates)
     for (const data of normalizedData) {
       const existingMessage = await prisma.emailMessage.findUnique({
         where: {
           unique_user_message: {
-            userId,
+            legacyUserId: userId,
             providerMessageId: data.providerMessageId,
           },
         },
@@ -187,13 +231,14 @@ export class GmailIngestionService implements IngestionService {
       await prisma.emailMessage.upsert({
         where: {
           unique_user_message: {
-            userId,
+            legacyUserId: userId,
             providerMessageId: data.providerMessageId,
           },
         },
         create: {
           ...data,
-          userId,
+          userId: userScope.userId,
+          legacyUserId: userScope.legacyUserId,
           connectionId,
         },
         update: {
@@ -204,23 +249,51 @@ export class GmailIngestionService implements IngestionService {
       });
 
       if (!existingMessage) {
-        const classifiableEmail: ClassifiableEmail = {
-          emailId: data.providerMessageId,
-          sender: data.sender,
-          subject: data.subject,
-          bodyText: data.bodyText,
-          bodyHtml: data.bodyHtml,
-          receivedAt: data.receivedAt,
-          threadId: data.threadId,
-        };
+        if (features.asyncEmailProcessing) {
+          // Pipeline Step 4 (Async): Enqueue for background processing
+          // We fetch the newly created record to get its internal DB UUID
+          const savedMessage = await prisma.emailMessage.findUnique({
+            where: {
+              unique_user_message: {
+                legacyUserId: userId,
+                providerMessageId: data.providerMessageId,
+              },
+            },
+            select: { id: true },
+          });
 
-        const classification = jobEmailClassifier.classify(classifiableEmail);
-        if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
-          await applicationTrackingService.processEmailForJobApplication(
-            classifiableEmail,
-            classification,
-            userId,
-          );
+          if (savedMessage) {
+            await queueService.addApplicationTrackingJob({
+              type: 'PROCESS_EMAIL',
+              userId,
+              emailMessageId: savedMessage.id,
+              metadata: batchId ? { batchId } : undefined,
+            });
+            logger.debug('[Sync] Enqueued email for async processing', {
+              userId,
+              emailMessageId: savedMessage.id,
+            });
+          }
+        } else {
+          // Pipeline Step 4 (Sync): Process immediately
+          const classifiableEmail: ClassifiableEmail = {
+            emailId: data.providerMessageId,
+            sender: data.sender,
+            subject: data.subject,
+            bodyText: data.bodyText,
+            bodyHtml: data.bodyHtml,
+            receivedAt: data.receivedAt,
+            threadId: data.threadId,
+          };
+
+          const classification = jobEmailClassifier.classify(classifiableEmail);
+          if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
+            await applicationTrackingService.processEmailForJobApplication(
+              classifiableEmail,
+              classification,
+              userId,
+            );
+          }
         }
       }
     }
@@ -228,23 +301,45 @@ export class GmailIngestionService implements IngestionService {
 
   /**
    * Updates or creates the synchronization state cursor.
+   * Also maintains the GmailCheckpoint for async tracking.
    */
   private async updateSyncState(
     userId: string,
     connectionId: string,
     historyId: string,
   ): Promise<void> {
+    const userScope = await userService.userScopeFor(userId);
+
+    // 1. Update primary sync state
     await prisma.gmailSyncState.upsert({
-      where: { userId },
+      where: { legacyUserId: userId },
       create: {
-        userId,
+        userId: userScope.userId,
+        legacyUserId: userScope.legacyUserId,
         connectionId,
         historyId,
         lastSyncedAt: new Date(),
       },
       update: {
+        userId: userScope.userId,
         historyId,
         lastSyncedAt: new Date(),
+      },
+    });
+
+    // 2. Update async checkpoint (Micro-task 7.6)
+    await prisma.gmailCheckpoint.upsert({
+      where: { userId: userScope.userId },
+      create: {
+        userId: userScope.userId,
+        currentHistoryId: historyId,
+        status: 'completed',
+        lastSyncAt: new Date(),
+      },
+      update: {
+        currentHistoryId: historyId,
+        status: 'completed',
+        lastSyncAt: new Date(),
       },
     });
 

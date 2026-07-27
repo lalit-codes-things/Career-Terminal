@@ -7,6 +7,7 @@ import cors from 'cors';
 import compression from 'compression';
 import { config } from './config';
 import { queueService } from './services/queue/queue.service';
+import { startAllWorkers, stopAllWorkers } from './services/queue/workers';
 import { prisma } from './config/database';
 import { cacheService, RedisCacheService } from './services/cache/cache.service';
 import { healthRouter } from './infrastructure/health/health.router';
@@ -233,6 +234,16 @@ app.use(errorHandler);
 // ── Server startup ────────────────────────────────────────────────────────────
 export const server = app.listen(config.port, () => {
   initObservability();
+
+  // Start workers in development or if explicitly requested
+  if (config.nodeEnv === 'development' || process.env.START_WORKERS === 'true') {
+    try {
+      startAllWorkers();
+    } catch (err) {
+      logger.error('Failed to start workers', { error: err });
+    }
+  }
+
   runStartupDiagnostics().catch((err) =>
     logger.error('Failed to run startup diagnostics', { error: err }),
   );
@@ -266,6 +277,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     // 2. Shut down remaining components safely without throwing
     await Promise.allSettled([
       shutdownTracing(),
+      stopAllWorkers(),
       queueService.close(),
       prisma.$disconnect(),
       cacheService instanceof RedisCacheService ? cacheService.disconnect() : Promise.resolve(),

@@ -1,6 +1,3 @@
-// Prisma Schema — Job Search Platform
-// Defines core data models for email ingestion
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,10 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Supported email providers (extensible for Outlook, Yahoo, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
 enum EmailProvider {
   GMAIL
   OUTLOOK
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
 }
 
 enum ApplicationStatus {
@@ -35,253 +42,16 @@ enum ApplicationSourceProvider {
   API
 }
 
-/// Connection health status
-enum ConnectionStatus {
-  ACTIVE
-  REVOKED
-  EXPIRED
-  ERROR
-}
-
-/// Stores OAuth credentials linking a user to an email provider.
-/// Tokens are encrypted at the application level before storage.
-model UserEmailConnection {
-  id                    String           @id @default(uuid()) @db.Uuid
-  userId                String           @map("user_id")
-  provider              EmailProvider
-  emailAddress          String           @map("email_address")
-  accessTokenEncrypted  String           @map("access_token_encrypted") @db.Text
-  refreshTokenEncrypted String           @map("refresh_token_encrypted") @db.Text
-  tokenExpiry           DateTime         @map("token_expiry")
-  scopes                String[]
-  status                ConnectionStatus @default(ACTIVE)
-  lastSyncAt            DateTime?        @map("last_sync_at")
-  createdAt             DateTime         @default(now()) @map("created_at")
-  updatedAt             DateTime         @updatedAt @map("updated_at")
-
-  // Relations
-  emails EmailMessage[]
-  syncState GmailSyncState?
-
-  // Indexes
-  @@unique([userId, provider, emailAddress], name: "unique_user_provider_email")
-  @@index([userId])
-  @@index([provider])
-  @@index([status])
-  @@map("user_email_connections")
-}
-
-/// Normalized email message storage.
-/// Ingested from Gmail (or other providers) and stored provider-agnostically.
-model EmailMessage {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @map("user_id")
-  connectionId      String   @map("connection_id") @db.Uuid
-  applicationId     String?  @map("application_id") @db.Uuid
-  recruiterId      String?  @map("recruiter_id") @db.Uuid
-  providerMessageId String   @map("provider_message_id")
-  threadId          String?  @map("thread_id")
-  sender            String
-  recipients        Json     // { to: string[], cc: string[], bcc: string[] }
-  subject           String   @default("")
-  bodyText          String?  @map("body_text") @db.Text
-  bodyHtml          String?  @map("body_html") @db.Text
-  labels            String[]
-  hasAttachments    Boolean  @default(false) @map("has_attachments")
-  receivedAt        DateTime @map("received_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  // Relations
-  connection UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  recruiter Recruiter? @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
-
-  // Indexes
-  @@unique([userId, providerMessageId], name: "unique_user_message")
-  @@index([userId])
-  @@index([connectionId])
-  @@index([applicationId])
-  @@index([recruiterId])
-  @@index([threadId])
-  @@index([receivedAt])
-  @@map("email_messages")
-}
-
-/// Tracks the synchronization cursor (historyId) for incremental Gmail sync.
-model GmailSyncState {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @unique @map("user_id")
-  connectionId String   @unique @map("connection_id") @db.Uuid
-  historyId    String   @map("history_id")
-  lastSyncedAt DateTime @map("last_synced_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  connection UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  
-}
-
-/// Types of background jobs
 enum JobType {
   GMAIL_INITIAL_SYNC
   GMAIL_INCREMENTAL_SYNC
 }
 
-/// Status of a background job
 enum JobStatus {
   PENDING
   RUNNING
   SUCCESS
   FAILED
-}
-
-/// Queue table for asynchronous background jobs
-model SyncJob {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @map("user_id")
-  type        JobType
-  status      JobStatus @default(PENDING)
-  attempts    Int       @default(0)
-  startedAt   DateTime? @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  nextRunAt   DateTime  @default(now()) @map("next_run_at")
-  error       String?   @db.Text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  @@index([status, nextRunAt])
-  @@map("sync_jobs")
-}
-
-model JobApplication {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @map("user_id")
-  companyId        String?  @map("company_id") @db.Uuid
-  recruiterId      String?  @map("recruiter_id") @db.Uuid
-  companyName      String   @map("company_name")
-  companyDomain    String   @map("company_domain")
-  roleTitle        String   @map("role_title")
-  roleDepartment   String   @map("role_department")
-  status           ApplicationStatus
-  appliedDate      DateTime @map("applied_date")
-  recruiterName    String   @map("recruiter_name")
-  recruiterEmail   String   @map("recruiter_email")
-  sourceEmailId    String   @map("source_email_id")
-  location         String
-  employmentType   String   @map("employment_type")
-  currentStage     String   @map("current_stage")
-  interviewRounds  Int      @default(0) @map("interview_rounds")
-  deadlines        String[]
-  candidateEmail   String?  @map("candidate_email")
-  atsApplicationId String?  @map("ats_application_id")
-  threadIds        String[] @map("thread_ids")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  timeline         ApplicationTimeline[]
-  statusHistory    ApplicationStatusHistory[]
-  sources          ApplicationSource[]
-  emails           EmailMessage[]
-  company          Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  recruiter        Recruiter? @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([companyId])
-  @@index([recruiterId])
-  @@index([status])
-  @@map("job_applications")
-}
-
-model ApplicationStatusHistory {
-  id               String   @id @default(uuid()) @db.Uuid
-  applicationId    String   @map("application_id") @db.Uuid
-  previousStatus   ApplicationStatus? @map("previous_status")
-  status           ApplicationStatus
-  source           String
-  sourceEmailId    String?  @map("source_email_id")
-  changedByUserId  String?  @map("changed_by_user_id")
-  timestamp        DateTime
-  metadata         Json?
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([applicationId, timestamp])
-  @@map("application_status_history")
-}
-
-model ApplicationSource {
-  id                   String                   @id @default(uuid()) @db.Uuid
-  applicationId       String                   @map("application_id") @db.Uuid
-  provider            ApplicationSourceProvider
-  providerMessageId   String?                  @map("provider_message_id")
-  providerThreadId    String?                  @map("provider_thread_id")
-  providerConversationId String?                @map("provider_conversation_id")
-  providerMetadata    Json?                    @map("provider_metadata")
-  createdAt           DateTime                 @default(now()) @map("created_at")
-
-  application         JobApplication           @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([provider])
-  @@index([providerMessageId])
-  @@map("application_sources")
-}
-
-model Company {
-  id           String      @id @default(uuid()) @db.Uuid
-  name         String
-  domain       String      @unique
-  careersUrl    String?     @map("careers_url")
-  website      String?
-  logoUrl      String?     @map("logo_url")
-  industry     String?
-  headquarters String?
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
-
-  recruiters Recruiter[]
-  aliases    CompanyAlias[]
-  applications JobApplication[]
-
-  @@index([name])
-  @@map("companies")
-}
-
-model CompanyAlias {
-  id              String   @id @default(uuid()) @db.Uuid
-  companyId       String   @map("company_id") @db.Uuid
-  value           String
-  normalizedValue String   @unique @map("normalized_value")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@map("company_aliases")
-}
-
-model Recruiter {
-  id         String          @id @default(uuid()) @db.Uuid
-  companyId  String          @map("company_id") @db.Uuid
-  name       String
-  email      String
-  title      String
-  createdAt  DateTime        @default(now()) @map("created_at")
-  updatedAt  DateTime        @updatedAt @map("updated_at")
-
-  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  applications JobApplication[]
-  emails     EmailMessage[]
-
-  @@unique([companyId, email], name: "unique_company_recruiter_email")
-  @@index([companyId])
-  @@index([email])
-  @@map("recruiters")
 }
 
 enum ApplicationTimelineEventType {
@@ -298,68 +68,714 @@ enum ApplicationTimelineEventType {
   WITHDRAWN
 }
 
-model ApplicationTimeline {
-  id            String   @id @default(uuid()) @db.Uuid
-  applicationId String   @map("application_id") @db.Uuid
-  eventType     ApplicationTimelineEventType @map("event_type")
-  timestamp     DateTime
-  sourceEmailId  String?  @map("source_email_id")
-  metadata      Json?
-  description   String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+// ─────────────────────────────────────────────────────────────────────────────
+// IDENTITY / TENANCY
+// ─────────────────────────────────────────────────────────────────────────────
 
-  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+model User {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String?                @unique
+  name                  String?
+  region                String                 @default("us-east-1")
+  dataResidencyRegion   String                 @default("us-east-1") @map("data_residency_region")
+  shardKey              Int                    @default(0) @map("shard_key")
+  tenantId              String?                @map("tenant_id") @db.Uuid
+  consentVersion        String                 @default("v1") @map("consent_version")
+  consentGrantedAt      DateTime               @default(now()) @map("consent_granted_at") @db.Timestamptz
+  deletedAt             DateTime?              @map("deleted_at") @db.Timestamptz
+  deletionStatus        String                 @default("active") @map("deletion_status")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+
+  connections           UserEmailConnection[]
+  syncStates            GmailSyncState[]
+  candidateProfile      CandidateProfile?
+  idMappings            UserIdMapping[]
+  syncJobs              SyncJob[]
+  jobApplications       JobApplication[]
+  userResumes           UserResume[]
+  resumes               Resume[]
+  checkpoint            GmailCheckpoint?
+  syncBatches           SyncBatch[]
+  snapshots             Snapshot[]
+  factObservations      FactObservation[]
+  outcomeEvents         OutcomeEvent[]
+  actionEvents          ActionEvent[]
+  correctedFacts        FactObservation[]      @relation("FactCorrectedBy")
+  reviewedFacts         FactObservation[]      @relation("FactReviewedBy")
+
+  @@index([region])
+  @@index([deletionStatus])
+  @@index([shardKey])
+  @@index([tenantId])
+  @@index([dataResidencyRegion])
+  @@map("users")
+}
+
+model CandidateProfile {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  fullName     String?  @map("full_name")
+  phone        String?
+  location     String?
+  timezone     String?
+  preferences  Json     @default("{}")
+  careerGoals  Json?    @map("career_goals")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_profiles")
+}
+
+model UserIdMapping {
+  id         String   @id @default(uuid()) @db.Uuid
+  externalId String   @unique @map("external_id")
+  userId     String   @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_id_mapping")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL CONNECTIONS / SYNC STATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UserEmailConnection {
+  id                   String              @id @default(uuid()) @db.Uuid
+  userId               String              @map("user_id") @db.Uuid
+  legacyUserId         String              @map("legacy_user_id")
+  provider             EmailProvider
+  emailAddress         String              @map("email_address")
+  accessTokenEncrypted String              @map("access_token_encrypted")
+  refreshTokenEncrypted String             @map("refresh_token_encrypted")
+  tokenExpiry          DateTime            @map("token_expiry") @db.Timestamptz
+  scopes               String[]
+  status               ConnectionStatus    @default(ACTIVE)
+  expiresAt            DateTime            @map("expires_at") @default(now()) @db.Timestamptz
+  lastSyncAt           DateTime?           @map("last_sync_at") @db.Timestamptz
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStates           GmailSyncState[]
+
+  @@unique([legacyUserId, provider, emailAddress], name: "unique_user_provider_email")
+  @@index([userId])
+  @@index([provider])
+  @@index([status])
+  @@map("user_email_connections")
+}
+
+model GmailSyncState {
+  id            String              @id @default(uuid()) @db.Uuid
+  userId        String              @unique @map("user_id") @db.Uuid
+  legacyUserId  String              @unique @map("legacy_user_id")
+  connectionId  String              @map("connection_id") @db.Uuid
+  historyId     String              @map("history_id")
+  lastSyncedAt  DateTime            @default(now()) @map("last_synced_at") @db.Timestamptz
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection    UserEmailConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@map("gmail_sync_states")
+}
+
+model GmailCheckpoint {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  currentHistoryId String?  @map("current_history_id")
+  pendingHistoryId String?  @map("pending_history_id")
+  status           String   @default("idle")
+  lastSyncAt       DateTime @default(now()) @map("last_sync_at") @db.Timestamptz
+  lastError        String?  @map("last_error") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("gmail_checkpoints")
+}
+
+model SyncJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  legacyUserId String    @map("legacy_user_id")
+  type         JobType
+  status       JobStatus @default(PENDING)
+  attempts     Int       @default(0)
+  startedAt    DateTime? @map("started_at") @db.Timestamptz
+  completedAt  DateTime? @map("completed_at") @db.Timestamptz
+  nextRunAt    DateTime  @default(now()) @map("next_run_at") @db.Timestamptz
+  error        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRunAt])
+  @@index([userId])
+  @@map("sync_jobs")
+}
+
+model SyncBatch {
+  id             String          @id @default(uuid()) @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  historyId      String          @map("history_id")
+  status         String          @default("pending")
+  totalEmails    Int?            @map("total_emails")
+  processedCount Int             @default(0) @map("processed_count")
+  failedCount    Int             @default(0) @map("failed_count")
+  startedAt      DateTime        @default(now()) @map("started_at") @db.Timestamptz
+  completedAt    DateTime?       @map("completed_at") @db.Timestamptz
+  error          String?         @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailJobs      BatchEmailJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("sync_batches")
+}
+
+model BatchEmailJob {
+  id                String    @id @default(uuid()) @db.Uuid
+  batchId           String    @map("batch_id") @db.Uuid
+  emailId           String    @map("email_id") @db.Uuid
+  providerMessageId String    @map("provider_message_id")
+  status            String    @default("pending")
+  attempts          Int       @default(0)
+  lastError         String?   @map("last_error") @db.Text
+  processedAt       DateTime? @map("processed_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  batch             SyncBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([status])
+  @@map("batch_email_jobs")
+}
+
+model DeadLetterEmail {
+  id                String   @id @default(uuid()) @db.Uuid
+  emailId           String   @map("email_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  providerMessageId String   @map("provider_message_id")
+  error             String   @db.Text
+  failedAt          DateTime @default(now()) @map("failed_at") @db.Timestamptz
+  resolved          Boolean  @default(false)
+  attempts          Int      @default(0)
+
+  @@index([userId])
+  @@index([emailId])
+  @@index([resolved])
+  @@map("dead_letter_emails")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPANIES / OPPORTUNITIES / RECRUITERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Company {
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String
+  domain       String         @unique
+  careersUrl   String?        @map("careers_url")
+  website      String?
+  logoUrl      String?        @map("logo_url")
+  industry     String?
+  headquarters String?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  aliases      CompanyAlias[]
+  recruiters   Recruiter[]
+  opportunities Opportunity[]
+  applications JobApplication[]
+
+  @@index([name])
+  @@map("companies")
+}
+
+model CompanyAlias {
+  id               String  @id @default(uuid()) @db.Uuid
+  companyId        String  @map("company_id") @db.Uuid
+  value            String
+  normalizedValue  String  @unique @map("normalized_value")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_aliases")
+}
+
+model Recruiter {
+  id         String           @id @default(uuid()) @db.Uuid
+  companyId  String           @map("company_id") @db.Uuid
+  name       String
+  email      String
+  title      String
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  emails     EmailMessage[]
+  applications JobApplication[]
+
+  @@unique([companyId, email], name: "unique_company_recruiter_email")
+  @@index([companyId])
+  @@index([email])
+  @@map("recruiters")
+}
+
+model Opportunity {
+  id             String           @id @default(uuid()) @db.Uuid
+  companyId      String           @map("company_id") @db.Uuid
+  title          String
+  description    String?          @db.Text
+  location       String?
+  salaryRange    Json?            @map("salary_range")
+  requirements   Json?
+  url            String?
+  sourceMetadata Json?            @map("source_metadata")
+  firstSeenAt    DateTime         @default(now()) @map("first_seen_at") @db.Timestamptz
+  lastSeenAt     DateTime         @default(now()) @map("last_seen_at") @db.Timestamptz
+  isCurrent      Boolean          @default(true) @map("is_current")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  applications   JobApplication[]
+  actionEvents   ActionEvent[]
+
+  @@index([companyId, title])
+  @@index([companyId])
+  @@index([isCurrent])
+  @@index([firstSeenAt])
+  @@index([lastSeenAt])
+  @@index([url])
+  @@map("opportunities")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JOB APPLICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model JobApplication {
+  id                String               @id @default(uuid()) @db.Uuid
+  userId            String               @map("user_id") @db.Uuid
+  legacyUserId      String               @map("legacy_user_id")
+  companyId         String?              @map("company_id") @db.Uuid
+  recruiterId       String?              @map("recruiter_id") @db.Uuid
+  opportunityId     String?              @map("opportunity_id") @db.Uuid
+  companyName       String               @map("company_name")
+  companyDomain     String               @map("company_domain")
+  roleTitle         String               @map("role_title")
+  roleDepartment    String               @map("role_department")
+  status            String
+  appliedDate       DateTime             @map("applied_date") @db.Timestamptz
+  recruiterName     String?              @map("recruiter_name")
+  recruiterEmail    String?              @map("recruiter_email")
+  sourceEmailId     String?              @map("source_email_id")
+  location          String?
+  employmentType    String?              @map("employment_type")
+  currentStage      String?              @map("current_stage")
+  interviewRounds   Int                  @default(0) @map("interview_rounds")
+  deadlines         String[]
+  candidateEmail    String?              @map("candidate_email")
+  atsApplicationId  String?              @map("ats_application_id")
+  threadIds         String[]             @map("thread_ids")
+  snapshotId        String?              @map("snapshot_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company           Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recruiter         Recruiter?           @relation(fields: [recruiterId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  opportunity       Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sources           ApplicationSource[]
+  timeline          ApplicationTimeline[]
+  statusHistory     ApplicationStatusHistory[]
+  resumes           ApplicationResume[]
+  snapshot          Snapshot?            @relation(fields: [snapshotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  outcomeEvents     OutcomeEvent[]
+  emailMessages     EmailMessage[]
+  actionEvents      ActionEvent[]
+
+  @@index([userId])
+  @@index([legacyUserId])
+  @@index([companyId])
+  @@index([recruiterId])
+  @@index([opportunityId])
+  @@index([status])
+  @@map("job_applications")
+}
+
+model ApplicationSource {
+  id                     String         @id @default(uuid()) @db.Uuid
+  applicationId          String         @map("application_id") @db.Uuid
+  provider               String
+  providerMessageId      String?        @map("provider_message_id")
+  providerThreadId       String?        @map("provider_thread_id")
+  providerConversationId String?        @map("provider_conversation_id")
+  providerMetadata       Json?          @map("provider_metadata")
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  application            JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
-  @@index([applicationId, timestamp])
+  @@index([providerMessageId])
+  @@map("application_sources")
+}
+
+model ApplicationTimeline {
+  id            String                      @id @default(uuid()) @db.Uuid
+  applicationId String                      @map("application_id") @db.Uuid
+  eventType     ApplicationTimelineEventType @map("event_type")
+  timestamp     DateTime                    @db.Timestamptz
+  sourceEmailId String?                     @map("source_email_id")
+  metadata      Json?
+  description   String?                     @db.Text
+  createdAt     DateTime                    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime                    @updatedAt @map("updated_at") @db.Timestamptz
+  application   JobApplication              @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([timestamp])
   @@map("application_timeline")
 }
 
-/// Deduplication table for resume/CV file blobs.
-/// Before uploading to S3, the upload handler computes SHA-256 of the file buffer.
-/// If this hash already exists here, no upload occurs — the existing S3 URL is reused.
-/// This can save enormous storage at scale (100k users × multiple resume versions).
-model ResumeHash {
-  id        String   @id @default(uuid()) @db.Uuid
-  /// SHA-256 hex digest of the raw file bytes (64 hex chars).
-  hash      String   @unique
-  /// S3 object key, e.g. "uploads/resumes/<hash>.pdf"
-  storageKey String  @map("storage_key")
-  /// Full public/presigned-base URL stored for convenience.
-  storageUrl String  @map("storage_url") @db.Text
-  /// MIME type of the original file.
-  mimeType  String   @map("mime_type")
-  /// Size in bytes of the original file.
-  sizeBytes Int      @map("size_bytes")
-  createdAt DateTime @default(now()) @map("created_at")
+model ApplicationStatusHistory {
+  id                String           @id @default(uuid()) @db.Uuid
+  applicationId     String           @map("application_id") @db.Uuid
+  previousStatus    ApplicationStatus? @map("previous_status")
+  status            ApplicationStatus
+  source            String
+  sourceEmailId     String?          @map("source_email_id")
+  changedByUserId   String?          @map("changed_by_user_id")
+  timestamp         DateTime         @db.Timestamptz
+  metadata          Json?
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  application       JobApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
-  /// Back-reference to every user resume record that points at this blob.
+  @@index([applicationId])
+  @@index([applicationId, timestamp])
+  @@map("application_status_history")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL MESSAGES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EmailMessage {
+  id                String     @id @default(uuid()) @db.Uuid
+  userId            String     @map("user_id") @db.Uuid
+  legacyUserId      String     @map("legacy_user_id")
+  connectionId      String     @map("connection_id") @db.Uuid
+  applicationId     String?    @map("application_id") @db.Uuid
+  recruiterId       String?    @map("recruiter_id") @db.Uuid
+  providerMessageId String     @map("provider_message_id")
+  threadId          String?    @map("thread_id")
+  sender            String
+  recipients        Json
+  subject           String     @default("")
+  bodyText          String?    @map("body_text") @db.Text
+  bodyHtml          String?    @map("body_html") @db.Text
+  labels            String[]
+  hasAttachments    Boolean    @default(false) @map("has_attachments")
+  receivedAt        DateTime   @map("received_at") @db.Timestamptz
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  application       JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  recruiter         Recruiter?       @relation(fields: [recruiterId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([legacyUserId, providerMessageId], name: "unique_user_message")
+  @@index([userId])
+  @@index([connectionId])
+  @@index([applicationId])
+  @@index([recruiterId])
+  @@index([threadId])
+  @@index([receivedAt])
+  @@map("email_messages")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESUME DEDUP + VERSIONING (Canonical old world)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ResumeHash {
+  id         String       @id @default(uuid()) @db.Uuid
+  hash       String       @unique
+  storageKey String       @map("storage_key")
+  storageUrl String       @map("storage_url")
+  mimeType   String       @map("mime_type")
+  sizeBytes  Int          @map("size_bytes")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz
   userResumes UserResume[]
+  resumes    Resume[]
 
   @@index([hash])
   @@map("resume_hashes")
 }
 
-/// Links a user to a deduplicated resume blob.
-/// Multiple users (or the same user uploading the same file twice) all
-/// point to a single ResumeHash row — zero duplicate S3 objects.
 model UserResume {
-  id             String      @id @default(uuid()) @db.Uuid
-  userId         String      @map("user_id")
-  /// Human-readable filename the user gave the file.
-  originalName   String      @map("original_name")
-  /// FK → the deduplicated blob.
-  resumeHashId   String      @map("resume_hash_id") @db.Uuid
-  /// Whether this is the user's currently active resume.
-  isActive       Boolean     @default(true) @map("is_active")
-  createdAt      DateTime    @default(now()) @map("created_at")
-  updatedAt      DateTime    @updatedAt @map("updated_at")
+  id            String            @id @default(uuid()) @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
+  legacyUserId  String            @map("legacy_user_id")
+  originalName  String            @map("original_name")
+  resumeHashId  String            @map("resume_hash_id") @db.Uuid
+  isActive      Boolean           @default(false) @map("is_active")
+  version       Int
+  supersededAt  DateTime?         @map("superseded_at") @db.Timestamptz
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
 
-  resumeHash     ResumeHash  @relation(fields: [resumeHashId], references: [id], onDelete: Restrict)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeHash    ResumeHash        @relation(fields: [resumeHashId], references: [id], onDelete: Cascade)
+  applicationLinks ApplicationResume[]
+
+  @@unique([userId, version], name: "unique_user_resume_version")
+  @@index([userId])
+  @@index([legacyUserId])
+  @@map("user_resumes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESUME — Newer simplified Resume model (coexists with UserResume/ResumeHash)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Resume {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  storageKey        String              @map("storage_key")
+  filename          String
+  fileHash          String              @map("file_hash")
+  resumeHashId      String?             @map("resume_hash_id") @db.Uuid
+  mimeType          String              @map("mime_type")
+  fileSize          Int                 @map("file_size")
+  isPrimary         Boolean             @default(false) @map("is_primary")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeHash        ResumeHash?         @relation(fields: [resumeHashId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  applicationResumes ApplicationResume[]
 
   @@index([userId])
-  @@index([userId, isActive])
-  @@index([resumeHashId])
-  @@map("user_resumes")
+  @@map("resumes")
+}
+
+model ApplicationResume {
+  id               String         @id @default(uuid()) @db.Uuid
+  applicationId    String         @unique @map("application_id") @db.Uuid
+  resumeId         String?        @map("resume_id") @db.Uuid
+  resumeVersionId  String         @map("resume_version_id") @db.Uuid
+  snapshotKey      String         @map("snapshot_key")
+  snapshotMetadata Json?          @map("snapshot_metadata")
+  appliedAt        DateTime       @map("applied_at") @db.Timestamptz
+  usageContext     Json?          @map("usage_context")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  resume           Resume?        @relation(fields: [resumeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  resumeVersion    UserResume     @relation(fields: [resumeVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([applicationId, resumeId], name: "applicationId_resumeId")
+  @@index([resumeVersionId])
+  @@index([appliedAt])
+  @@map("application_resumes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDEMPOTENCY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model IdempotencyRecord {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique
+  operationType String   @map("operation_type")
+  resultId      String   @map("result_id")
+  resultData    Json?    @map("result_data")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz
+
+  @@index([operationType])
+  @@index([expiresAt])
+  @@index([key, expiresAt])
+  @@map("idempotency_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMPTS 9–12 — Facts, Snapshots, Outcomes (Intelligence & Scale Foundation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Stores individual pieces of structured intelligence with full provenance and versioning.
+model FactObservation {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  factType              String   @map("fact_type")
+  factData              Json     @map("fact_data")
+  sourceType            String   @map("source_type")
+  sourceId              String   @map("source_id")
+  sourceVersion         String?  @map("source_version")
+  extractionMethod      String   @map("extraction_method")
+  modelVersion          String?  @map("model_version")
+  confidence            Float    @default(1.0)
+  evidenceReference     String?  @map("evidence_reference") @db.Text
+
+  // Temporal validity (Prompt 10)
+  validFrom             DateTime? @map("valid_from") @db.Timestamptz
+  validTo               DateTime? @map("valid_to") @db.Timestamptz
+
+  // Observation context (Prompt 10)
+  observedAt            DateTime @map("observed_at") @db.Timestamptz
+  snapshotId            String?  @map("snapshot_id") @db.Uuid
+
+  extractedAt           DateTime @default(now()) @map("extracted_at") @db.Timestamptz
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Versioning fields
+  version               Int      @default(1)
+  isCurrent             Boolean  @default(true) @map("is_current")
+  supersededById        String?  @map("superseded_by_id") @db.Uuid
+  supersededAt          DateTime? @map("superseded_at") @db.Timestamptz
+
+  // Correction fields (Prompt 11)
+  correctedBy           String?  @map("corrected_by") @db.Uuid
+  correctedAt           DateTime? @map("corrected_at") @db.Timestamptz
+  correctionReason      String?  @map("correction_reason") @db.Text
+  isUserCorrected       Boolean  @default(false) @map("is_user_corrected")
+
+  // Review fields (Prompt 11)
+  needsReview           Boolean  @default(false) @map("needs_review")
+  reviewedAt            DateTime? @map("reviewed_at") @db.Timestamptz
+  reviewedBy            String?  @map("reviewed_by") @db.Uuid
+  reviewStatus          String?  @map("review_status")
+  reviewNotes           String?  @map("review_notes") @db.Text
+
+  // Soft deletion
+  deletedAt             DateTime? @map("deleted_at") @db.Timestamptz
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot              Snapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  supersededBy          FactObservation? @relation("FactVersionChain", fields: [supersededById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  supersedes            FactObservation[] @relation("FactVersionChain")
+  correctedByUser       User?    @relation("FactCorrectedBy", fields: [correctedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  reviewedByUser        User?    @relation("FactReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId, factType, isCurrent])
+  @@index([userId, isCurrent])
+  @@index([sourceId, sourceType])
+  @@index([userId, observedAt])
+  @@index([snapshotId])
+  @@index([needsReview, reviewStatus])
+  @@index([validFrom])
+  @@index([validTo])
+  @@map("fact_observations")
+}
+
+model Snapshot {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  snapshotType String   @map("snapshot_type")
+  referenceId  String?  @map("reference_id") @db.Uuid
+  capturedAt   DateTime @default(now()) @map("captured_at") @db.Timestamptz
+  description  String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  factObservations FactObservation[]
+  applications JobApplication[]
+
+  @@index([userId, snapshotType])
+  @@index([referenceId])
+  @@index([capturedAt])
+  @@map("snapshots")
+}
+
+/// Stores outcome events for job applications (Prompt 12)
+model OutcomeEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  applicationId    String   @map("application_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  outcomeType      String   @map("outcome_type")
+  outcomeCategory  String   @map("outcome_category")
+  outcomeStatus    String   @map("outcome_status")
+  explicit         Boolean
+
+  // Metadata
+  sourceType       String   @map("source_type")
+  sourceId         String?  @map("source_id")
+  sourceData       Json?    @map("source_data")
+
+  // Evidence (for trust)
+  evidence         String?  @db.Text
+  confidence       Float
+
+  // Temporal
+  occurredAt       DateTime @map("occurred_at") @db.Timestamptz
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+
+  // Derived status (for backward compatibility)
+  resultingStatus  String?  @map("resulting_status")
+
+  // Versioning
+  version          Int      @default(1)
+  supersededById   String?  @map("superseded_by_id") @db.Uuid
+  isCurrent        Boolean  @default(true) @map("is_current")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([userId])
+  @@index([occurredAt])
+  @@index([outcomeType])
+  @@index([userId, outcomeType, occurredAt])
+  @@map("outcome_events")
+}
+
+/// Stores user actions and strategy metadata (Prompt 13).
+model ActionEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  applicationId    String?  @map("application_id") @db.Uuid
+  opportunityId    String?  @map("opportunity_id") @db.Uuid
+
+  // Action details
+  actionType       String   @map("action_type")
+  actionSubtype    String?  @map("action_subtype")
+
+  // Strategy metadata
+  strategyTags     String[] @default([]) @map("strategy_tags")
+  context          Json?
+
+  // Source
+  sourceType       String   @default("USER_ACTION") @map("source_type")
+  sourceId         String?  @map("source_id")
+
+  // Temporal
+  occurredAt       DateTime @map("occurred_at") @db.Timestamptz
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+
+  // Metadata
+  notes            String?  @db.Text
+  confidence       Float?
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application      JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  opportunity      Opportunity?   @relation(fields: [opportunityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([applicationId])
+  @@index([opportunityId])
+  @@index([actionType])
+  @@index([occurredAt])
+  @@map("action_events")
 }

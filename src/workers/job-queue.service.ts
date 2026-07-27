@@ -1,15 +1,19 @@
 import { JobStatus, JobType } from '@prisma/client';
 import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
+import { userOwnershipFilter } from '../utils/user-ownership';
+import { userService } from '../services/user';
 
 export class JobQueueService {
   /**
    * Enqueues an initial historical mailbox sync job.
    */
   async enqueueInitialSync(userId: string): Promise<void> {
+    const userScope = await userService.userScopeFor(userId);
     await prisma.syncJob.create({
       data: {
-        userId,
+        userId: userScope.userId,
+        legacyUserId: userScope.legacyUserId,
         type: JobType.GMAIL_INITIAL_SYNC,
         status: JobStatus.PENDING,
       },
@@ -22,10 +26,11 @@ export class JobQueueService {
    * Prevents enqueuing if an incremental sync is already pending or running.
    */
   async enqueueIncrementalSync(userId: string): Promise<void> {
+    const scopeFilter = userOwnershipFilter(userId);
     // Basic deduplication: don't enqueue if already pending/running
     const existing = await prisma.syncJob.findFirst({
       where: {
-        userId,
+        ...scopeFilter,
         type: JobType.GMAIL_INCREMENTAL_SYNC,
         status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
       },
@@ -36,9 +41,11 @@ export class JobQueueService {
       return;
     }
 
+    const userScope = await userService.userScopeFor(userId);
     await prisma.syncJob.create({
       data: {
-        userId,
+        userId: userScope.userId,
+        legacyUserId: userScope.legacyUserId,
         type: JobType.GMAIL_INCREMENTAL_SYNC,
         status: JobStatus.PENDING,
       },

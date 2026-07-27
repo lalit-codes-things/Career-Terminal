@@ -1,15 +1,3 @@
-# Gitleaks configuration — ApplyWise secret scanning
-# Epic 0.7, Phase 30
-#
-# Scans for hardcoded secrets, credentials, and high-entropy strings
-# in source code before they are committed.
-#
-# Usage:
-#   gitleaks detect --config=.gitleaks.toml
-#   gitleaks protect --config=.gitleaks.toml --staged
-#
-# Run automatically via .github/workflows/secret-scan.yml on every PR.
-
 title = "ApplyWise Gitleaks Configuration"
 
 # ---------------------------------------------------------------------------

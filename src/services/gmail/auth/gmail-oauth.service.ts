@@ -16,6 +16,7 @@ import { prisma } from '../../../config/database';
 import { OAuthError, TokenError, NotFoundError } from '../../../errors/app-errors';
 import { encryptToken, decryptToken } from '../../../utils/encryption';
 import { oauthStateService } from './oauth-state.service';
+import { userService } from '../../user';
 import type {
   OAuthCallbackResult,
   GoogleTokens,
@@ -281,17 +282,19 @@ export class GmailOAuthService {
     const encryptedAccessToken = encryptToken(tokens.accessToken);
     const encryptedRefreshToken = encryptToken(tokens.refreshToken);
     const scopes = tokens.scope.split(' ');
+    const userScope = await userService.userScopeFor(userId);
 
     const connection = await prisma.userEmailConnection.upsert({
       where: {
         unique_user_provider_email: {
-          userId,
+          legacyUserId: userId,
           provider: 'GMAIL',
           emailAddress: profile.email,
         },
       },
       create: {
-        userId,
+        userId: userScope.userId,
+        legacyUserId: userScope.legacyUserId,
         provider: 'GMAIL',
         emailAddress: profile.email,
         accessTokenEncrypted: encryptedAccessToken,
@@ -301,6 +304,7 @@ export class GmailOAuthService {
         status: 'ACTIVE',
       },
       update: {
+        userId: userScope.userId,
         accessTokenEncrypted: encryptedAccessToken,
         refreshTokenEncrypted: encryptedRefreshToken,
         tokenExpiry: new Date(tokens.expiryDate),
@@ -309,6 +313,8 @@ export class GmailOAuthService {
       },
       select: { id: true },
     });
+
+    await userService.updateProfile(userId, { fullName: profile.name ?? undefined });
 
     return connection;
   }

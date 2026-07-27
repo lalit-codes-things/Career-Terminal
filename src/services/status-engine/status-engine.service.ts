@@ -39,7 +39,7 @@ export interface StatusChangeInput {
 export interface StatusChangeResult {
   readonly application: {
     readonly id: string;
-    readonly status: ApplicationStatus;
+    readonly status: string;
     readonly currentStage: string | null;
     readonly updatedAt: Date;
   };
@@ -228,7 +228,7 @@ export class StatusEngine {
 
     let historyEntry: ApplicationStatusHistoryRecord | null = null;
 
-    const previousStatus = orderedHistory.at(-1)?.status ?? application.status ?? null;
+    const previousStatus = orderedHistory.at(-1)?.status ?? this.normalizeStatus(application.status) ?? null;
     const created = await db.applicationStatusHistory.create({
       data: {
         applicationId: input.applicationId,

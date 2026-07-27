@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -9,13 +10,13 @@ export class OwnershipGuard {
     userId: string,
     applicationId: string,
     db: DbClient = prisma,
-  ): Promise<{ id: string; userId: string }> {
+  ): Promise<{ id: string; userId: string | null; legacyUserId: string }> {
     const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
-        userId,
+        ...userOwnershipFilter(userId),
       },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, legacyUserId: true },
     });
 
     if (!application) {
@@ -33,9 +34,7 @@ export class OwnershipGuard {
     const event = await db.applicationTimeline.findFirst({
       where: {
         id: eventId,
-        application: {
-          userId,
-        },
+        application: userOwnershipFilter(userId),
       },
       select: {
         id: true,
@@ -59,7 +58,7 @@ export class OwnershipGuard {
       where: {
         id: companyId,
         applications: {
-          some: { userId },
+          some: userOwnershipFilter(userId),
         },
       },
       select: { id: true },
@@ -81,7 +80,7 @@ export class OwnershipGuard {
       where: {
         id: recruiterId,
         applications: {
-          some: { userId },
+          some: userOwnershipFilter(userId),
         },
       },
       select: { id: true },

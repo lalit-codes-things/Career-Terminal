@@ -36,6 +36,7 @@ describe('ApplicationMergeService', () => {
   const createMockApp = (overrides: Partial<JobApplication>): JobApplication => ({
     id: 'app-1',
     userId,
+    legacyUserId: userId,
     companyName: 'Acme Corp',
     companyDomain: 'acme.com',
     roleTitle: 'Software Engineer',
@@ -44,6 +45,7 @@ describe('ApplicationMergeService', () => {
     appliedDate: new Date('2026-07-10'),
     recruiterId: null,
     companyId: null,
+    opportunityId: null,
     recruiterName: 'Alice',
     recruiterEmail: 'recruiter@acme.com',
     sourceEmailId: 'email-0',
@@ -55,6 +57,7 @@ describe('ApplicationMergeService', () => {
     candidateEmail: 'candidate@example.com',
     atsApplicationId: 'ats-123',
     threadIds: ['thread-1'],
+    snapshotId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -150,5 +153,30 @@ describe('ApplicationMergeService', () => {
     // Confidence = fuzzy role (30). Total = 30 < 80.
     expect(result.confidenceScore).toBe(30);
     expect(result.targetApplication).toBeNull(); // Do not merge
+  });
+
+  it('should merge immediately when incoming opportunity_id matches existing (strongest signal)', async () => {
+    // Company + role are deliberately different so that text-based matching would fail
+    const existingApp = createMockApp({
+      companyName: 'Totally Different Company',
+      companyDomain: 'other.com',
+      roleTitle: 'Marketing Director',
+      opportunityId: 'opp-canonical-abc-123',
+    });
+
+    (prisma.jobApplication.findMany as jest.Mock).mockResolvedValue([existingApp]);
+
+    const result = await applicationMergeService.findMatch(
+      userId,
+      mockIncomingData,
+      mockSourceEmail,
+      undefined,
+      undefined,
+      'opp-canonical-abc-123',
+    );
+
+    expect(result.confidenceScore).toBe(100);
+    expect(result.targetApplication?.id).toBe(existingApp.id);
+    expect(result.reasons[0]).toBe('+100: Exact canonical opportunity_id match');
   });
 });

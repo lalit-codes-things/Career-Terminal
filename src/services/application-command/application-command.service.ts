@@ -5,15 +5,28 @@ import { DomainValidationError } from '../../errors/domain-errors';
 import { ApplicationSourceProvider } from '../../domain/application-source';
 import { executeWithTransientRetry } from '../../db/transaction-utils';
 import { acquireLock, releaseLock } from '../../lib/mutex';
+import {
+  IdempotencyService,
+  idempotencyService,
+  keyForAppFromEmail,
+} from '../idempotency';
 import { applicationMergeService } from '../application-merge/application-merge.service';
 import { applicationReadModelService } from '../application-read-model/application-read-model.service';
 import { applicationTimelineService } from '../application-timeline';
 import { companyService } from '../company';
 import { dashboardService } from '../dashboard';
+import { opportunityService } from '../opportunity';
 import { ownershipGuard } from '../ownership/ownership.guard';
 import { recruiterService } from '../recruiter';
 import { statusEngine } from '../status-engine';
 import { jobApplicationExtractor } from '../job-application';
+import { userService } from '../user';
+import { resumeUploadService } from '../resume/resume-upload.service';
+import {
+  createApplicationSnapshot,
+  recordApplicationSentOutcome,
+  recordApplyAction,
+} from './application-integration';
 import type { JobApplication } from '../job-application';
 import type { ClassifiableEmail, JobEmailClassification } from '../job-intelligence';
 
@@ -36,8 +49,10 @@ export interface ApplicationStatusUpdateResult {
 
 type JobApplicationRecord = {
   id: string;
-  userId: string;
+  userId: string | null;
+  legacyUserId: string;
   companyId: string | null;
+  opportunityId: string | null;
   companyName: string;
   companyDomain: string;
   roleTitle: string;
@@ -120,31 +135,89 @@ export class ApplicationCommandService {
     email: ClassifiableEmail,
     classification: JobEmailClassification,
     userId: string,
+    idempotencySvc: IdempotencyService = idempotencyService,
   ): Promise<void> {
+    // ── 1. Idempotency gate ────────────────────────────────────────────────
+    //    Stable key per (source email message).  We use a 2-phase claim
+    //    because we don't know the final applicationId until after the
+    //    merge-resolution / update / create transaction runs.
+    const idemKey = keyForAppFromEmail(email.emailId);
+
+    const preflight = await idempotencySvc.check<{ applicationId: string }>(idemKey);
+    if (preflight.alreadyExecuted) {
+      return;
+    }
+
     const lockKey = `lock:process_email:${email.emailId}`;
     const lockToken = await acquireLock(lockKey, 60);
     if (!lockToken) return; // Prevent concurrent processing of same email
 
+    const claim = await idempotencySvc.claim(idemKey, 'create_application');
+    if (!claim.claimed) {
+      // Either it finished between the preflight check and our mutex acquire
+      // (handled), or another worker claimed it and is still running (in
+      // which case we short-circuit rather than duplicate the work).
+      if (claim.existing.resultId) return;
+      if (claim.existing.resultData && (claim.existing.resultData as { __inProgress?: boolean }).__inProgress) {
+        return;
+      }
+      return;
+    }
+
+    let committed = false;
     try {
-      // Idempotency check: don't process if already in DB
+      // Legacy dedup guard still runs inside the transaction; with the new
+      // unique index it is formally redundant, but we keep it to avoid
+      // throwing expensive P2002 errors in the hot path.
       const existing = await prisma.applicationSource.findFirst({
         where: { providerMessageId: email.emailId, provider: ApplicationSourceProvider.GMAIL },
       });
-      if (existing) return;
+      if (existing) {
+        await idempotencySvc.commit(claim.recordId, existing.applicationId, {
+          applicationId: existing.applicationId,
+          source: 'existing_source_row',
+        });
+        committed = true;
+        return;
+      }
 
       const extractedData = jobApplicationExtractor.extract(email, userId, classification);
+      const userScope = await userService.userScopeFor(userId);
 
-      const mergeDecision = await applicationMergeService.findMatch(userId, extractedData, email);
+      const activeResumeRow = await resumeUploadService.getActiveResumeRow(userId);
+
+      const company = await companyService.resolveCompany({
+        name: extractedData.company.name,
+        domain: extractedData.company.domain,
+      });
+
+      const opportunityResult = await opportunityService.resolve({
+        companyName: extractedData.company.name,
+        companyDomain: extractedData.company.domain,
+        roleTitle: extractedData.role.title,
+        location: extractedData.details.location,
+        description: email.bodyText ?? undefined,
+        sourceEmailId: email.emailId,
+        sourceMetadata: {
+          ingestionSource: 'gmail',
+          emailSubject: email.subject,
+          classificationCategory: classification.category,
+        },
+      });
+
+      const mergeDecision = await applicationMergeService.findMatch(
+        userId,
+        extractedData,
+        email,
+        undefined,
+        undefined,
+        opportunityResult.opportunityId,
+      );
+
+      let finalApplicationId: string | null = null;
+      let isNewApplication = false;
 
       await executeWithTransientRetry(prisma, async (tx) => {
-        const company = await companyService.resolveCompany(
-          {
-            name: extractedData.company.name,
-            domain: extractedData.company.domain,
-          },
-          tx,
-        );
-
         let app: JobApplicationRecord | null = null;
 
         if (mergeDecision.targetApplication) {
@@ -153,19 +226,22 @@ export class ApplicationCommandService {
           });
         }
 
+        isNewApplication = !app;
+
         if (app) {
           const threadIds = app.threadIds || [];
           const isNewThread = email.threadId ? !threadIds.includes(email.threadId) : false;
 
-          const updateData: Prisma.JobApplicationUpdateInput = { updatedAt: new Date() };
+          const updateData: Prisma.JobApplicationUncheckedUpdateInput = { updatedAt: new Date() };
           let shouldWriteApp = false;
 
           if (app.companyId !== company.id) {
-            updateData.company = {
-              connect: {
-                id: company.id,
-              },
-            };
+            updateData.companyId = company.id;
+            shouldWriteApp = true;
+          }
+
+          if (!app.opportunityId) {
+            updateData.opportunityId = opportunityResult.opportunityId;
             shouldWriteApp = true;
           }
 
@@ -186,8 +262,10 @@ export class ApplicationCommandService {
 
           app = await tx.jobApplication.create({
             data: {
-              userId: extractedData.userId,
+              userId: userScope.userId,
+              legacyUserId: userScope.legacyUserId,
               companyId: company.id,
+              opportunityId: opportunityResult.opportunityId,
               companyName: extractedData.company.name,
               companyDomain: extractedData.company.domain,
               roleTitle: extractedData.role.title,
@@ -273,7 +351,7 @@ export class ApplicationCommandService {
             userId,
             application: {
               id: app.id,
-              userId: app.userId,
+              userId: app.userId ?? app.legacyUserId,
               companyName: app.companyName,
               companyDomain: app.companyDomain,
               roleTitle: app.roleTitle,
@@ -293,10 +371,76 @@ export class ApplicationCommandService {
           },
           tx,
         );
+
+        if (activeResumeRow) {
+          await resumeUploadService.linkApplicationResume(
+            app.id,
+            activeResumeRow,
+            {
+              appliedAt: app.appliedDate,
+              usageContext: { strategy: 'generic' },
+            },
+            tx,
+          );
+        }
+
+        finalApplicationId = app.id;
       });
+
+      // Commit idempotency record with the real application id / snapshot.
+      await idempotencySvc.commit(claim.recordId, finalApplicationId!, {
+        applicationId: finalApplicationId,
+        classification: classification.category,
+        matched: Boolean(mergeDecision.targetApplication),
+      });
+      committed = true;
+
+      // ── Prompt 10 + 12 integrations for NEW applications ────────────────
+      if (isNewApplication && finalApplicationId) {
+        const snapshotId = await createApplicationSnapshot(
+          userId,
+          finalApplicationId,
+          extractedData.company.name,
+          extractedData.role.title,
+        );
+
+        if (snapshotId) {
+          await prisma.jobApplication.update({
+            where: { id: finalApplicationId },
+            data: { snapshotId },
+          });
+        }
+
+        await recordApplicationSentOutcome(
+          finalApplicationId,
+          userId,
+          extractedData.appliedDate,
+          extractedData.sourceEmailId ?? undefined,
+          email.subject,
+        );
+
+        await recordApplyAction(
+          userId,
+          finalApplicationId,
+          extractedData.appliedDate,
+          {
+            opportunityId: opportunityResult.opportunityId,
+            sourceEmailId: extractedData.sourceEmailId ?? undefined,
+            applicationChannel: 'gmail',
+            resumeVersionId: activeResumeRow?.userResumeId,
+            resumeVersion: activeResumeRow?.version,
+          },
+        );
+      }
 
       dashboardService.invalidateUser(userId);
     } finally {
+      if (!committed) {
+        // The claim is left as an "in-progress" row if we crash before
+        // commit.  Aborting it lets a future retry re-claim cleanly; the
+        // 60-day TTL is a fallback in case abort() itself fails.
+        await idempotencySvc.abort(claim.recordId);
+      }
       if (lockToken) await releaseLock(lockKey, lockToken);
     }
   }

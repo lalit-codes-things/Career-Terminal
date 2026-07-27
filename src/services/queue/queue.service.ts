@@ -17,6 +17,10 @@ import { Queue, type JobsOptions } from 'bullmq';
 import { bullMQConnection } from '../../config/redis';
 import { logger } from '../../lib/logger';
 import {
+  jobIdForEmailIngestion,
+  jobIdForResumeOperation,
+} from '../idempotency/idempotency.keys';
+import {
   QUEUE_NAMES,
   type EmailJobPayload,
   type ResumeParsingJobPayload,
@@ -99,8 +103,16 @@ export class QueueService implements IQueueService {
     payload: ResumeParsingJobPayload,
     opts: JobsOptions = {},
   ): Promise<string> {
+    // A resume parsing job is keyed by (fileHash, operation) so double-submits
+    // of the same file (e.g. page refresh,  retries of the producer) land on
+    // the same BullMQ job id and get deduplicated by Redis before any worker
+    // even picks them up.
+    const deterministicId =
+      opts.jobId ?? jobIdForResumeOperation(payload.fileHash, 'parse');
+
     const job = await this.resumeQueue.add('PARSE_RESUME', payload, {
       ...DEFAULT_JOB_OPTIONS,
+      jobId: deterministicId,
       ...opts,
     });
     logger.info('[QueueService] Resume parsing job enqueued', {
@@ -113,13 +125,28 @@ export class QueueService implements IQueueService {
 
   /**
    * Enqueue an application tracking / status-refresh job.
+   *
+   * For `PROCESS_EMAIL` payloads we derive a BullMQ job id from
+   * `emailMessageId` so webhook retries / duplicate Gmail pushes coalesce.
    */
   async addApplicationTrackingJob(
     payload: ApplicationTrackingJobPayload,
     opts: JobsOptions = {},
   ): Promise<string> {
+    let deterministicId: string | undefined = opts.jobId;
+    if (!deterministicId) {
+      if (payload.type === 'PROCESS_EMAIL' && payload.emailMessageId) {
+        deterministicId = jobIdForEmailIngestion(payload.emailMessageId);
+      } else if (payload.type === 'REFRESH_STATUS' && payload.applicationId) {
+        deterministicId = `refresh:${payload.applicationId}`;
+      } else if (payload.type === 'SYNC_ATS' && payload.applicationId) {
+        deterministicId = `sync:${payload.applicationId}`;
+      }
+    }
+
     const job = await this.trackingQueue.add(payload.type, payload, {
       ...DEFAULT_JOB_OPTIONS,
+      ...(deterministicId ? { jobId: deterministicId } : {}),
       ...opts,
     });
     logger.info('[QueueService] Application tracking job enqueued', {
@@ -127,6 +154,7 @@ export class QueueService implements IQueueService {
       type: payload.type,
       userId: payload.userId,
       applicationId: payload.applicationId,
+      deterministicId,
     });
     return job.id!;
   }

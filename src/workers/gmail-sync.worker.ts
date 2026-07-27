@@ -96,9 +96,9 @@ export class GmailSyncWorker {
     // 2. Execute the job
     try {
       if (jobToRun.type === JobType.GMAIL_INITIAL_SYNC) {
-        await gmailIngestionService.syncInitialMailbox(jobToRun.userId);
+        await gmailIngestionService.syncInitialMailbox(jobToRun.legacyUserId);
       } else if (jobToRun.type === JobType.GMAIL_INCREMENTAL_SYNC) {
-        await gmailIngestionService.syncNewEmails(jobToRun.userId);
+        await gmailIngestionService.syncNewEmails(jobToRun.legacyUserId);
       }
 
       // 3. Mark success

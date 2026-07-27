@@ -4,6 +4,7 @@ import { ApplicationStatus } from '../../domain/application-status';
 import { DEFAULT_ACTIVITY_LIMIT, DEFAULT_UPCOMING_LIMIT } from '../../lib/constants';
 import { InMemoryCacheStore, type CacheStore } from '../../lib/cache';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 
 type DbClient = typeof prisma;
 
@@ -56,7 +57,7 @@ export class DashboardService {
 
     const grouped = await db.jobApplication.groupBy({
       by: ['status'],
-      where: { userId },
+      where: userOwnershipFilter(userId),
       _count: { _all: true },
     });
 
@@ -118,9 +119,7 @@ export class DashboardService {
 
     const events = await db.applicationTimeline.findMany({
       where: {
-        application: {
-          userId,
-        },
+        application: userOwnershipFilter(userId),
       },
       orderBy: [{ timestamp: 'desc' }, { createdAt: 'desc' }],
       skip: pagination.skip,
@@ -190,9 +189,7 @@ export class DashboardService {
             ApplicationTimelineEventType.FINAL_INTERVIEW,
           ],
         },
-        application: {
-          userId,
-        },
+        application: userOwnershipFilter(userId),
       },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }],
       skip: pagination.skip,

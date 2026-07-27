@@ -13,6 +13,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 import { tokenService } from '../services/auth/token.service';
+import { userService } from '../services/user';
 import { validateBody } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalApiKey } from '../middleware/internal-api';
@@ -58,6 +59,7 @@ authRouter.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { userId } = req.body as { userId: string };
+      await userService.getOrCreateUser(userId);
       const tokenPair = await tokenService.issueTokenPair(userId);
 
       res.status(201).json({

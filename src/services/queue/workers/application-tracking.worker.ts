@@ -17,6 +17,14 @@ import {
   type ApplicationTrackingJobPayload,
   ApplicationTrackingJobPayloadSchema,
 } from '../queue.types';
+import { prisma } from '../../../config/database';
+import {
+  jobEmailClassifier,
+  JobEmailCategory,
+  type ClassifiableEmail,
+} from '../../job-intelligence';
+import { applicationCommandService } from '../../application-command/application-command.service';
+import { gmailCheckpointService } from '../../gmail/checkpoint.service';
 
 // ---------------------------------------------------------------------------
 // Processor
@@ -34,6 +42,7 @@ export async function processApplicationTrackingJob(
     type,
     userId,
     applicationId,
+    emailMessageId,
   });
 
   switch (type) {
@@ -41,14 +50,77 @@ export async function processApplicationTrackingJob(
       if (!emailMessageId) {
         throw new Error('PROCESS_EMAIL job missing emailMessageId');
       }
-      // TODO: fetch email → run classifier → update application status
-      // const email = await emailMessageRepository.findFirst({ userId, id: emailMessageId });
-      // const classification = await jobEmailClassifier.classify(email);
-      // await applicationCommandService.applyClassification(userId, classification);
-      logger.info('[AppTrackingWorker] Would process email', {
-        userId,
-        emailMessageId,
+
+      // 1. Fetch email from DB
+      const email = await prisma.emailMessage.findUnique({
+        where: { id: emailMessageId },
       });
+
+      if (!email) {
+        logger.warn('[AppTrackingWorker] Email not found, skipping', { emailMessageId });
+        return;
+      }
+
+      // 2. Map to ClassifiableEmail
+      const classifiableEmail: ClassifiableEmail = {
+        emailId: email.providerMessageId,
+        sender: email.sender,
+        subject: email.subject,
+        bodyText: email.bodyText ?? undefined,
+        bodyHtml: email.bodyHtml ?? undefined,
+        receivedAt: email.receivedAt,
+        threadId: email.threadId ?? undefined,
+      };
+
+      // 3. Classify
+      const classification = jobEmailClassifier.classify(classifiableEmail);
+
+            // 4. If job-related, process for application tracking
+      try {
+        if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
+          await applicationCommandService.processEmailForJobApplication(
+            classifiableEmail,
+            classification,
+            userId,
+          );
+          logger.info('[AppTrackingWorker] Processed email for application tracking', {
+            userId,
+            emailMessageId,
+            category: classification.category,
+          });
+        } else {
+          logger.info('[AppTrackingWorker] Email not job-related, skipping tracking', {
+            userId,
+            emailMessageId,
+          });
+        }
+
+        // 5. Report success to checkpoint service (Micro-task 8.5)
+        if (metadata?.batchId) {
+          await gmailCheckpointService.markEmailProcessed(
+            metadata.batchId as string,
+            emailMessageId,
+            email.providerMessageId,
+            'completed'
+          );
+          
+          // Check if batch is complete
+          await gmailCheckpointService.completeBatch(metadata.batchId as string);
+        }
+      } catch (err) {
+        // Report failure to checkpoint service
+        if (metadata?.batchId) {
+          await gmailCheckpointService.markEmailProcessed(
+            metadata.batchId as string,
+            emailMessageId,
+            email.providerMessageId,
+            'failed',
+            err instanceof Error ? err.message : String(err)
+          );
+        }
+        throw err; // Re-throw for BullMQ retry
+      }
+
       break;
     }
 
@@ -106,15 +178,47 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
     }),
   );
 
-  worker.on('failed', (job, err) =>
+  worker.on('failed', async (job, err) => {
     logger.error('[AppTrackingWorker] Job failed', {
       jobId: job?.id,
       type: job?.data.type,
       userId: job?.data.userId,
       attempt: job?.attemptsMade,
       error: err.message,
-    }),
-  );
+    });
+
+    // Micro-task 7.7: Move to Dead Letter Table after max attempts
+    if (job && job.data.type === 'PROCESS_EMAIL' && job.data.emailMessageId) {
+      const maxAttempts = job.opts.attempts || 3;
+      if (job.attemptsMade >= maxAttempts) {
+        try {
+          // Fetch providerMessageId for the dead letter record
+          const email = await prisma.emailMessage.findUnique({
+            where: { id: job.data.emailMessageId },
+            select: { providerMessageId: true },
+          });
+
+          await prisma.deadLetterEmail.create({
+            data: {
+              emailId: job.data.emailMessageId,
+              userId: job.data.userId,
+              providerMessageId: email?.providerMessageId || 'unknown',
+              error: err.message,
+              attempts: job.attemptsMade,
+            },
+          });
+          logger.info('[AppTrackingWorker] Job moved to Dead Letter Table', {
+            jobId: job.id,
+            emailId: job.data.emailMessageId,
+          });
+        } catch (dbErr) {
+          logger.error('[AppTrackingWorker] Failed to create dead letter record', {
+            error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+          });
+        }
+      }
+    }
+  });
 
   worker.on('error', (err) =>
     logger.error('[AppTrackingWorker] Worker error', { message: err.message }),

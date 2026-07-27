@@ -1,40 +1,198 @@
 /**
- * User account routes — Epic 0.7, Phase 24.
+ * User account routes — Epic 0.7, Phase 24 & Prompt 1 Identity.
  *
- * DELETE /user/account — Full user data deletion (GDPR/CCPA erasure).
+ * Endpoints:
+ *   GET    /user/profile   — Fetch candidate profile.
+ *   PUT    /user/profile   — Update candidate profile fields.
+ *   PUT    /user/consent   — Update consent version (e.g., after TOS change).
+ *   DELETE /user/account   — Full user data deletion (GDPR/CCPA erasure).
  *
  * Security:
- *   - Requires valid JWT (requireAuth).
- *   - Rate-limited to 1 request per hour per user (deletionLimiter).
+ *   - All endpoints require valid JWT (requireAuth).
  *   - userId is always derived from the verified JWT — never from the request body.
- *
- * Deletion sequence:
- *   1. Revoke all Redis refresh tokens (sessions terminated).
- *   2. Delete all database records (deleteUserData).
- *   3. Clean up OAuth state tokens stored under this user.
- *
- * Note: S3 resume file cleanup is handled by identifyOrphanedResumeHashes()
- * which is run as a periodic cleanup job — not inline here, to avoid timeouts.
+ *   - DELETE is rate-limited to 1/hour per user.
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 import { createUserAwareRateLimiter } from '../middleware/rate-limiter';
+import { validateBody } from '../middleware/validate';
 import { dataRetentionService } from '../services/retention/data-retention.service';
 import { tokenService } from '../services/auth/token.service';
 import { cacheService } from '../services/cache/cache.service';
+import { userService } from '../services/user';
 import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
-// Rate limiter: 1 account deletion per hour per user
+// Rate limiters
 // ---------------------------------------------------------------------------
 
 const deletionLimiter = createUserAwareRateLimiter(60 * 60 * 1000, 1);
+
+// ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
+
+const updateProfileSchema = z.object({
+  fullName: z.string().min(1).max(200).optional(),
+  phone: z.string().max(50).optional().nullable(),
+  location: z.string().max(200).optional().nullable(),
+  timezone: z.string().max(100).optional().nullable(),
+  preferences: z.record(z.unknown()).optional(),
+  careerGoals: z.record(z.unknown()).optional().nullable(),
+});
+
+const updateConsentSchema = z.object({
+  version: z.string().min(1).max(50),
+});
 
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
 export const userRouter = Router();
+
+/**
+ * GET /user/profile
+ *
+ * Returns the authenticated user's identity + candidate profile.
+ *
+ * Response 200:
+ *   {
+ *     success: true,
+ *     data: {
+ *       user: { id, email, region, consentVersion, consentGrantedAt, deletionStatus, createdAt },
+ *       profile: { id, fullName, phone, location, timezone, preferences, careerGoals }
+ *     }
+ *   }
+ */
+userRouter.get(
+  '/profile',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      await userService.getOrCreateUser(userId);
+      const [user, profile] = await Promise.all([
+        (userService as any).db.user.findUnique({
+          where: { id: await userService.resolveUserId(userId) },
+          select: {
+            id: true,
+            email: true,
+            region: true,
+            consentVersion: true,
+            consentGrantedAt: true,
+            deletionStatus: true,
+            createdAt: true,
+          },
+        }),
+        userService.getProfile(userId),
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          user,
+          profile: {
+            id: profile.id,
+            fullName: profile.fullName,
+            phone: profile.phone,
+            location: profile.location,
+            timezone: profile.timezone,
+            preferences: profile.preferences,
+            careerGoals: profile.careerGoals,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error('[UserRoutes] GET profile failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    }
+  },
+);
+
+/**
+ * PUT /user/profile
+ *
+ * Updates editable fields on the candidate profile.
+ * Accepts a partial payload — only provided fields are written.
+ *
+ * Response 200: { success: true, data: { profile } }
+ * Response 400: Validation error on body fields.
+ */
+userRouter.put(
+  '/profile',
+  requireAuth,
+  validateBody(updateProfileSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      const update = req.body as z.infer<typeof updateProfileSchema>;
+      const profile = await userService.updateProfile(userId, update);
+
+      logger.info('[UserRoutes] Profile updated', { userId });
+
+      res.json({
+        success: true,
+        data: {
+          profile: {
+            id: profile.id,
+            fullName: profile.fullName,
+            phone: profile.phone,
+            location: profile.location,
+            timezone: profile.timezone,
+            preferences: profile.preferences,
+            careerGoals: profile.careerGoals,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error('[UserRoutes] PUT profile failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    }
+  },
+);
+
+/**
+ * PUT /user/consent
+ *
+ * Records that the user accepted a newer consent version.
+ * Updates `consent_version` and `consent_granted_at`.
+ *
+ * Body: { version: "v2" }
+ * Response 200: { success: true, message: "Consent updated" }
+ */
+userRouter.put(
+  '/consent',
+  requireAuth,
+  validateBody(updateConsentSchema),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      const { version } = req.body as z.infer<typeof updateConsentSchema>;
+      await userService.updateConsent(userId, version);
+
+      logger.info('[UserRoutes] Consent updated', { userId, version });
+
+      res.json({
+        success: true,
+        message: 'Consent updated',
+      });
+    } catch (error) {
+      logger.error('[UserRoutes] PUT consent failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    }
+  },
+);
 
 /**
  * DELETE /user/account
