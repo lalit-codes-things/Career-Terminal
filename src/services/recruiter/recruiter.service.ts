@@ -182,7 +182,7 @@ export class RecruiterService {
     await db.emailMessage.update({
       where: {
         unique_user_message: {
-          userId: input.userId,
+          legacyUserId: input.userId,
           providerMessageId: input.email.emailId,
         },
       },

@@ -6,6 +6,7 @@ import { applicationTimelineService } from '../application-timeline';
 import { applicationReadModelService } from '../application-read-model/application-read-model.service';
 import { ApplicationStatus } from '../../domain/application-status';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
+import { userOwnershipFilter } from '../../utils/user-ownership';
 import type {
   ApplicationDetailsView,
   ApplicationTimelineModel,
@@ -29,7 +30,7 @@ export class ApplicationQueryService {
     pagination?: PaginationInput,
     db: DbClient = dbRouter.read(), // ← replica for list queries
   ): Promise<readonly ApplicationDetailsView['application'][]> {
-    const where: Prisma.JobApplicationWhereInput = { userId };
+    const where: Prisma.JobApplicationWhereInput = userOwnershipFilter(userId);
 
     if (filters.status) {
       where.status = filters.status.toUpperCase() as ApplicationStatus;
@@ -75,10 +76,10 @@ export class ApplicationQueryService {
     const applicationRecord = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
-        userId,
+        ...userOwnershipFilter(userId),
       },
       include: {
-        emails: {
+        emailMessages: {
           select: { id: true, subject: true },
           orderBy: { receivedAt: 'desc' },
         },
@@ -93,7 +94,7 @@ export class ApplicationQueryService {
 
     return applicationReadModelService.buildDetailsView({
       application: applicationReadModelService.toApplication(applicationRecord),
-      emailHistory: applicationRecord.emails.map((email) => ({
+      emailHistory: applicationRecord.emailMessages.map((email) => ({
         id: email.id,
         subject: email.subject || 'No Subject',
       })),
