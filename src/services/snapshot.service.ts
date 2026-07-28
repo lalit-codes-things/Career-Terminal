@@ -40,6 +40,8 @@ export class SnapshotService {
         await tx.factObservation.create({
           data: {
             userId: fact.userId,
+            extractionRunId: fact.extractionRunId,
+            provenanceId: fact.provenanceId,
             factType: fact.factType,
             factData: fact.factData as Prisma.InputJsonValue,
             sourceType: fact.sourceType,

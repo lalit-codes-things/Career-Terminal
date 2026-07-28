@@ -28,9 +28,12 @@ jest.mock('../config/database', () => ({
 jest.mock('../services/storage/storage.service', () => {
   const mockStorage: jest.Mocked<IStorageService> = {
     upload: jest.fn(),
+    uploadToBucket: jest.fn(),
     getPresignedUrl: jest.fn(),
     exists: jest.fn(),
+    download: jest.fn(),
     delete: jest.fn(),
+    copyToBucket: jest.fn(),
   };
   return {
     storageService: mockStorage,
@@ -40,6 +43,7 @@ jest.mock('../services/storage/storage.service', () => {
 
 jest.mock('../services/queue/queue.service', () => ({
   queueService: {
+    addMalwareScanJob: jest.fn(),
     addResumeParsingJob: jest.fn(),
   },
 }));
@@ -48,6 +52,19 @@ jest.mock('../services/user', () => ({
   userService: {
     userScopeFor: jest.fn(),
   },
+}));
+
+jest.mock('../services/action.service', () => ({
+  actionService: {
+    recordAction: jest.fn(),
+  },
+  ACTION_TYPES: {
+    RESUME_UPDATE: 'RESUME_UPDATE',
+  },
+  SOURCE_TYPES: {
+    SYSTEM_TRACKED: 'SYSTEM_TRACKED',
+  },
+  buildResumeVersionTag: jest.fn((version: number) => `resume_version:${version}`),
 }));
 
 type MockPrisma = {
@@ -216,7 +233,7 @@ describe('ResumeUploadService — versioning on upload', () => {
         data: expect.objectContaining({ version: 1, isActive: true }),
       }),
     );
-    expect(mockQueue.addResumeParsingJob).toHaveBeenCalledTimes(1);
+    expect(mockQueue.addMalwareScanJob).toHaveBeenCalledTimes(1);
   });
 
   it('assigns version=2 on second upload and marks previous active as superseded', async () => {

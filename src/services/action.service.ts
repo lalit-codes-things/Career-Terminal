@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { ActionEvent, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { analyticsService } from './analytics.service';
 
 export interface RecordActionInput {
   userId: string;
@@ -129,6 +130,8 @@ export class ActionService {
       strategyTagCount: (input.strategyTags ?? []).length,
       sourceType,
     });
+
+    analyticsService.invalidateUser(input.userId);
 
     return event;
   }

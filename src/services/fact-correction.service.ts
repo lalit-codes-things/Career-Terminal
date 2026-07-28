@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { FactObservation, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { factService } from './fact.service';
 
 export class FactCorrectionService {
   /**
@@ -18,15 +19,32 @@ export class FactCorrectionService {
     return prisma.$transaction(async (tx) => {
       const originalFact = await tx.factObservation.findUnique({
         where: { id: originalFactId },
+        include: { extractionRun: true, provenance: true },
       });
 
       if (!originalFact) {
         throw new Error(`Fact not found: ${originalFactId}`);
       }
 
+      const provenance = await factService.createExtractionRun({
+        userId: originalFact.userId,
+        cellId: originalFact.provenance.cellId,
+        sourceType: 'MANUAL',
+        sourceId: userId,
+        sourceVersion: '1',
+        sourceIdentity: `correction:${originalFactId}`,
+        parserVersion: 'manual-correction',
+        modelProvider: null,
+        modelVersion: null,
+        promptVersion: null,
+        schemaVersion: 'epic-4-prompt-3',
+      });
+
       const correctedFact = await tx.factObservation.create({
         data: {
           userId: originalFact.userId,
+          extractionRunId: provenance.runId,
+          provenanceId: provenance.provenanceId,
           factType: originalFact.factType,
           factData: correctedData as Prisma.InputJsonValue,
           sourceType: 'MANUAL',

@@ -9,7 +9,19 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    extractionRun: {
+      create: jest.fn(),
+    },
+    factProvenance: {
+      create: jest.fn(),
+    },
     $transaction: jest.fn((callback) => callback(prisma)),
+  },
+}));
+
+jest.mock('../services/routing/cell-routing.service', () => ({
+  cellRoutingService: {
+    resolveUserRouting: jest.fn().mockResolvedValue({ cellId: 'us-east-1-shard-000' }),
   },
 }));
 
@@ -21,6 +33,12 @@ describe('FactCorrectionService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default stubs for the extraction run chain used by proposeCorrection.
+    (prisma.extractionRun.create as jest.Mock).mockResolvedValue({ id: 'run-stub' });
+    (prisma.factProvenance.create as jest.Mock).mockResolvedValue({
+      id: 'prov-stub',
+      extractionRunId: 'run-stub',
+    });
   });
 
   describe('proposeCorrection', () => {
@@ -43,6 +61,7 @@ describe('FactCorrectionService', () => {
         snapshotId: null,
         version: 1,
         isCurrent: true,
+        provenance: { cellId: 'us-east-1-shard-000' },
       };
       const correctedData = { name: 'TypeScript', years: 5 };
       const reason = 'I have 5 years not 1';
@@ -76,6 +95,7 @@ describe('FactCorrectionService', () => {
       expect(result.id).toBe(newFactId);
       expect(prisma.factObservation.findUnique).toHaveBeenCalledWith({
         where: { id: factId },
+        include: { extractionRun: true, provenance: true },
       });
       expect(prisma.factObservation.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -127,6 +147,7 @@ describe('FactCorrectionService', () => {
         snapshotId: null,
         version: 1,
         isCurrent: true,
+        provenance: { cellId: 'us-east-1-shard-000' },
       };
 
       (prisma.factObservation.findUnique as jest.Mock).mockResolvedValue(originalFact);

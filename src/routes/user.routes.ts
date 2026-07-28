@@ -18,9 +18,11 @@ import { requireAuth } from '../middleware/auth';
 import { createUserAwareRateLimiter } from '../middleware/rate-limiter';
 import { validateBody } from '../middleware/validate';
 import { dataRetentionService } from '../services/retention/data-retention.service';
+import { deletionService } from '../services/deletion.service';
 import { tokenService } from '../services/auth/token.service';
 import { cacheService } from '../services/cache/cache.service';
 import { userService } from '../services/user';
+import { prisma } from '../config/database';
 import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -70,11 +72,11 @@ userRouter.get(
   '/profile',
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const userId = req.user!.id;
-    try {
-      await userService.getOrCreateUser(userId);
-      const [user, profile] = await Promise.all([
-        (userService as any).db.user.findUnique({
+      const userId = req.user!.id;
+      try {
+        await userService.getOrCreateUser(userId);
+        const [user, profile] = await Promise.all([
+        prisma.user.findUnique({
           where: { id: await userService.resolveUserId(userId) },
           select: {
             id: true,
@@ -106,6 +108,24 @@ userRouter.get(
       });
     } catch (error) {
       logger.error('[UserRoutes] GET profile failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    }
+  },
+);
+
+userRouter.get(
+  '/export',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      const data = await deletionService.exportUserData(userId);
+      res.json({ success: true, data });
+    } catch (error) {
+      logger.error('[UserRoutes] GET export failed', {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -151,6 +171,25 @@ userRouter.put(
       });
     } catch (error) {
       logger.error('[UserRoutes] PUT profile failed', {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    }
+  },
+);
+
+userRouter.put(
+  '/legal-hold',
+  requireAuth,
+  validateBody(z.object({ reason: z.string().min(1).max(500) })),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      await deletionService.setLegalHold(userId, (req.body as { reason: string }).reason);
+      res.json({ success: true, message: 'Legal hold applied' });
+    } catch (error) {
+      logger.error('[UserRoutes] PUT legal hold failed', {
         userId,
         error: error instanceof Error ? error.message : String(error),
       });

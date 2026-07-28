@@ -18,6 +18,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   DeleteObjectCommand,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from '../../lib/logger';
@@ -43,23 +44,33 @@ export interface IStorageService {
    * @returns        The storage key and a short-lived presigned URL.
    */
   upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
+  uploadToBucket(bucket: string, key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
 
   /**
    * Generate a fresh pre-signed GET URL for an existing object.
    * @param key     S3 object key.
    * @param ttlSec  URL validity in seconds (default: 3600).
    */
-  getPresignedUrl(key: string, ttlSec?: number): Promise<string>;
+  getPresignedUrl(key: string, ttlSec?: number, bucket?: string): Promise<string>;
 
   /**
    * Check whether an object exists in S3 (HEAD request — no data transfer).
    */
-  exists(key: string): Promise<boolean>;
+  exists(key: string, bucket?: string): Promise<boolean>;
+
+  download(key: string, bucket?: string): Promise<Buffer>;
 
   /**
    * Delete an object. Used only for hard-delete flows (GDPR erasure, etc.).
    */
-  delete(key: string): Promise<void>;
+  delete(key: string, bucket?: string): Promise<void>;
+
+  copyToBucket(
+    sourceKey: string,
+    destinationBucket: string,
+    destinationKey?: string,
+    sourceBucket?: string,
+  ): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,10 +102,14 @@ export class S3StorageService implements IStorageService {
   }
 
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult> {
+    return this.uploadToBucket(this.bucket, key, buffer, mimeType);
+  }
+
+  async uploadToBucket(bucket: string, key: string, buffer: Buffer, mimeType: string): Promise<UploadResult> {
     await this.circuitBreaker.fire(() =>
       this.client.send(
         new PutObjectCommand({
-          Bucket: this.bucket,
+          Bucket: bucket,
           Key: key,
           Body: buffer,
           ContentType: mimeType,
@@ -111,18 +126,18 @@ export class S3StorageService implements IStorageService {
     return { storageKey: key, presignedUrl };
   }
 
-  async getPresignedUrl(key: string, ttlSec = 3_600): Promise<string> {
+  async getPresignedUrl(key: string, ttlSec = 3_600, bucket = this.bucket): Promise<string> {
     return this.circuitBreaker.fire(() =>
-      getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+      getSignedUrl(this.client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
         expiresIn: ttlSec,
       }),
     );
   }
 
-  async exists(key: string): Promise<boolean> {
+  async exists(key: string, bucket = this.bucket): Promise<boolean> {
     try {
       await this.circuitBreaker.fire(() =>
-        this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key })),
+        this.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
       );
       return true;
     } catch {
@@ -130,11 +145,44 @@ export class S3StorageService implements IStorageService {
     }
   }
 
-  async delete(key: string): Promise<void> {
+  async download(key: string, bucket = this.bucket): Promise<Buffer> {
+    const result = await this.circuitBreaker.fire(() =>
+      this.client.send(new GetObjectCommand({ Bucket: bucket, Key: key })),
+    );
+
+    const body = result.Body;
+    if (!body || typeof (body as { transformToByteArray?: () => Promise<Uint8Array> }).transformToByteArray !== 'function') {
+      throw new Error('S3 object body is not readable');
+    }
+
+    const bytes = await (body as { transformToByteArray: () => Promise<Uint8Array> }).transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
+  async delete(key: string, bucket = this.bucket): Promise<void> {
     await this.circuitBreaker.fire(() =>
-      this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key })),
+      this.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })),
     );
     logger.info('[StorageService] File deleted', { key });
+  }
+
+  async copyToBucket(
+    sourceKey: string,
+    destinationBucket: string,
+    destinationKey = sourceKey,
+    sourceBucket = this.bucket,
+  ): Promise<void> {
+    await this.circuitBreaker.fire(() =>
+      this.client.send(
+        new CopyObjectCommand({
+          Bucket: destinationBucket,
+          CopySource: `${sourceBucket}/${sourceKey}`,
+          Key: destinationKey,
+          ServerSideEncryption: 'AES256',
+        }),
+      ),
+    );
+    logger.info('[StorageService] File copied', { sourceKey, destinationBucket, destinationKey });
   }
 }
 
@@ -151,6 +199,10 @@ export class NullStorageService implements IStorageService {
     };
   }
 
+  async uploadToBucket(_bucket: string, key: string, _buffer: Buffer, _mimeType: string): Promise<UploadResult> {
+    return this.upload(key, Buffer.from(''), 'application/octet-stream');
+  }
+
   async getPresignedUrl(key: string): Promise<string> {
     return `http://localhost/storage/${key}`;
   }
@@ -159,8 +211,16 @@ export class NullStorageService implements IStorageService {
     return false;
   }
 
+  async download(_key: string): Promise<Buffer> {
+    return Buffer.from('');
+  }
+
   async delete(key: string): Promise<void> {
     logger.info('[NullStorageService] delete (no-op)', { key });
+  }
+
+  async copyToBucket(_sourceKey: string, _destinationBucket: string, _destinationKey?: string): Promise<void> {
+    logger.info('[NullStorageService] copyToBucket (no-op)');
   }
 }
 

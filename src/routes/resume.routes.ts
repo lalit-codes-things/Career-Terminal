@@ -67,7 +67,7 @@ resumeRouter.post(
         mimeType: file.mimetype,
       });
 
-      res.status(201).json({
+      res.status(202).json({
         success: true,
         data: {
           userResumeId: result.userResumeId,
@@ -76,9 +76,9 @@ resumeRouter.post(
           fileSizeBytes: result.fileSizeBytes,
           hash: result.hash,
           deduplicated: result.deduplicated,
-          message: result.deduplicated
-            ? 'Identical file already stored — linked to existing blob (no re-upload).'
-            : 'File uploaded successfully. Parsing job queued.',
+          scanningStatus: result.scanningStatus,
+          status: result.status,
+          message: 'File uploaded successfully. Malware scan queued.',
         },
       });
     } catch (error) {

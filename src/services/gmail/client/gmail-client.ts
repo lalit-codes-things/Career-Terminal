@@ -17,6 +17,14 @@
  */
 import { google } from 'googleapis';
 import { GmailApiError } from '../../../errors/app-errors';
+import { CircuitBreaker } from '../../../lib/circuit-breaker';
+import {
+  GMAIL_CLIENT_DEFAULT_TIMEOUT_MS,
+  GMAIL_CLIENT_INITIAL_RETRY_DELAY_MS,
+  GMAIL_CLIENT_MAX_RETRIES,
+  GMAIL_HISTORY_MAX_RESULTS,
+  GMAIL_LIST_MESSAGES_MAX_RESULTS,
+} from '../../../config/gmail';
 import {
   getHeader,
   parseRecipients,
@@ -42,11 +50,6 @@ import type {
 } from '../models/gmail.types';
 
 /** Maximum number of retries for transient API failures. */
-const MAX_RETRIES = 3;
-
-/** Initial retry delay in milliseconds (doubles on each retry). */
-const INITIAL_RETRY_DELAY_MS = 1000;
-
 /** HTTP status codes that are retryable. */
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 503]);
 
@@ -73,6 +76,11 @@ export class GmailClient {
     };
   };
   private readonly userId = 'me'; // Authenticated user
+  private readonly circuitBreaker = new CircuitBreaker('GmailAPI', {
+    failureThreshold: 5,
+    resetTimeout: 30000,
+    requestTimeout: 5000,
+  });
 
   /**
    * Creates a new Gmail client instance.
@@ -83,10 +91,10 @@ export class GmailClient {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: config.accessToken });
 
-    this.gmail = google.gmail({
+      this.gmail = google.gmail({
       version: 'v1',
       auth,
-      timeout: config.timeout ?? 30_000,
+      timeout: config.timeout ?? GMAIL_CLIENT_DEFAULT_TIMEOUT_MS,
     });
   }
 
@@ -97,11 +105,11 @@ export class GmailClient {
    * @returns Paginated list of message references
    */
   async listMessages(options: ListMessagesOptions = {}): Promise<ListMessagesResult> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.messages.list({
         userId: this.userId,
         q: options.query,
-        maxResults: Math.min(options.maxResults ?? 100, 500),
+        maxResults: Math.min(options.maxResults ?? GMAIL_LIST_MESSAGES_MAX_RESULTS, 500),
         pageToken: options.pageToken,
         labelIds: options.labelIds,
       });
@@ -119,7 +127,7 @@ export class GmailClient {
         nextPageToken: this.readOptionalString(data.nextPageToken),
         resultSizeEstimate: this.readNumber(data.resultSizeEstimate),
       };
-    });
+    }));
   }
 
   /**
@@ -129,7 +137,7 @@ export class GmailClient {
    * @returns Fully parsed message with headers, body, and metadata
    */
   async getMessage(messageId: string): Promise<GmailMessage> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.messages.get({
         userId: this.userId,
         id: messageId,
@@ -137,7 +145,7 @@ export class GmailClient {
       });
 
       return this.parseMessage(response.data);
-    });
+    }));
   }
 
   /**
@@ -147,7 +155,7 @@ export class GmailClient {
    * @returns Thread with all parsed messages
    */
   async getThread(threadId: string): Promise<GmailThread> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.threads.get({
         userId: this.userId,
         id: threadId,
@@ -164,7 +172,7 @@ export class GmailClient {
         historyId: this.readString(data.historyId),
         messages,
       };
-    });
+    }));
   }
 
   /**
@@ -174,7 +182,7 @@ export class GmailClient {
    * @returns Array of attachment metadata and data
    */
   async getAttachments(messageId: string): Promise<GmailAttachment[]> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       // First, get the message to find attachment IDs
       const message = await this.gmail.users.messages.get({
         userId: this.userId,
@@ -206,7 +214,7 @@ export class GmailClient {
       }
 
       return attachments;
-    });
+    }));
   }
 
   /**
@@ -215,7 +223,7 @@ export class GmailClient {
    * @returns Array of label metadata
    */
   async getLabels(): Promise<GmailLabel[]> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.labels.list({
         userId: this.userId,
       });
@@ -230,14 +238,14 @@ export class GmailClient {
         messagesTotal: this.readOptionalNumber(label.messagesTotal),
         messagesUnread: this.readOptionalNumber(label.messagesUnread),
       }));
-    });
+    }));
   }
 
   /**
    * Fetches the user's Gmail profile, which includes their current historyId.
    */
   async getProfile(): Promise<GmailProfile> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.getProfile({
         userId: this.userId,
       });
@@ -249,18 +257,18 @@ export class GmailClient {
         threadsTotal: this.readNumber(data.threadsTotal),
         historyId: this.readString(data.historyId),
       };
-    });
+    }));
   }
 
   /**
    * Fetches historical changes to the mailbox since the given historyId.
    */
   async getHistory(options: GetHistoryOptions): Promise<GmailHistoryResult> {
-    return this.withRetry(async () => {
+    return this.circuitBreaker.fire(() => this.withRetry(async () => {
       const response = await this.gmail.users.history.list({
         userId: this.userId,
         startHistoryId: options.startHistoryId,
-        maxResults: options.maxResults ?? 100,
+        maxResults: options.maxResults ?? GMAIL_HISTORY_MAX_RESULTS,
         pageToken: options.pageToken,
       });
 
@@ -292,7 +300,7 @@ export class GmailClient {
         nextPageToken: this.readOptionalString(data.nextPageToken),
         messagesAdded,
       };
-    });
+    }));
   }
 
   // ============================================================
@@ -375,7 +383,7 @@ export class GmailClient {
   private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
     let lastError: Error | undefined;
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= GMAIL_CLIENT_MAX_RETRIES; attempt++) {
       try {
         return await fn();
       } catch (error: unknown) {
@@ -383,8 +391,12 @@ export class GmailClient {
 
         // Check if this is a retryable error
         const statusCode = this.extractStatusCode(error);
-        if (statusCode && RETRYABLE_STATUS_CODES.has(statusCode) && attempt < MAX_RETRIES) {
-          const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+        if (
+          statusCode &&
+          RETRYABLE_STATUS_CODES.has(statusCode) &&
+          attempt < GMAIL_CLIENT_MAX_RETRIES
+        ) {
+          const delay = GMAIL_CLIENT_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
           await this.sleep(delay);
           continue;
         }
@@ -396,7 +408,7 @@ export class GmailClient {
 
     // Should never reach here, but TypeScript needs it
     throw new GmailApiError(
-      `Gmail API error after ${MAX_RETRIES} retries: ${lastError?.message ?? 'Unknown'}`,
+      `Gmail API error after ${GMAIL_CLIENT_MAX_RETRIES} retries: ${lastError?.message ?? 'Unknown'}`,
     );
   }
 

@@ -47,6 +47,7 @@ const anonymousPlacement = (req: Request): PlacementContext => {
   const region = placementService.resolveRegionFromRequest(hints);
   return {
     region,
+    cellId: `${region}-shard-000`,
     dataResidencyRegion: region,
     shardKey: 0,
     tenantId: null,
@@ -81,6 +82,7 @@ export const placementMiddleware = async (
     });
     const fallback = {
       region: DEFAULT_REGION,
+      cellId: `${DEFAULT_REGION}-shard-${String(computeShardKey(userId)).padStart(3, '0')}`,
       dataResidencyRegion: DEFAULT_REGION,
       shardKey: computeShardKey(userId),
       tenantId: null,

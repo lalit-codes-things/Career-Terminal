@@ -2,9 +2,8 @@
  * AI Data Protection Policy — Epic 0.7, Phase 26.
  *
  * Documents the data protection rules that govern how ApplyWise
- * interacts with AI/ML systems. As of this release, no real external
- * LLM provider is integrated — only a MockEmbeddingProvider is used
- * (no external network calls).
+ * interacts with AI/ML systems. The current matcher uses local taxonomy
+ * data and deterministic similarity logic, with no external model calls.
  *
  * When a real AI provider is added, ALL rules in this module must be
  * reviewed and the externalProviders array updated accordingly.
@@ -19,7 +18,7 @@ export const AI_DATA_PROTECTION_POLICY = {
    * Current AI integrations in use.
    * Update this list whenever a new AI provider is integrated.
    */
-  currentAiIntegrations: 'MockEmbeddingProvider (no external calls)',
+  currentAiIntegrations: 'Local taxonomy matcher (no external calls)',
 
   /**
    * Data minimisation rules — enforced before any data is sent to an AI system.
@@ -53,7 +52,7 @@ export const AI_DATA_PROTECTION_POLICY = {
 
   /**
    * External AI/ML providers that receive any application data.
-   * Currently empty — MockEmbeddingProvider makes no external calls.
+   * Currently empty — the taxonomy matcher makes no external calls.
    * Update this when adding OpenAI, Anthropic, Cohere, etc.
    */
   externalProviders: [] as string[],

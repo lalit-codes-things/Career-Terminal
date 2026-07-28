@@ -16,6 +16,7 @@ import {
   resolveRegionFromHints,
 } from '../placement/placement.service';
 import type { RegionResolutionHints } from '../placement/placement.service';
+import { cellService } from '../cell/cell.service';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -58,9 +59,11 @@ export class UserService {
     const shardKey = computeShardKey(internalId);
 
     try {
+      const cell = await cellService.resolveUserHomeCell(internalId, resolvedRegion);
       const user = await this.db.user.create({
         data: {
           id: internalId,
+          cellId: cell.cellId,
           region: resolvedRegion,
           dataResidencyRegion: resolvedRegion,
           shardKey,
@@ -85,6 +88,7 @@ export class UserService {
         externalUserId,
         region: resolvedRegion,
         shardKey,
+        cellId: cell.cellId,
         tenantId: options?.tenantId ?? null,
       });
 
@@ -191,6 +195,29 @@ export class UserService {
       data: {
         deletionStatus: 'pending_deletion',
         deletedAt: new Date(),
+        deletionRequestedAt: new Date(),
+      },
+    });
+  }
+
+  async setLegalHold(userId: string, reason: string): Promise<void> {
+    const internalId = await this.resolveUserId(userId);
+    await this.db.user.update({
+      where: { id: internalId },
+      data: {
+        deletionStatus: 'legal_hold',
+        legalHoldReason: reason,
+      },
+    });
+  }
+
+  async clearLegalHold(userId: string): Promise<void> {
+    const internalId = await this.resolveUserId(userId);
+    await this.db.user.update({
+      where: { id: internalId },
+      data: {
+        deletionStatus: 'active',
+        legalHoldReason: null,
       },
     });
   }

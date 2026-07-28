@@ -25,6 +25,7 @@ import {
   type EmailJobPayload,
   type ResumeParsingJobPayload,
   type ApplicationTrackingJobPayload,
+  type MalwareScanJobPayload,
 } from './queue.types';
 
 // ---------------------------------------------------------------------------
@@ -48,10 +49,12 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
 export interface IQueueService {
   addEmailJob(payload: EmailJobPayload, opts?: JobsOptions): Promise<string>;
   addResumeParsingJob(payload: ResumeParsingJobPayload, opts?: JobsOptions): Promise<string>;
+  addMalwareScanJob(payload: MalwareScanJobPayload, opts?: JobsOptions): Promise<string>;
   addApplicationTrackingJob(
     payload: ApplicationTrackingJobPayload,
     opts?: JobsOptions,
   ): Promise<string>;
+  getDepths(): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
 
@@ -59,6 +62,7 @@ export class QueueService implements IQueueService {
   private readonly emailQueue: Queue<EmailJobPayload>;
   private readonly resumeQueue: Queue<ResumeParsingJobPayload>;
   private readonly trackingQueue: Queue<ApplicationTrackingJobPayload>;
+  private readonly malwareQueue: Queue<MalwareScanJobPayload>;
 
   constructor() {
     const conn = { connection: bullMQConnection };
@@ -69,6 +73,7 @@ export class QueueService implements IQueueService {
       QUEUE_NAMES.APPLICATION_TRACKING,
       conn,
     );
+    this.malwareQueue = new Queue<MalwareScanJobPayload>(QUEUE_NAMES.MALWARE_SCAN, conn);
 
     logger.info('[QueueService] Queues initialised', {
       queues: Object.values(QUEUE_NAMES),
@@ -123,6 +128,20 @@ export class QueueService implements IQueueService {
     return job.id!;
   }
 
+  async addMalwareScanJob(payload: MalwareScanJobPayload, opts: JobsOptions = {}): Promise<string> {
+    const job = await this.malwareQueue.add('SCAN_RESUME', payload, {
+      ...DEFAULT_JOB_OPTIONS,
+      ...opts,
+    });
+    logger.info('[QueueService] Malware scan job enqueued', {
+      jobId: job.id,
+      userId: payload.userId,
+      userResumeId: payload.userResumeId,
+      quarantineKey: payload.quarantineKey,
+    });
+    return job.id!;
+  }
+
   /**
    * Enqueue an application tracking / status-refresh job.
    *
@@ -159,12 +178,28 @@ export class QueueService implements IQueueService {
     return job.id!;
   }
 
+  async getDepths(): Promise<Record<string, number>> {
+    const [email, resume, tracking, malware] = await Promise.all([
+      this.emailQueue.getJobCounts(),
+      this.resumeQueue.getJobCounts(),
+      this.trackingQueue.getJobCounts(),
+      this.malwareQueue.getJobCounts(),
+    ]);
+    return {
+      email: (email.waiting ?? 0) + (email.active ?? 0) + (email.delayed ?? 0),
+      resume: (resume.waiting ?? 0) + (resume.active ?? 0) + (resume.delayed ?? 0),
+      tracking: (tracking.waiting ?? 0) + (tracking.active ?? 0) + (tracking.delayed ?? 0),
+      malware: (malware.waiting ?? 0) + (malware.active ?? 0) + (malware.delayed ?? 0),
+    };
+  }
+
   /** Gracefully close all queue connections. Call during server shutdown. */
   async close(): Promise<void> {
     await Promise.all([
       this.emailQueue.close(),
       this.resumeQueue.close(),
       this.trackingQueue.close(),
+      this.malwareQueue.close(),
     ]);
     logger.info('[QueueService] All queues closed');
   }

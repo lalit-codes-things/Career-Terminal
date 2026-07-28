@@ -12,6 +12,7 @@
  */
 import { type Worker } from 'bullmq';
 import { startEmailWorker } from './email.worker';
+import { startMalwareScanWorker } from './malware-scan.worker';
 import { startResumeParsingWorker } from './resume-parsing.worker';
 import { startApplicationTrackingWorker } from './application-tracking.worker';
 import { logger } from '../../../lib/logger';
@@ -20,6 +21,7 @@ let workers: Worker[] = [];
 
 const workerFactories = {
   email: startEmailWorker,
+  'malware-scan': startMalwareScanWorker,
   'resume-parsing': startResumeParsingWorker,
   'application-tracking': startApplicationTrackingWorker,
 } as const;

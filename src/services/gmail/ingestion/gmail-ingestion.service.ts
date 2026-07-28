@@ -27,6 +27,7 @@ import { userService } from '../../user';
 import { features } from '../../../config/features';
 import { queueService } from '../../queue/queue.service';
 import { gmailCheckpointService } from '../checkpoint.service';
+import { placementService } from '../../placement/placement.service';
 
 export interface IngestionService {
   syncInitialMailbox(userId: string): Promise<void>;
@@ -43,6 +44,7 @@ export class GmailIngestionService implements IngestionService {
    */
   async syncInitialMailbox(userId: string): Promise<void> {
     logger.info('[Sync] Starting initial sync', { userId });
+    await this.ensureUserIsActive(userId);
     const { client, connectionId } = await this.setupClient(userId);
     const fetcher = new RawEmailFetcher(client);
 
@@ -83,6 +85,7 @@ export class GmailIngestionService implements IngestionService {
    */
   async syncNewEmails(userId: string): Promise<void> {
     logger.info('[Sync] Starting incremental sync', { userId });
+    await this.ensureUserIsActive(userId);
 
     // 1. Check for pending batch (Recovery logic)
     const pendingBatch = await gmailCheckpointService.getPendingBatch(userId);
@@ -199,6 +202,24 @@ export class GmailIngestionService implements IngestionService {
     };
   }
 
+  private async ensureUserIsActive(userId: string): Promise<void> {
+    const resolvedUserId = await userService.resolveUserId(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: { deletionStatus: true },
+    });
+
+    if (!user || user.deletionStatus !== 'active') {
+      throw new Error(`User ${userId} is not active`);
+    }
+  }
+
+  private async isBackpressured(): Promise<boolean> {
+    const limit = Number.parseInt(process.env.INGESTION_QUEUE_DEPTH_LIMIT ?? '10000', 10);
+    const depths = await queueService.getDepths();
+    return Object.values(depths).some((depth) => depth >= limit);
+  }
+
   /**
    * The core pipeline: Fetch raw bodies -> Normalize -> Upsert to DB.
    */
@@ -263,9 +284,18 @@ export class GmailIngestionService implements IngestionService {
           });
 
           if (savedMessage) {
+            const placement = await placementService.resolvePlacementContext(userScope.userId);
+            if (await this.isBackpressured()) {
+              logger.warn('[Sync] Backpressure active, skipping enqueue', {
+                userId,
+                emailMessageId: savedMessage.id,
+              });
+              continue;
+            }
             await queueService.addApplicationTrackingJob({
               type: 'PROCESS_EMAIL',
               userId,
+              cellId: placement.cellId,
               emailMessageId: savedMessage.id,
               metadata: batchId ? { batchId } : undefined,
             });

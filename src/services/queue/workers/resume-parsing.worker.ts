@@ -1,36 +1,28 @@
 /**
- * Resume Parsing Worker — processes jobs from the "resume-parsing" BullMQ queue.
+ * Resume Parsing Worker - processes jobs from the "resume-parsing" queue.
  *
- * Concurrency : 5 jobs in parallel
- * Retry policy: 3 attempts, exponential backoff (set by producer)
- *
- * Each job receives:
- *   - userId       — the owning user (partition key for any DB writes)
- *   - storageKey   — S3/GCS object key to fetch the file from cloud storage
- *   - fileHash     — SHA-256 pre-computed by the upload handler (dedup key)
- *   - mimeType     — so the parser knows how to decode the file
- *
- * Design note: we do NOT accept a raw `fileBuffer` in the job payload.
- * Storing large binaries in Redis bloats memory, slows serialisation, and
- * breaks BullMQ's default 1 MB message limit. Instead the upload handler
- * writes the file to cloud storage first and only passes the storage key here.
+ * By the time a job reaches this worker, malware scanning should already
+ * have promoted the file into clean storage.
  */
 import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
+import { storageService } from '../../storage/storage.service';
+import { resumeMatcherService } from '../../resume-matcher/resume-matcher.service';
+import { prisma } from '../../../config/database';
+import { cellService } from '../../cell/cell.service';
+import { placementService } from '../../placement/placement.service';
+import { withEventLifecycle } from '../../event/event-worker';
 import {
   QUEUE_NAMES,
   type ResumeParsingJobPayload,
   ResumeParsingJobPayloadSchema,
 } from '../queue.types';
 
-// ---------------------------------------------------------------------------
-// Processor
-// ---------------------------------------------------------------------------
-
 export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>): Promise<void> {
-  const { userId, storageKey, originalFilename, mimeType, fileHash } =
-    ResumeParsingJobPayloadSchema.parse(job.data);
+  return withEventLifecycle(job, async (job) => {
+    const { userId, storageKey, originalFilename, mimeType, fileHash } =
+      ResumeParsingJobPayloadSchema.parse(job.data);
 
   logger.info('[ResumeParsingWorker] Processing job', {
     jobId: job.id,
@@ -38,43 +30,46 @@ export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>)
     userId,
     storageKey,
     mimeType,
-  });
-
-  // ── Step 1: Fetch file from cloud storage ──────────────────────────────
-  // TODO: replace with your storage client
-  // const fileBuffer = await storageService.download(storageKey);
-  logger.info('[ResumeParsingWorker] Step 1 — would fetch from storage', {
-    storageKey,
-    userId,
-  });
-
-  // ── Step 2: Extract text from the file ────────────────────────────────
-  // TODO: wire to pdfParse / docx-parser based on mimeType
-  // const rawText = await textExtractor.extract(fileBuffer, mimeType);
-  logger.info('[ResumeParsingWorker] Step 2 — would extract text', {
-    mimeType,
     originalFilename,
   });
 
-  // ── Step 3: Run NLP / AI parsing ──────────────────────────────────────
-  // TODO: call your AI/NLP service (e.g. OpenAI structured output)
-  // const parsedResume = await resumeAiParser.parse(rawText);
-  logger.info('[ResumeParsingWorker] Step 3 — would run AI parsing');
+  const placement = await placementService.resolvePlacementContext(userId);
+  await cellService.ensureRoutable(placement.cellId);
+  if (job.data.cellId && job.data.cellId !== placement.cellId) {
+    throw new Error(`Resume parsing job routed to wrong cell: ${job.data.cellId}`);
+  }
 
-  // ── Step 4: Persist parsed data ───────────────────────────────────────
-  // TODO: upsert into a `parsed_resumes` table, keyed by userId + fileHash
-  // await parsedResumeRepository.upsert({ userId, fileHash, ...parsedResume });
-  logger.info('[ResumeParsingWorker] Step 4 — would persist parsed resume', {
-    userId,
-    fileHash,
+  const fileBuffer = await storageService.download(storageKey);
+  const matchingResume = await prisma.userResume.findFirst({
+    where: {
+      legacyUserId: userId,
+      resumeHash: { hash: fileHash },
+    },
+    orderBy: { createdAt: 'desc' },
   });
 
-  await Promise.resolve();
-}
+  if (!matchingResume) {
+    logger.warn('[ResumeParsingWorker] No resume row found for parsing job', {
+      userId,
+      storageKey,
+      fileHash,
+    });
+    return;
+  }
 
-// ---------------------------------------------------------------------------
-// Worker instantiation
-// ---------------------------------------------------------------------------
+  await resumeMatcherService.parseAndStoreResumeFacts({
+    userId,
+    resumeVersionId: matchingResume.id,
+    fileBuffer,
+    mimeType,
+  });
+
+    await prisma.userResume.update({
+      where: { id: matchingResume.id },
+      data: { scanningStatus: 'clean', status: 'ready' },
+    });
+  });
+}
 
 export function startResumeParsingWorker(): Worker<ResumeParsingJobPayload> {
   const worker = new Worker<ResumeParsingJobPayload>(

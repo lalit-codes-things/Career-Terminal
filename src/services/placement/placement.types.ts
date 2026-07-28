@@ -35,6 +35,8 @@ export const SHARD_COUNT = 256 as const;
 export interface PlacementContext {
   /** Canonical home region (primary storage cell). */
   region: SupportedRegion;
+  /** Deterministic home cell identifier. */
+  cellId: string;
   /** Legal data-residency region (usually === region, sometimes stricter). */
   dataResidencyRegion: SupportedRegion;
   /** Integer shard key in [0, SHARD_COUNT) — for future DB partitioning. */

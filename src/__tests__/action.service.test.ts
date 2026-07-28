@@ -152,7 +152,7 @@ describe('ActionService', () => {
         strategyTags: ['old-tag', tag],
       });
 
-      const result = await actionService.addStrategyTag(eventId, tag);
+      await actionService.addStrategyTag(eventId, tag);
 
       expect(prisma.actionEvent.update).toHaveBeenCalledWith({
         where: { id: eventId },

@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { OutcomeEvent } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { analyticsService } from './analytics.service';
 
 export interface RecordOutcomeInput {
   applicationId: string;
@@ -154,6 +155,8 @@ export class OutcomeService {
         outcomeType: input.outcomeType,
         outcomeId: event.id,
       });
+
+      analyticsService.invalidateUser(input.userId);
 
       return event;
     });

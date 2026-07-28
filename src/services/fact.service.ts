@@ -1,9 +1,12 @@
 import { prisma } from '../config/database';
 import { FactObservation } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { cellRoutingService } from './routing/cell-routing.service';
 
 export interface RecordFactInput {
   userId: string;
+  extractionRunId: string;
+  provenanceId: string;
   factType: string;
   factData: any;
   sourceType: string;
@@ -19,7 +22,70 @@ export interface RecordFactInput {
   snapshotId?: string;
 }
 
+export interface CreateExtractionRunInput {
+  userId: string;
+  cellId?: string;
+  sourceType: string;
+  sourceId: string;
+  sourceVersion?: string;
+  sourceIdentity?: string;
+  parserVersion: string;
+  modelProvider?: string | null;
+  modelVersion?: string | null;
+  promptVersion?: string | null;
+  schemaVersion: string;
+}
+
+export interface ExtractionRunContext {
+  runId: string;
+  provenanceId: string;
+}
+
 export class FactService {
+  async createExtractionRun(input: CreateExtractionRunInput): Promise<ExtractionRunContext> {
+    const placement = input.cellId
+      ? { cellId: input.cellId }
+      : await cellRoutingService.resolveUserRouting(input.userId);
+    const context = await prisma.$transaction(async (tx) => {
+      const run = await tx.extractionRun.create({
+        data: {
+          userId: input.userId,
+          cellId: placement.cellId,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          sourceVersion: input.sourceVersion,
+          sourceIdentity: input.sourceIdentity,
+          parserVersion: input.parserVersion,
+          modelProvider: input.modelProvider ?? null,
+          modelVersion: input.modelVersion ?? null,
+          promptVersion: input.promptVersion ?? null,
+          schemaVersion: input.schemaVersion,
+          status: 'completed',
+          completedAt: new Date(),
+        },
+      });
+
+      return tx.factProvenance.create({
+        data: {
+          userId: input.userId,
+          cellId: placement.cellId,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          sourceVersion: input.sourceVersion,
+          sourceIdentity: input.sourceIdentity,
+          extractionRunId: run.id,
+          parserVersion: input.parserVersion,
+          modelProvider: input.modelProvider ?? null,
+          modelVersion: input.modelVersion ?? null,
+          promptVersion: input.promptVersion ?? null,
+          schemaVersion: input.schemaVersion,
+        },
+      });
+    });
+
+    return { runId: context.extractionRunId, provenanceId: context.id };
+  }
+
   /**
    * Record a new fact observation with provenance.
    * Handles versioning by superseding existing facts of the same type if they match the data signature.
@@ -46,6 +112,8 @@ export class FactService {
       const newFact = await tx.factObservation.create({
         data: {
           userId: input.userId,
+          extractionRunId: input.extractionRunId,
+          provenanceId: input.provenanceId,
           factType: input.factType,
           factData: input.factData,
           sourceType: input.sourceType,
@@ -78,6 +146,7 @@ export class FactService {
 
       logger.info('[FactService] Recorded new fact', {
         userId: input.userId,
+        extractionRunId: input.extractionRunId,
         factType: input.factType,
         version: nextVersion,
         factId: newFact.id,
@@ -98,6 +167,7 @@ export class FactService {
         isCurrent: true,
         deletedAt: null,
       },
+      include: { provenance: true, extractionRun: true },
       orderBy: { observedAt: 'desc' },
     });
   }

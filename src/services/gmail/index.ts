@@ -33,8 +33,8 @@ export type {
   TokenRefreshResult,
 } from './models/gmail.types';
 
-// Ingestion (placeholder)
+// Ingestion
 export { GmailIngestionService } from './ingestion/gmail-ingestion.service';
 
-// Processors (placeholder)
+// Processors
 export { GmailEmailProcessor } from './processors/email-processor';

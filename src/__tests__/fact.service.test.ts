@@ -31,6 +31,8 @@ describe('FactService', () => {
       extractionMethod: 'LLM',
       confidence: 0.95,
       observedAt: new Date(),
+      extractionRunId: 'run-1',
+      provenanceId: 'prov-1',
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
@@ -65,6 +67,8 @@ describe('FactService', () => {
       observedAt,
       validFrom,
       validTo,
+      extractionRunId: 'run-1',
+      provenanceId: 'prov-1',
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
@@ -100,6 +104,8 @@ describe('FactService', () => {
       confidence: 0.98,
       observedAt,
       snapshotId,
+      extractionRunId: 'run-1',
+      provenanceId: 'prov-1',
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
@@ -127,6 +133,8 @@ describe('FactService', () => {
       extractionMethod: 'LLM',
       confidence: 0.99,
       observedAt: new Date(),
+      extractionRunId: 'run-2',
+      provenanceId: 'prov-2',
     };
 
     const existing = { id: 'fact-1', userId, factType: 'SKILL', version: 1 };

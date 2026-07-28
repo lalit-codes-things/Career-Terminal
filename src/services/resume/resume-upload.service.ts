@@ -1,21 +1,13 @@
 /**
- * ResumeUploadService — SHA-256 content-addressed resume storage.
+ * ResumeUploadService - SHA-256 content-addressed resume storage.
  *
- * Deduplication algorithm:
- *
- *  1. Compute SHA-256 hash of the raw file buffer (before any transformation).
- *  2. Look up the hash in the `resume_hashes` table (indexed, fast).
- *  3a. CACHE HIT  → skip S3 upload entirely. Create a new `user_resumes` row
- *                   pointing at the existing `resume_hashes` row.
- *  3b. CACHE MISS → upload buffer to S3 at key `uploads/resumes/<hash>.<ext>`,
- *                   insert a new `resume_hashes` row, then create `user_resumes`.
- *
- * This means 1,000 users uploading the same generic "Harvard template" resume
- * produce exactly 1 S3 object and 1 resume_hashes row, but 1,000 user_resumes
- * rows (one per user-upload event). Storage savings are massive at scale.
- *
- * After a successful upload/dedup the service enqueues a resume-parsing job
- * so NLP extraction runs asynchronously without blocking the HTTP response.
+ * Upload flow:
+ *  1. Validate the file and compute a content hash.
+ *  2. Upload the bytes to quarantine storage first.
+ *  3. Create or reuse the clean resume hash record.
+ *  4. Create the user resume row in pending state.
+ *  5. Enqueue malware scanning.
+ *  6. Malware worker promotes clean files and enqueues parsing.
  */
 import { createHash } from 'crypto';
 import path from 'path';
@@ -23,12 +15,14 @@ import { PrismaClient, type Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import type { IStorageService } from '../storage/storage.service';
 import { storageService as defaultStorageService } from '../storage/storage.service';
-import { queueService } from '../queue/queue.service';
+import { eventDispatcher } from '../event/event-dispatcher.service';
+import { EVENT_TYPES } from '../event/event.types';
 import { ValidationError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
 import { sanitizeFilename } from '../../infrastructure/security/utils';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 import { userService } from '../user';
+import { placementService } from '../placement/placement.service';
 import {
   actionService,
   ACTION_TYPES,
@@ -36,21 +30,15 @@ import {
   buildResumeVersionTag,
 } from '../action.service';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
 ]);
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const QUARANTINE_BUCKET = process.env.RESUME_QUARANTINE_BUCKET ?? process.env.S3_BUCKET ?? '';
+const CLEAN_BUCKET = process.env.RESUME_CLEAN_BUCKET ?? process.env.S3_BUCKET ?? '';
 
 export interface ResumeUploadInput {
   userId: string;
@@ -63,14 +51,13 @@ export interface ResumeUploadResult {
   userResumeId: string;
   resumeHashId: string;
   storageKey: string;
-  /** Short-lived pre-signed URL for immediate client download. */
   presignedUrl: string;
-  /** true = file already existed in S3; false = freshly uploaded. */
   deduplicated: boolean;
   fileSizeBytes: number;
   hash: string;
-  /** The version number assigned to this upload for the user. */
   version: number;
+  scanningStatus: 'pending' | 'scanning' | 'clean' | 'infected';
+  status: 'pending' | 'ready' | 'failed';
 }
 
 export interface ResumeVersionInfo {
@@ -83,7 +70,6 @@ export interface ResumeVersionInfo {
   storageKey: string;
   fileSizeBytes: number;
   hash: string;
-  /** How many applications have been submitted using this resume version. */
   applicationCount: number;
 }
 
@@ -101,26 +87,13 @@ export type ApplicationResumeLinkContext =
   | { strategy: 'generic' }
   | { strategy: 'tailored'; tailoredForOpportunityId?: string };
 
-// ---------------------------------------------------------------------------
-// Service
-// ---------------------------------------------------------------------------
-
 export class ResumeUploadService {
   constructor(private readonly storage: IStorageService = defaultStorageService) {}
 
-  /**
-   * Upload a resume with full SHA-256 deduplication.
-   *
-   * @throws ValidationError  if the file type or size is invalid.
-   */
   async upload(input: ResumeUploadInput): Promise<ResumeUploadResult> {
     const { userId, fileBuffer, originalFilename, mimeType } = input;
-
-    // ── Validate ──────────────────────────────────────────────────────────
     this.validateFile(fileBuffer, mimeType, originalFilename);
     const safeFilename = sanitizeFilename(originalFilename);
-
-    // ── Step 1: Compute SHA-256 hash ──────────────────────────────────────
     const hash = createHash('sha256').update(fileBuffer).digest('hex');
 
     logger.info('[ResumeUpload] File hash computed', {
@@ -129,63 +102,47 @@ export class ResumeUploadService {
       bytes: fileBuffer.length,
     });
 
-    // ── Step 2: Check resume_hashes table for existing blob ───────────────
-    const existingHash = await prisma.resumeHash.findUnique({
-      where: { hash },
-    });
+    const ext = this.mimeToExtension(mimeType);
+    const quarantineBucket = QUARANTINE_BUCKET || CLEAN_BUCKET || 'resume-quarantine';
+    const cleanBucket = CLEAN_BUCKET || QUARANTINE_BUCKET || 'resume-clean';
+
+    const quarantineKey = `uploads/quarantine/resumes/${userId}/${hash}-${Date.now()}${ext}`;
+    const cleanStorageKey = `uploads/resumes/${hash}${ext}`;
+    const existingHash = await prisma.resumeHash.findUnique({ where: { hash } });
+
+    await this.storage.uploadToBucket(quarantineBucket, quarantineKey, fileBuffer, mimeType);
 
     let resumeHashId: string;
-    let storageKey: string;
-    let presignedUrl: string;
-    let deduplicated: boolean;
-
+    let deduplicated = false;
     if (existingHash) {
-      // ── Step 3a: Dedup hit — reuse existing S3 object ────────────────
       resumeHashId = existingHash.id;
-      storageKey = existingHash.storageKey;
       deduplicated = true;
-
-      // Generate a fresh presigned URL (the stored one may have expired)
-      presignedUrl = await this.storage.getPresignedUrl(storageKey);
-
-      logger.info('[ResumeUpload] Dedup hit — skipping S3 upload', {
+      logger.info('[ResumeUpload] Dedup hit after quarantine upload', {
         userId,
         hash,
-        storageKey,
+        cleanStorageKey,
       });
     } else {
-      // ── Step 3b: New blob — upload to S3 and record the hash ─────────
-      const ext = this.mimeToExtension(mimeType);
-      storageKey = `uploads/resumes/${hash}${ext}`;
-
-      const uploadResult = await this.storage.upload(storageKey, fileBuffer, mimeType);
-      presignedUrl = uploadResult.presignedUrl;
-      deduplicated = false;
-
-      // Persist hash record (unique constraint prevents races)
       const newHash = await prisma.resumeHash.create({
         data: {
           hash,
-          storageKey,
-          storageUrl: storageKey, // store the key; presigned URLs are ephemeral
+          storageKey: cleanStorageKey,
+          storageUrl: cleanStorageKey,
           mimeType,
           sizeBytes: fileBuffer.length,
         },
       });
-
       resumeHashId = newHash.id;
-
-      logger.info('[ResumeUpload] New blob uploaded and hash recorded', {
+      logger.info('[ResumeUpload] New blob recorded', {
         userId,
         hash,
-        storageKey,
+        cleanStorageKey,
       });
     }
 
-    // ── Step 4: Determine next version, mark previous active as superseded ─
     const userScope = await userService.userScopeFor(userId);
+    const placement = await placementService.resolvePlacementContext(userScope.userId);
     const ownershipFilter = userOwnershipFilter(userId);
-
     const currentMaxRow = await prisma.userResume.findFirst({
       where: ownershipFilter,
       orderBy: { version: 'desc' },
@@ -199,7 +156,6 @@ export class ResumeUploadService {
       data: { isActive: false, supersededAt: now },
     });
 
-    // ── Step 5: Create user_resumes record (with version) ─────────────────
     const userResume = await prisma.userResume.create({
       data: {
         userId: userScope.userId,
@@ -207,27 +163,39 @@ export class ResumeUploadService {
         originalName: safeFilename,
         resumeHashId,
         isActive: true,
+        scanningStatus: 'pending',
+        status: 'pending',
         version: nextVersion,
       },
     });
 
-    // ── Step 6: Enqueue async parsing job ────────────────────────────────
-    await queueService.addResumeParsingJob({
+    await eventDispatcher.publish({
+      eventType: EVENT_TYPES.RESUME_UPLOADED,
+      aggregateId: userResume.id,
+      aggregateType: 'UserResume',
       userId,
-      storageKey,
-      originalFilename: safeFilename,
-      mimeType,
-      fileHash: hash,
+      cellId: placement.cellId,
+      payload: {
+        userId,
+        cellId: placement.cellId,
+        userResumeId: userResume.id,
+        quarantineBucket,
+        quarantineKey,
+        cleanBucket,
+        cleanKey: cleanStorageKey,
+        originalFilename: safeFilename,
+        mimeType,
+        fileHash: hash,
+      },
     });
 
-    logger.info('[ResumeUpload] Upload complete', {
+    logger.info('[ResumeUpload] Upload queued for malware scan', {
       userId,
       userResumeId: userResume.id,
       deduplicated,
       version: nextVersion,
     });
 
-    // ── Step 7: Record RESUME_UPDATE action (Prompt 13) ──────────────────
     try {
       await actionService.recordAction({
         userId,
@@ -237,6 +205,7 @@ export class ResumeUploadService {
           userResumeId: userResume.id,
           version: nextVersion,
           deduplicated,
+          scanningStatus: 'pending',
         },
         sourceType: SOURCE_TYPES.SYSTEM_TRACKED,
         occurredAt: now,
@@ -249,21 +218,21 @@ export class ResumeUploadService {
       });
     }
 
+    const presignedUrl = await this.storage.getPresignedUrl(cleanStorageKey);
     return {
       userResumeId: userResume.id,
       resumeHashId,
-      storageKey,
+      storageKey: cleanStorageKey,
       presignedUrl,
       deduplicated,
       fileSizeBytes: fileBuffer.length,
       hash,
       version: nextVersion,
+      scanningStatus: 'pending',
+      status: 'pending',
     };
   }
 
-  /**
-   * Returns the active resume for a user, or null if none exists.
-   */
   async getActiveResume(userId: string): Promise<{
     userResumeId: string;
     originalName: string;
@@ -294,11 +263,6 @@ export class ResumeUploadService {
     };
   }
 
-  /**
-   * Returns the active resume row for linking to applications.
-   * Returns `null` when user has no resume — in that case the application
-   * should still be created (it just won't have a resume link yet).
-   */
   async getActiveResumeRow(userId: string): Promise<ActiveResumeRow | null> {
     const record = await prisma.userResume.findFirst({
       where: { ...userOwnershipFilter(userId), isActive: true },
@@ -317,10 +281,6 @@ export class ResumeUploadService {
     };
   }
 
-  /**
-   * List all resume versions for a user (oldest to newest) with aggregate
-   * application counts so the UI can warn before deleting a used version.
-   */
   async listVersions(userId: string): Promise<ResumeVersionInfo[]> {
     const ownershipFilter = userOwnershipFilter(userId);
     const rows = await prisma.userResume.findMany({
@@ -345,20 +305,16 @@ export class ResumeUploadService {
     }));
   }
 
-  /**
-   * Delete a specific resume version if it is NOT referenced by any
-   * application.  Throws ValidationError if the version is in use.
-   */
   async deleteVersion(userId: string, userResumeId: string): Promise<void> {
     const ownershipFilter = userOwnershipFilter(userId);
     const row = await prisma.userResume.findFirst({
       where: { id: userResumeId, ...ownershipFilter },
       include: { _count: { select: { applicationLinks: true } } },
     });
-    if (!row) return; // idempotent: missing is success
+    if (!row) return;
     if (row._count.applicationLinks > 0) {
       throw new ValidationError(
-        `Cannot delete resume version ${row.version} — it is linked to ${row._count.applicationLinks} application(s).`,
+        `Cannot delete resume version ${row.version} - it is linked to ${row._count.applicationLinks} application(s).`,
       );
     }
     await prisma.userResume.delete({ where: { id: row.id } });
@@ -369,15 +325,6 @@ export class ResumeUploadService {
     });
   }
 
-  /**
-   * Persist an immutable row in application_resumes linking a specific
-   * resume version to a specific application.  The snapshot storage key is
-   * copied from the resume hash row so the content reference survives any
-   * later update to the resume version record itself.
-   *
-   * Uses Prisma `upsert` keyed on application_id so re-running the link
-   * is idempotent (e.g. during retry of application ingestion).
-   */
   async linkApplicationResume(
     applicationId: string,
     activeRow: ActiveResumeRow,
@@ -408,11 +355,6 @@ export class ResumeUploadService {
     });
   }
 
-  /**
-   * Returns the resume metadata linked to a given application (or null if
-   * no linkage exists yet).  Used by the application detail API to show
-   * "which resume was used for this application".
-   */
   async getApplicationResume(applicationId: string): Promise<{
     userResumeId: string;
     version: number;
@@ -437,10 +379,6 @@ export class ResumeUploadService {
       fileSizeBytes: row.resumeVersion.resumeHash.sizeBytes,
     };
   }
-
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
 
   private validateFile(buffer: Buffer, mimeType: string, filename: string): void {
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -476,5 +414,4 @@ export class ResumeUploadService {
   }
 }
 
-// Singleton
 export const resumeUploadService = new ResumeUploadService();

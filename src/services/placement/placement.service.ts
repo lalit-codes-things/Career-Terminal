@@ -318,6 +318,7 @@ export class PlacementService {
 
     return {
       region,
+      cellId: `${region}-shard-${String(row.shardKey ?? computeShardKey(userId)).padStart(3, '0')}`,
       dataResidencyRegion,
       shardKey: row.shardKey ?? computeShardKey(userId),
       tenantId: row.tenantId ?? null,
@@ -329,6 +330,7 @@ export class PlacementService {
     const shardKey = computeShardKey(userId);
     return {
       region: DEFAULT_REGION,
+      cellId: `${DEFAULT_REGION}-shard-${String(shardKey).padStart(3, '0')}`,
       dataResidencyRegion: DEFAULT_REGION,
       shardKey,
       tenantId: null,
