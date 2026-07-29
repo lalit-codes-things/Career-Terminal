@@ -204,7 +204,7 @@ describe('IdempotencyService.recordOrGet', () => {
 
   it('refuses malformed keys when strictKeyValidation is on (default)', async () => {
     await expect(svc.recordOrGet('not-a-prefix', 'x', 'y')).rejects.toThrow(/does not match any canonical scheme/);
-    await expect(svc.recordOrGet('', 'x', 'y')).rejects.toThrow(/cannot be empty/);
+    await expect(svc.recordOrGet('', 'x', 'y')).rejects.toThrow(/does not match any canonical scheme/);
   });
 
   it('allows free-form keys with strictKeyValidation=false for legacy callers', async () => {

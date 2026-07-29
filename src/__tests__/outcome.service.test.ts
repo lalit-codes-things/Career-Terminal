@@ -11,7 +11,7 @@ jest.mock('../config/database', () => ({
     jobApplication: {
       update: jest.fn(),
     },
-    $transaction: jest.fn((callback) => callback(jest.requireActual('../config/database').prisma)),
+    $transaction: jest.fn((callback) => callback(prisma)),
   },
 }));
 

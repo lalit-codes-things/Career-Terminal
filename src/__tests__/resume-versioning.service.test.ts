@@ -19,9 +19,18 @@ jest.mock('../config/database', () => ({
       create: jest.fn(),
       delete: jest.fn(),
     },
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
     applicationResume: {
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       upsert: jest.fn(),
+    },
+    event: {
+      create: jest.fn().mockResolvedValue({ id: 'evt-1' }),
+      update: jest.fn(),
     },
   },
 }));
@@ -80,10 +89,11 @@ type MockPrisma = {
     create: jest.Mock;
     delete: jest.Mock;
   };
-  applicationResume: {
-    findUnique: jest.Mock;
-    upsert: jest.Mock;
-  };
+applicationResume: {
+     findFirst: jest.Mock;
+     findUnique: jest.Mock;
+     upsert: jest.Mock;
+   };
 };
 
 type MockStorage = jest.Mocked<IStorageService>;
@@ -466,7 +476,7 @@ describe('ResumeUploadService — application linkage', () => {
     });
 
     expect(mockPrisma.applicationResume.upsert).toHaveBeenCalledWith({
-      where: { applicationId: APPLICATION_ID },
+      where: { applicationId_resumeVersionId: { applicationId: APPLICATION_ID, resumeVersionId: USER_RESUME_V1_ID } },
       create: expect.objectContaining({
         applicationId: APPLICATION_ID,
         resumeVersionId: USER_RESUME_V1_ID,
@@ -500,13 +510,13 @@ describe('ResumeUploadService — application linkage', () => {
   });
 
   it('getApplicationResume returns null when no link exists', async () => {
-    mockPrisma.applicationResume.findUnique.mockResolvedValue(null);
+    mockPrisma.applicationResume.findFirst.mockResolvedValue(null);
     expect(await service.getApplicationResume(APPLICATION_ID)).toBeNull();
   });
 
   it('getApplicationResume returns the snapshot metadata when linked', async () => {
     const appliedAt = new Date('2026-03-01');
-    mockPrisma.applicationResume.findUnique.mockResolvedValue({
+    mockPrisma.applicationResume.findFirst.mockResolvedValue({
       id: 'ar-1',
       applicationId: APPLICATION_ID,
       resumeVersionId: USER_RESUME_V1_ID,
