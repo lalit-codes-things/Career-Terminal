@@ -151,7 +151,7 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -235,7 +235,7 @@ describe('2. Historical extraction runs remain unchanged', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -297,7 +297,7 @@ describe('3. Provenance remains traceable', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
   });
 
   it('canonical record carries provenanceId pointing to the winning extraction run', async () => {
@@ -356,7 +356,7 @@ describe('4. Older extraction cannot silently overwrite newer canonical data', (
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -444,7 +444,7 @@ describe('5. Duplicate processing is idempotent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -497,7 +497,7 @@ describe('6. Conflict resolution is deterministic', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -585,7 +585,7 @@ describe('7. Cross-user access is rejected', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockRouting();
     mockTransaction();
   });
@@ -649,7 +649,7 @@ describe('8. Cross-cell access is rejected', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
     mockTransaction();
   });
 
@@ -712,7 +712,7 @@ describe('9. Read model does not expose raw extraction data by default', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new CanonicalIntelligenceService(prisma as any);
+    svc = new CanonicalIntelligenceService(prisma);
   });
 
   it('getForUser without includeFactData returns no factData property', async () => {

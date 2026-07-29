@@ -111,7 +111,7 @@ export class CareerTaxonomyService {
       }
 
       this.records.push({
-        source: row.source.toLowerCase() as 'onet' | 'esco',
+        source: row.source.toLowerCase(),
         kind: 'skill',
         id: row.id,
         label,
@@ -141,7 +141,7 @@ export class CareerTaxonomyService {
       }
 
       this.records.push({
-        source: row.source.toLowerCase() as 'onet' | 'esco' | 'isco',
+        source: row.source.toLowerCase(),
         kind: 'occupation',
         id: row.id,
         label,

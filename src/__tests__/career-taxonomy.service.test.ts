@@ -12,6 +12,8 @@
  *  6. Empty DB tables result in empty term sets (no crash, no hardcoded fallback).
  */
 
+import * as fs from 'fs/promises';
+
 // ── Mock database — must be declared before any import that touches prisma ──
 
 jest.mock('../config/database', () => ({
@@ -97,8 +99,7 @@ describe('CareerTaxonomyService', () => {
 
     // If fs.readFile were called the mock above would throw; reaching here
     // means it was never invoked.
-    const fsMock = require('fs/promises');
-    expect(fsMock.readFile).not.toHaveBeenCalled();
+    expect(fs.readFile).not.toHaveBeenCalled();
   });
 
   it('selects canonical_name and aliases in the DB query', async () => {

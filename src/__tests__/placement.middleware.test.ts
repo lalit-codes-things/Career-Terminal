@@ -28,7 +28,7 @@ describe('placementMiddleware', () => {
 
   it('should attach placement, region, and dataPlaneClient for authenticated user', async () => {
     const userId = 'user-123';
-    req.user = { id: userId } as any;
+    req.user = { id: userId };
     const mockContext = {
       region: 'eu-west-1',
       dataResidencyRegion: 'eu-west-1',
@@ -59,7 +59,7 @@ describe('placementMiddleware', () => {
   });
 
   it('should use fallback on service error', async () => {
-    req.user = { id: 'user-123' } as any;
+    req.user = { id: 'user-123' };
     (placementService.resolvePlacementContext as jest.Mock).mockRejectedValue(new Error('DB Down'));
 
     await placementMiddleware(req as Request, res as Response, next);

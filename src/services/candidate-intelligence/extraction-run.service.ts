@@ -352,7 +352,7 @@ export class ExtractionRunService {
       modelVersion: r.modelVersion,
       promptVersion: r.promptVersion,
       schemaVersion: r.schemaVersion,
-      status: r.status as ExtractionRunStatus,
+      status: r.status,
       failureReason: r.failureReason,
       startedAt: r.startedAt,
       completedAt: r.completedAt,

@@ -381,170 +381,125 @@ model Recruiter {
 }
 
 model Opportunity {
-  id             String           @id @default(uuid()) @db.Uuid
-  companyId      String           @map("company_id") @db.Uuid
-  title          String
-  description    String?          @db.Text
-  location       String?
-  salaryRange    Json?            @map("salary_range")
-  requirements   Json?
-  url            String?
-  sourceMetadata Json?            @map("source_metadata")
-  firstSeenAt    DateTime         @default(now()) @map("first_seen_at") @db.Timestamptz
-  lastSeenAt     DateTime         @default(now()) @map("last_seen_at") @db.Timestamptz
-  isCurrent      Boolean          @default(true) @map("is_current")
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz
-  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  applications   JobApplication[]
-  actionEvents   ActionEvent[]
-  predictions    Prediction[]
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @map("company_id") @db.Uuid
+  externalId        String?          @map("external_id")
+  title             String
+  description       String?          @db.Text
+  location          String?
+  salaryRange       String?          @map("salary_range")
+  employmentType    String?          @map("employment_type")
+  workSetting       String?          @map("work_setting")
+  postedAt          DateTime?        @map("posted_at") @db.Timestamptz
+  expiresAt         DateTime?        @map("expires_at") @db.Timestamptz
+  careersPageUrl    String?          @map("careers_page_url")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  applications      JobApplication[]
+  factObservations  FactObservation[]
+  extractionRuns    ExtractionRun[]
+  predictions       Prediction[]
+  actionEvents      ActionEvent[]
 
-  @@index([companyId, title])
   @@index([companyId])
-  @@index([isCurrent])
-  @@index([firstSeenAt])
-  @@index([lastSeenAt])
-  @@index([url])
+  @@index([title])
+  @@index([location])
   @@map("opportunities")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// JOB APPLICATIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
 model JobApplication {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @map("user_id") @db.Uuid
-  legacyUserId     String   @map("legacy_user_id")
-  companyId        String?  @map("company_id") @db.Uuid
-  recruiterId      String?  @map("recruiter_id") @db.Uuid
-  opportunityId    String?  @map("opportunity_id") @db.Uuid
-  companyName      String   @map("company_name")
-  companyDomain    String   @map("company_domain")
-  roleTitle        String   @map("role_title")
-  roleDepartment   String   @map("role_department")
-  status           String
-  appliedDate      DateTime @map("applied_date") @db.Timestamptz
-  recruiterName    String?  @map("recruiter_name")
-  recruiterEmail   String?  @map("recruiter_email")
-  sourceEmailId    String?  @map("source_email_id")
-  location         String?
-  employmentType   String?  @map("employment_type")
-  currentStage     String?  @map("current_stage")
-  interviewRounds  Int      @default(0) @map("interview_rounds")
-  deadlines        String[]
-  candidateEmail   String?  @map("candidate_email")
-  atsApplicationId String?  @map("ats_application_id")
-  threadIds        String[] @map("thread_ids")
-  snapshotId       String?  @map("snapshot_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company       Company?                   @relation(fields: [companyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  recruiter     Recruiter?                 @relation(fields: [recruiterId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  opportunity   Opportunity?               @relation(fields: [opportunityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  sources       ApplicationSource[]
-  timeline      ApplicationTimeline[]
-  statusHistory ApplicationStatusHistory[]
-  resumes       ApplicationResume[]
-  snapshot      Snapshot?                  @relation(fields: [snapshotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  outcomeEvents OutcomeEvent[]
-  emailMessages EmailMessage[]
-  actionEvents  ActionEvent[]
-  predictions   Prediction[]
+  id                  String                      @id @default(uuid()) @db.Uuid
+  userId              String                      @map("user_id") @db.Uuid
+  legacyUserId        String?                     @map("legacy_user_id")
+  companyId           String?                     @map("company_id") @db.Uuid
+  opportunityId       String?                     @map("opportunity_id") @db.Uuid
+  recruiterId         String?                     @map("recruiter_id") @db.Uuid
+  snapshotId          String?                     @map("snapshot_id") @db.Uuid
+  companyName         String?                     @map("company_name")
+  companyDomain       String?                     @map("company_domain")
+  roleTitle           String?                     @map("role_title")
+  roleDepartment      String?                     @map("role_department")
+  status              ApplicationStatus           @default(SAVED)
+  sourceProvider      ApplicationSourceProvider   @default(MANUAL) @map("source_provider")
+  appliedAt           DateTime?                   @map("applied_at") @db.Timestamptz
+  appliedDate         DateTime?                   @map("applied_date") @db.Timestamptz
+  lastActivityAt      DateTime                    @default(now()) @map("last_activity_at") @db.Timestamptz
+  recruiterName       String?                     @map("recruiter_name")
+  recruiterEmail      String?                     @map("recruiter_email")
+  sourceEmailId       String?                     @map("source_email_id")
+  location            String?
+  employmentType      String?                     @map("employment_type")
+  currentStage        String?                     @map("current_stage")
+  interviewRounds     Int                         @default(0) @map("interview_rounds")
+  deadlines           String[]                    @default([])
+  threadIds           String[]                    @default([]) @map("thread_ids")
+  atsApplicationId    String?                     @map("ats_application_id")
+  candidateEmail      String?                     @map("candidate_email")
+  metadata            Json                        @default("{}")
+  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime                    @updatedAt @map("updated_at") @db.Timestamptz
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company             Company?                    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity         Opportunity?                @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  recruiter           Recruiter?                  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  snapshot            Snapshot?                   @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  emails              EmailMessage[]
+  timeline            ApplicationTimelineEvent[]
+  resumes             Resume[]
+  factObservations    FactObservation[]
+  extractionRuns      ExtractionRun[]
+  predictions         Prediction[]
+  outcomeEvents       OutcomeEvent[]
+  actionEvents        ActionEvent[]
 
   @@index([userId])
-  @@index([legacyUserId])
   @@index([companyId])
-  @@index([recruiterId])
   @@index([opportunityId])
   @@index([status])
+  @@index([snapshotId])
   @@map("job_applications")
 }
 
-model ApplicationSource {
-  id                     String         @id @default(uuid()) @db.Uuid
-  applicationId          String         @map("application_id") @db.Uuid
-  provider               String
-  providerMessageId      String?        @map("provider_message_id")
-  providerThreadId       String?        @map("provider_thread_id")
-  providerConversationId String?        @map("provider_conversation_id")
-  providerMetadata       Json?          @map("provider_metadata")
-  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz
-  application            JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([providerMessageId])
-  @@map("application_sources")
-}
-
-model ApplicationTimeline {
+model ApplicationTimelineEvent {
   id            String                       @id @default(uuid()) @db.Uuid
   applicationId String                       @map("application_id") @db.Uuid
   eventType     ApplicationTimelineEventType @map("event_type")
-  timestamp     DateTime                     @db.Timestamptz
-  sourceEmailId String?                      @map("source_email_id")
-  metadata      Json?
-  description   String?                      @db.Text
+  occurredAt    DateTime                     @map("occurred_at") @db.Timestamptz
+  metadata      Json                         @default("{}")
   createdAt     DateTime                     @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime                     @updatedAt @map("updated_at") @db.Timestamptz
   application   JobApplication               @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
-  @@index([timestamp])
-  @@map("application_timeline")
-}
-
-model ApplicationStatusHistory {
-  id              String             @id @default(uuid()) @db.Uuid
-  applicationId   String             @map("application_id") @db.Uuid
-  previousStatus  ApplicationStatus? @map("previous_status")
-  status          ApplicationStatus
-  source          String
-  sourceEmailId   String?            @map("source_email_id")
-  changedByUserId String?            @map("changed_by_user_id")
-  timestamp       DateTime           @db.Timestamptz
-  metadata        Json?
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz
-  application     JobApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([applicationId, timestamp])
-  @@map("application_status_history")
+  @@index([occurredAt])
+  @@map("application_timeline_events")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EMAIL MESSAGES
+// EMAIL / MESSAGES
 // ─────────────────────────────────────────────────────────────────────────────
 
 model EmailMessage {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @map("user_id") @db.Uuid
-  legacyUserId      String   @map("legacy_user_id")
-  connectionId      String   @map("connection_id") @db.Uuid
-  applicationId     String?  @map("application_id") @db.Uuid
-  recruiterId       String?  @map("recruiter_id") @db.Uuid
-  providerMessageId String   @map("provider_message_id")
-  threadId          String?  @map("thread_id")
-  sender            String
-  recipients        Json
-  subject           String   @default("")
-  bodyText          String?  @map("body_text") @db.Text
-  bodyHtml          String?  @map("body_html") @db.Text
-  labels            String[]
-  hasAttachments    Boolean  @default(false) @map("has_attachments")
-  receivedAt        DateTime @map("received_at") @db.Timestamptz
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                String         @id @default(uuid()) @db.Uuid
+  applicationId     String?        @map("application_id") @db.Uuid
+  recruiterId       String?        @map("recruiter_id") @db.Uuid
+  providerMessageId String         @unique @map("provider_message_id")
+  threadId          String         @map("thread_id")
+  subject           String?
+  snippet           String?        @db.Text
+  body              String?        @db.Text
+  from              String?
+  to                String[]
+  receivedAt        DateTime       @map("received_at") @db.Timestamptz
+  isRead            Boolean        @default(false) @map("is_read")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  application       JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  recruiter         Recruiter?     @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  attachments       EmailAttachment[]
+  factObservations  FactObservation[]
+  extractionRuns    ExtractionRun[]
 
-  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  recruiter   Recruiter?      @relation(fields: [recruiterId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-
-  @@unique([legacyUserId, providerMessageId], name: "unique_user_message")
-  @@index([userId])
-  @@index([connectionId])
   @@index([applicationId])
   @@index([recruiterId])
   @@index([threadId])
@@ -552,295 +507,222 @@ model EmailMessage {
   @@map("email_messages")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RESUME DEDUP + VERSIONING (Canonical old world)
-// ─────────────────────────────────────────────────────────────────────────────
+model EmailAttachment {
+  id             String       @id @default(uuid()) @db.Uuid
+  emailMessageId String       @map("email_message_id") @db.Uuid
+  filename       String
+  contentType    String       @map("content_type")
+  size           Int
+  s3Key          String       @map("s3_key")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  emailMessage   EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
 
-model ResumeHash {
-  id          String       @id @default(uuid()) @db.Uuid
-  hash        String       @unique
-  storageKey  String       @map("storage_key")
-  storageUrl  String       @map("storage_url")
-  mimeType    String       @map("mime_type")
-  sizeBytes   Int          @map("size_bytes")
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
-  userResumes UserResume[]
-  resumes     Resume[]
-
-  @@index([hash])
-  @@map("resume_hashes")
+  @@index([emailMessageId])
+  @@map("email_attachments")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RESUMES / ARTIFACTS
+// ─────────────────────────────────────────────────────────────────────────────
+
 model UserResume {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @map("user_id") @db.Uuid
-  legacyUserId   String    @map("legacy_user_id")
-  originalName   String    @map("original_name")
-  resumeHashId   String    @map("resume_hash_id") @db.Uuid
-  isActive       Boolean   @default(false) @map("is_active")
-  scanningStatus String    @default("pending") @map("scanning_status")
-  status         String    @default("pending") @map("status")
-  version        Int
-  supersededAt   DateTime? @map("superseded_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  filename       String
+  s3Key          String   @map("s3_key")
+  contentType    String   @map("content_type")
+  isPrimary      Boolean  @default(false) @map("is_primary")
+  parsedContent  Json?    @map("parsed_content")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resumeHash       ResumeHash          @relation(fields: [resumeHashId], references: [id], onDelete: Cascade)
-  applicationLinks ApplicationResume[]
-
-  @@unique([userId, version], name: "unique_user_resume_version")
   @@index([userId])
-  @@index([legacyUserId])
   @@map("user_resumes")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RESUME — Newer simplified Resume model (coexists with UserResume/ResumeHash)
-// ─────────────────────────────────────────────────────────────────────────────
-
 model Resume {
-  id                 String              @id @default(uuid()) @db.Uuid
-  userId             String              @map("user_id") @db.Uuid
-  storageKey         String              @map("storage_key")
-  filename           String
-  fileHash           String              @map("file_hash")
-  resumeHashId       String?             @map("resume_hash_id") @db.Uuid
-  mimeType           String              @map("mime_type")
-  fileSize           Int                 @map("file_size")
-  isPrimary          Boolean             @default(false) @map("is_primary")
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resumeHash         ResumeHash?         @relation(fields: [resumeHashId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  applicationResumes ApplicationResume[]
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  applicationId   String?         @map("application_id") @db.Uuid
+  resumeVersionId String?         @map("resume_version_id") @db.Uuid
+  filename        String
+  s3Key           String          @map("s3_key")
+  contentType     String          @map("content_type")
+  parsedContent   Json?           @map("parsed_content")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application    JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  factObservations FactObservation[]
+  extractionRuns   ExtractionRun[]
 
   @@index([userId])
+  @@index([applicationId])
   @@map("resumes")
 }
 
-model ApplicationResume {
-  id               String   @id @default(uuid()) @db.Uuid
-  applicationId    String   @unique @map("application_id") @db.Uuid
-  resumeId         String?  @map("resume_id") @db.Uuid
-  resumeVersionId  String   @map("resume_version_id") @db.Uuid
-  snapshotKey      String   @map("snapshot_key")
-  snapshotMetadata Json?    @map("snapshot_metadata")
-  appliedAt        DateTime @map("applied_at") @db.Timestamptz
-  usageContext     Json?    @map("usage_context")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  resume        Resume?        @relation(fields: [resumeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  resumeVersion UserResume     @relation(fields: [resumeVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  @@unique([applicationId, resumeId], name: "applicationId_resumeId")
-  @@index([resumeVersionId])
-  @@index([appliedAt])
-  @@map("application_resumes")
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// IDEMPOTENCY
+// KNOWLEDGE GRAPH / CANONICAL INTELLIGENCE
 // ─────────────────────────────────────────────────────────────────────────────
 
-model IdempotencyRecord {
-  id            String   @id @default(uuid()) @db.Uuid
-  key           String   @unique
-  operationType String   @map("operation_type")
-  resultId      String   @map("result_id")
-  resultData    Json?    @map("result_data")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-  expiresAt     DateTime @map("expires_at") @db.Timestamptz
-
-  @@index([operationType])
-  @@index([expiresAt])
-  @@index([key, expiresAt])
-  @@map("idempotency_records")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PROMPTS 9–12 — Facts, Snapshots, Outcomes (Intelligence & Scale Foundation)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Stores individual pieces of structured intelligence with full provenance and versioning.
 model FactObservation {
-  id                String  @id @default(uuid()) @db.Uuid
-  userId            String  @map("user_id") @db.Uuid
-  extractionRunId   String  @map("extraction_run_id") @db.Uuid
-  provenanceId      String  @unique @map("provenance_id") @db.Uuid
-  factType          String  @map("fact_type")
-  factData          Json    @map("fact_data")
-  sourceType        String  @map("source_type")
-  sourceId          String  @map("source_id")
-  sourceVersion     String? @map("source_version")
-  extractionMethod  String  @map("extraction_method")
-  modelVersion      String? @map("model_version")
-  confidence        Float   @default(1.0)
-  evidenceReference String? @map("evidence_reference") @db.Text
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  factType          String   @map("fact_type")
+  factData          Json     @map("fact_data")
+  sourceType        String   @map("source_type")
+  sourceId          String   @map("source_id")
+  sourceVersion     String?  @map("source_version")
+  extractionMethod  String   @map("extraction_method")
+  modelVersion      String?  @map("model_version")
+  confidence        Float    @default(1.0)
+  evidenceReference String?  @map("evidence_reference")
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  observedAt        DateTime @default(now()) @map("observed_at") @db.Timestamptz
+  snapshotId        String?  @map("snapshot_id") @db.Uuid
+  extractedAt       DateTime @default(now()) @map("extracted_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+  isCurrent         Boolean  @default(true) @map("is_current")
+  supersededById    String?  @map("superseded_by_id") @db.Uuid
+  supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
+  correctedBy       String?  @map("corrected_by") @db.Uuid
+  correctedAt       DateTime? @map("corrected_at") @db.Timestamptz
+  correctionReason  String?  @map("correction_reason")
+  isUserCorrected   Boolean  @default(false) @map("is_user_corrected")
+  needsReview       Boolean  @default(false) @map("needs_review")
+  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz
+  reviewedBy        String?  @map("reviewed_by") @db.Uuid
+  reviewStatus      String?  @map("review_status")
+  reviewNotes       String?  @map("review_notes")
+  deduplicationKey  String?  @map("deduplication_key")
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
 
-  // Temporal validity (Prompt 10)
-  validFrom DateTime? @map("valid_from") @db.Timestamptz
-  validTo   DateTime? @map("valid_to") @db.Timestamptz
-
-  // Observation context (Prompt 10)
-  observedAt DateTime @map("observed_at") @db.Timestamptz
-  snapshotId String?  @map("snapshot_id") @db.Uuid
-
-  extractedAt DateTime @default(now()) @map("extracted_at") @db.Timestamptz
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Versioning fields
-  version        Int       @default(1)
-  isCurrent      Boolean   @default(true) @map("is_current")
-  supersededById String?   @map("superseded_by_id") @db.Uuid
-  supersededAt   DateTime? @map("superseded_at") @db.Timestamptz
-
-  // Correction fields (Prompt 11)
-  correctedBy      String?   @map("corrected_by") @db.Uuid
-  correctedAt      DateTime? @map("corrected_at") @db.Timestamptz
-  correctionReason String?   @map("correction_reason") @db.Text
-  isUserCorrected  Boolean   @default(false) @map("is_user_corrected")
-
-  // Review fields (Prompt 11)
-  needsReview  Boolean   @default(false) @map("needs_review")
-  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz
-  reviewedBy   String?   @map("reviewed_by") @db.Uuid
-  reviewStatus String?   @map("review_status")
-  reviewNotes  String?   @map("review_notes") @db.Text
-
-  // Soft deletion
-  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
-
-  user                  User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  extractionRun         ExtractionRun                    @relation(fields: [extractionRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  provenance            FactProvenance                   @relation(fields: [provenanceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  snapshot              Snapshot?                        @relation(fields: [snapshotId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  supersededBy          FactObservation?                 @relation("FactVersionChain", fields: [supersededById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  supersedes            FactObservation[]                @relation("FactVersionChain")
-  correctedByUser       User?                            @relation("FactCorrectedBy", fields: [correctedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  reviewedByUser        User?                            @relation("FactReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  canonicalIntelligence CanonicalCandidateIntelligence[] @relation("CanonicalSourceFact")
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userCorrectedBy  User?           @relation("FactCorrectedBy", fields: [correctedBy], references: [id], onDelete: SetNull)
+  userReviewedBy   User?           @relation("FactReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  email            EmailMessage?   @relation(fields: [sourceId], references: [id], map: "fact_email_fk", onDelete: Cascade)
+  resume           Resume?         @relation(fields: [sourceId], references: [id], map: "fact_resume_fk", onDelete: Cascade)
+  opportunity      Opportunity?    @relation(fields: [sourceId], references: [id], map: "fact_opportunity_fk", onDelete: Cascade)
+  application      JobApplication? @relation(fields: [sourceId], references: [id], map: "fact_application_fk", onDelete: Cascade)
+  snapshot         Snapshot?       @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  supersededBy     FactObservation? @relation("FactSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes       FactObservation[] @relation("FactSupersededBy")
+  extractionRunId  String?          @map("extraction_run_id") @db.Uuid
+  provenanceId     String?          @map("provenance_id") @db.Uuid
+  extractionRun    ExtractionRun?   @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
+  provenance       FactProvenance?  @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
+  canonicalLinks   CanonicalCandidateIntelligence[]
 
   @@index([userId, factType, isCurrent])
   @@index([userId, isCurrent])
   @@index([sourceId, sourceType])
   @@index([userId, observedAt])
-  @@index([extractionRunId])
   @@index([snapshotId])
   @@index([needsReview, reviewStatus])
-  @@index([validFrom])
-  @@index([validTo])
   @@map("fact_observations")
 }
 
-model ExtractionRun {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @map("user_id") @db.Uuid
-  cellId         String    @map("cell_id")
-  sourceType     String    @map("source_type")
-  sourceId       String    @map("source_id")
-  sourceVersion  String?   @map("source_version")
-  sourceIdentity String?   @map("source_identity")
-  parserVersion  String    @map("parser_version")
-  modelProvider  String?   @map("model_provider")
-  modelVersion   String?   @map("model_version")
-  promptVersion  String?   @map("prompt_version")
-  schemaVersion  String    @map("schema_version")
-  status         String    @default("pending")
-  failureReason  String?   @map("failure_reason") @db.Text
-  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz
-  completedAt    DateTime? @map("completed_at") @db.Timestamptz
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+model Snapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  snapshotType  String   @map("snapshot_type")
+  referenceId   String?  @map("reference_id") @db.Uuid
+  capturedAt    DateTime @default(now()) @map("captured_at") @db.Timestamptz
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provenance FactProvenance[]
-  facts      FactObservation[]
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facts         FactObservation[]
+  applications  JobApplication[]
+
+  @@index([userId, snapshotType])
+  @@index([referenceId])
+  @@index([capturedAt])
+  @@map("snapshots")
+}
+
+model ExtractionRun {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  cellId           String?  @map("cell_id")
+  sourceType       String   @map("source_type")
+  sourceId         String   @map("source_id")
+  modelId          String   @map("model_id")
+  status           String   @default("pending")
+  startedAt        DateTime? @map("started_at") @db.Timestamptz
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz
+  error            String?   @db.Text
+  metadata         Json     @default("{}")
+  parserVersion    String?   @map("parser_version")
+  modelProvider    String?   @map("model_provider")
+  promptVersion    String?   @map("prompt_version")
+  schemaVersion    String?   @map("schema_version")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email            EmailMessage?   @relation(fields: [sourceId], references: [id], map: "extraction_email_fk", onDelete: Cascade)
+  resume           Resume?         @relation(fields: [sourceId], references: [id], map: "extraction_resume_fk", onDelete: Cascade)
+  opportunity      Opportunity?    @relation(fields: [sourceId], references: [id], map: "extraction_opportunity_fk", onDelete: Cascade)
+  application      JobApplication? @relation(fields: [sourceId], references: [id], map: "extraction_application_fk", onDelete: Cascade)
+  model            Model           @relation(fields: [modelId], references: [id])
+  predictions      Prediction[]
+  facts            FactObservation[]
+  provenance       FactProvenance?
 
   @@index([userId])
-  @@index([cellId])
   @@index([sourceType, sourceId])
   @@map("extraction_runs")
 }
 
 model FactProvenance {
-  id              String   @id @default(uuid()) @db.Uuid
-  userId          String   @map("user_id") @db.Uuid
-  cellId          String   @map("cell_id")
-  sourceType      String   @map("source_type")
-  sourceId        String   @map("source_id")
-  sourceVersion   String?  @map("source_version")
-  sourceIdentity  String?  @map("source_identity")
-  extractionRunId String   @unique @map("extraction_run_id") @db.Uuid
-  parserVersion   String   @map("parser_version")
-  modelProvider   String?  @map("model_provider")
-  modelVersion    String?  @map("model_version")
-  promptVersion   String?  @map("prompt_version")
-  schemaVersion   String   @map("schema_version")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  cellId           String   @map("cell_id")
+  sourceType       String   @map("source_type")
+  sourceId         String   @map("source_id")
+  sourceVersion    String?  @map("source_version")
+  sourceIdentity   String?  @map("source_identity")
+  extractionRunId  String   @unique @map("extraction_run_id") @db.Uuid
+  parserVersion    String   @map("parser_version")
+  modelProvider    String   @map("model_provider")
+  modelVersion     String   @map("model_version")
+  promptVersion    String   @map("prompt_version")
+  schemaVersion    String   @map("schema_version")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  user                  User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  extractionRun         ExtractionRun                    @relation(fields: [extractionRunId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  facts                 FactObservation[]
-  canonicalIntelligence CanonicalCandidateIntelligence[] @relation("CanonicalProvenance")
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extractionRun    ExtractionRun   @relation(fields: [extractionRunId], references: [id], onDelete: Cascade)
+  facts            FactObservation[]
+  canonicalLinks   CanonicalCandidateIntelligence[]
 
   @@index([userId])
-  @@index([cellId])
   @@map("fact_provenance")
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CANONICAL CANDIDATE INTELLIGENCE (Epic 4 Prompt 4)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// One canonical current record per (userId, factType, deduplicationKey).
-/// Points to the winning FactObservation — does NOT copy raw data.
-/// Updated when a higher-confidence or more-recent extraction supersedes it.
 model CanonicalCandidateIntelligence {
-  id     String @id @default(uuid()) @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  cellId String @map("cell_id")
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  cellId           String   @map("cell_id")
+  factType         String   @map("fact_type")
+  deduplicationKey String   @map("deduplication_key")
+  sourceFactId     String   @map("source_fact_id") @db.Uuid
+  provenanceId     String   @map("provenance_id") @db.Uuid
+  confidence       Float    @default(1.0)
+  lastObservedAt   DateTime @map("last_observed_at") @db.Timestamptz
+  sourceVersion    String?  @map("source_version")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  /// Semantic category (SKILL, EXPERIENCE, EDUCATION, PROJECT, CERTIFICATION, …)
-  factType String @map("fact_type")
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceFact       FactObservation @relation(fields: [sourceFactId], references: [id], onDelete: Restrict)
+  provenance       FactProvenance  @relation(fields: [provenanceId], references: [id], onDelete: Restrict)
 
-  /// Stable key that determines uniqueness within a factType for a user.
-  /// For SKILL: normalised skill name.
-  /// For EXPERIENCE/EDUCATION/PROJECT/CERTIFICATION: content hash of key fields.
-  /// This is NOT the fact data — it is only the deduplication discriminator.
-  deduplicationKey String @map("deduplication_key")
-
-  /// FK to the winning FactObservation.  RESTRICT prevents orphan canonical rows.
-  sourceFactId String @map("source_fact_id") @db.Uuid
-
-  /// FK to the FactProvenance of the winning run — kept for quick provenance
-  /// look-up without joining through FactObservation.
-  provenanceId String @map("provenance_id") @db.Uuid
-
-  /// Confidence of the winning fact [0, 1].
-  confidence Float @default(1.0)
-
-  /// observedAt copied from the winning FactObservation so the read model can
-  /// answer "when was this last confirmed?" without a join.
-  lastObservedAt DateTime @map("last_observed_at") @db.Timestamptz
-
-  /// sourceVersion of the winning extraction run's source document.
-  sourceVersion String? @map("source_version")
-
-  /// Whether this record is logically active (false = soft-retired).
-  isActive Boolean @default(true) @map("is_active")
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceFact FactObservation @relation("CanonicalSourceFact", fields: [sourceFactId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  provenance FactProvenance  @relation("CanonicalProvenance", fields: [provenanceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  /// One active canonical record per user × factType × deduplicationKey.
   @@unique([userId, factType, deduplicationKey], name: "unique_canonical_per_user_type_key")
   @@index([userId, factType, isActive])
   @@index([userId, isActive])
@@ -850,62 +732,35 @@ model CanonicalCandidateIntelligence {
   @@map("canonical_candidate_intelligence")
 }
 
-model Snapshot {
-  id               String            @id @default(uuid()) @db.Uuid
-  userId           String            @map("user_id") @db.Uuid
-  snapshotType     String            @map("snapshot_type")
-  referenceId      String?           @map("reference_id") @db.Uuid
-  capturedAt       DateTime          @default(now()) @map("captured_at") @db.Timestamptz
-  description      String?           @db.Text
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  factObservations FactObservation[]
-  applications     JobApplication[]
+// ─────────────────────────────────────────────────────────────────────────────
+// ANALYTICS / PREDICTIONS
+// ─────────────────────────────────────────────────────────────────────────────
 
-  @@index([userId, snapshotType])
-  @@index([referenceId])
-  @@index([capturedAt])
-  @@map("snapshots")
-}
-
-/// Stores outcome events for job applications (Prompt 12)
 model OutcomeEvent {
-  id              String  @id @default(uuid()) @db.Uuid
-  applicationId   String  @map("application_id") @db.Uuid
-  userId          String  @map("user_id") @db.Uuid
-  outcomeType     String  @map("outcome_type")
-  outcomeCategory String  @map("outcome_category")
-  outcomeStatus   String  @map("outcome_status")
-  explicit        Boolean
+  id               String   @id @default(uuid()) @db.Uuid
+  applicationId    String   @map("application_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  outcomeType      String   @map("outcome_type")
+  outcomeCategory  String   @map("outcome_category")
+  outcomeStatus    String   @map("outcome_status")
+  explicit         Boolean
+  sourceType       String   @map("source_type")
+  sourceId         String?  @map("source_id")
+  sourceData       Json?    @map("source_data")
+  evidence         String?
+  confidence       Float
+  occurredAt       DateTime @map("occurred_at") @db.Timestamptz
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+  resultingStatus  String?  @map("resulting_status")
+  version          Int      @default(1)
+  supersededById   String?  @map("superseded_by_id") @db.Uuid
+  isCurrent        Boolean  @default(true) @map("is_current")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  // Metadata
-  sourceType String  @map("source_type")
-  sourceId   String? @map("source_id")
-  sourceData Json?   @map("source_data")
-
-  // Evidence (for trust)
-  evidence   String? @db.Text
-  confidence Float
-
-  // Temporal
-  occurredAt DateTime @map("occurred_at") @db.Timestamptz
-  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
-
-  // Derived status (for backward compatibility)
-  resultingStatus String? @map("resulting_status")
-
-  // Versioning
-  version        Int       @default(1)
-  supersededById String?   @map("superseded_by_id") @db.Uuid
-  isCurrent      Boolean   @default(true) @map("is_current")
-  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application      JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
   @@index([userId])
@@ -915,40 +770,27 @@ model OutcomeEvent {
   @@map("outcome_events")
 }
 
-/// Stores user actions and strategy metadata (Prompt 13).
 model ActionEvent {
-  id            String  @id @default(uuid()) @db.Uuid
-  userId        String  @map("user_id") @db.Uuid
-  applicationId String? @map("application_id") @db.Uuid
-  opportunityId String? @map("opportunity_id") @db.Uuid
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  applicationId    String?  @map("application_id") @db.Uuid
+  opportunityId    String?  @map("opportunity_id") @db.Uuid
+  actionType       String   @map("action_type")
+  actionSubtype    String?  @map("action_subtype")
+  strategyTags     String[] @default([]) @map("strategy_tags")
+  context          Json?
+  sourceType       String   @default("USER_ACTION") @map("source_type")
+  sourceId         String?  @map("source_id")
+  occurredAt       DateTime @map("occurred_at") @db.Timestamptz
+  recordedAt       DateTime @default(now()) @map("recorded_at") @db.Timestamptz
+  notes            String?
+  confidence       Float?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  // Action details
-  actionType    String  @map("action_type")
-  actionSubtype String? @map("action_subtype")
-
-  // Strategy metadata
-  strategyTags String[] @default([]) @map("strategy_tags")
-  context      Json?
-
-  // Source
-  sourceType String  @default("USER_ACTION") @map("source_type")
-  sourceId   String? @map("source_id")
-
-  // Temporal
-  occurredAt DateTime @map("occurred_at") @db.Timestamptz
-  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz
-
-  // Metadata
-  notes      String? @db.Text
-  confidence Float?
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  // Relations
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  application JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  opportunity Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application      JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  opportunity      Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([applicationId])
@@ -958,46 +800,33 @@ model ActionEvent {
   @@map("action_events")
 }
 
-// ---------------------------------------------------------------------------
-// MODEL REGISTRY / PREDICTION LOGGING
-// ---------------------------------------------------------------------------
-
 model Model {
-  id           String   @id @default(cuid())
-  name         String
-  version      String
-  provider     String
-  description  String?  @db.Text
-  modelType    String   @map("model_type")
-  parameters   Json?
-  inputSchema  Json?    @map("input_schema")
-  outputSchema Json?    @map("output_schema")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdBy    String?  @map("created_by")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id               String   @id
+  name             String
+  version          String
+  provider         String
+  capabilities     String[]
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  predictions Prediction[]
+  predictions      Prediction[]
+  extractionRuns   ExtractionRun[]
 
-  @@unique([name, version], name: "unique_model_name_version")
-  @@index([name])
-  @@index([isActive])
   @@map("models")
 }
 
 model Prediction {
-  id                String    @id @default(cuid())
-  modelId           String    @map("model_id")
-  userId            String    @map("user_id") @db.Uuid
-  applicationId     String?   @map("application_id") @db.Uuid
-  opportunityId     String?   @map("opportunity_id") @db.Uuid
-  features          Json
-  prediction        Json
-  confidence        Float?
-  predictionType    String    @map("prediction_type")
-  timestamp         DateTime  @default(now()) @map("timestamp") @db.Timestamptz
-  actualOutcome     Json?     @map("actual_outcome")
-  outcomeObservedAt DateTime? @map("outcome_observed_at") @db.Timestamptz
+  id                String   @id @default(cuid())
+  modelId           String   @map("model_id")
+  userId            String   @map("user_id") @db.Uuid
+  applicationId     String?  @map("application_id") @db.Uuid
+  opportunityId     String?  @map("opportunity_id") @db.Uuid
+  extractionRunId   String?  @map("extraction_run_id") @db.Uuid
+  predictionType    String   @map("prediction_type") // INTERVIEW_PROBABILITY, SALARY_ESTIMATE, SKILL_MATCH
+  predictionValue   Json     @map("prediction_value")
+  confidenceScore   Float    @map("confidence_score")
+  timestamp         DateTime @default(now()) @db.Timestamptz
   isCorrect         Boolean?  @map("is_correct")
   evaluationNote    String?   @map("evaluation_note") @db.Text
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -1007,6 +836,7 @@ model Prediction {
   user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   application JobApplication?      @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   opportunity Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+    extractionRun    ExtractionRun?   @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
   feedback    PredictionFeedback[]
 
   @@index([modelId])
@@ -1264,6 +1094,8 @@ model CanonicalCurrency {
   id            String  @id @default(uuid()) @db.Uuid
   code          String  @unique
   name          String
+  symbol        String?
+  minorUnits    Int?    @map("minor_units")
   source        String
   sourceId      String  @map("source_id")
   sourceVersion String? @map("source_version")

@@ -166,7 +166,7 @@ describe('1. Multiple extraction runs per source', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new ExtractionRunService(prisma as any);
+    svc = new ExtractionRunService(prisma);
     mockRouting();
     mockTransaction();
     (prisma.resume.findFirst as jest.Mock).mockResolvedValue({ id: RESUME_ID });
@@ -231,7 +231,7 @@ describe('2. Historical extraction run immutability', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new ExtractionRunService(prisma as any);
+    svc = new ExtractionRunService(prisma);
   });
 
   it('rejects startRun on a COMPLETED run', async () => {
@@ -358,11 +358,11 @@ describe('4. Provenance traces back to the original source', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new ProvenanceService(prisma as any);
+    svc = new ProvenanceService(prisma);
   });
 
   it('provenance record created during run creation carries source fields', async () => {
-    const runSvc = new ExtractionRunService(prisma as any);
+    const runSvc = new ExtractionRunService(prisma);
     mockRouting();
     mockTransaction();
     (prisma.resume.findFirst as jest.Mock).mockResolvedValue({ id: RESUME_ID });
@@ -436,8 +436,8 @@ describe('5. Cross-user ownership rejection', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    runSvc = new ExtractionRunService(prisma as any);
-    provSvc = new ProvenanceService(prisma as any);
+    runSvc = new ExtractionRunService(prisma);
+    provSvc = new ProvenanceService(prisma);
     mockRouting();
   });
 
@@ -519,8 +519,8 @@ describe('6. Cell boundary enforcement', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    runSvc = new ExtractionRunService(prisma as any);
-    provSvc = new ProvenanceService(prisma as any);
+    runSvc = new ExtractionRunService(prisma);
+    provSvc = new ProvenanceService(prisma);
   });
 
   it('createRun throws CellBoundaryViolationError when supplied cellId mismatches routed cell', async () => {
@@ -601,7 +601,7 @@ describe('7. Invalid source / run relationships', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    runSvc = new ExtractionRunService(prisma as any);
+    runSvc = new ExtractionRunService(prisma);
     mockRouting();
     mockTransaction();
   });

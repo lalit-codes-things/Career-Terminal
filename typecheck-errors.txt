@@ -1,0 +1,166 @@
+
+> job-search-platform@0.1.0 typecheck
+> tsc --noEmit
+
+src/__tests__/application-merge.service.test.ts(5,15): error TS2305: Module '"@prisma/client"' has no exported member 'JobApplication'.
+src/__tests__/dashboard.service.test.ts(3,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/__tests__/idempotency.service.test.ts(9,15): error TS2305: Module '"@prisma/client"' has no exported member 'IdempotencyRecord'.
+src/__tests__/idempotency.service.test.ts(39,55): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
+src/__tests__/resilience.test.ts(49,37): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/db/transaction-utils.ts(26,32): error TS2339: Property 'TransactionIsolationLevel' does not exist on type 'typeof Prisma'.
+src/db/transaction-utils.ts(34,33): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/db/transaction-utils.ts(34,66): error TS18046: 'error' is of type 'unknown'.
+src/domain/application-status.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationStatus'.
+src/domain/application.models.ts(38,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/domain/application.models.ts(48,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/domain/application.models.ts(61,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/middleware/error-handler.ts(49,27): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(50,27): error TS2339: Property 'PrismaClientUnknownRequestError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(51,27): error TS2339: Property 'PrismaClientValidationError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(52,27): error TS2339: Property 'PrismaClientInitializationError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(61,35): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(61,71): error TS2339: Property 'code' does not exist on type 'Error'.
+src/middleware/error-handler.ts(68,31): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/middleware/error-handler.ts(69,15): error TS2339: Property 'code' does not exist on type 'Error'.
+src/middleware/error-handler.ts(73,22): error TS2339: Property 'code' does not exist on type 'Error'.
+src/middleware/error-handler.ts(77,22): error TS2339: Property 'code' does not exist on type 'Error'.
+src/repository/base.repository.ts(183,49): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
+src/repository/base.repository.ts(197,52): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
+src/repository/base.repository.ts(202,49): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
+src/routes/timeline.routes.ts(4,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/services/action.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'ActionEvent'.
+src/services/action.service.ts(102,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/action.service.ts(104,45): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/action.service.ts(107,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ActionEventUncheckedCreateInput'.
+src/services/action.service.ts(147,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ActionEventWhereInput'.
+src/services/action.service.ts(162,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'DateTimeFilter'.
+src/services/action.service.ts(165,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'DateTimeFilter'.
+src/services/application-command/application-command.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/services/application-command/application-command.service.ts(41,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/application-command/application-command.service.ts(124,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-command/application-command.service.ts(235,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JobApplicationUncheckedUpdateInput'.
+src/services/application-command/application-command.service.ts(290,28): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(310,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-command/application-command.service.ts(315,26): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(338,11): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(353,19): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(354,23): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(354,37): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(355,28): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(356,30): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(357,26): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(358,30): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(359,31): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(377,13): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(380,26): error TS18047: 'app' is possibly 'null'.
+src/services/application-command/application-command.service.ts(387,30): error TS18047: 'app' is possibly 'null'.
+src/services/application-merge/application-merge.service.ts(2,15): error TS2305: Module '"@prisma/client"' has no exported member 'JobApplication'.
+src/services/application-query/application-query.service.ts(33,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JobApplicationWhereInput'.
+src/services/application-query/application-query.service.ts(66,30): error TS7006: Parameter 'record' implicitly has an 'any' type.
+src/services/application-query/application-query.service.ts(97,58): error TS7006: Parameter 'email' implicitly has an 'any' type.
+src/services/application-read-model/application-read-model.service.ts(68,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/application-read-model/application-read-model.service.ts(92,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/application-timeline/application-timeline.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/services/application-timeline/application-timeline.service.ts(23,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/application-timeline/application-timeline.service.ts(32,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-timeline/application-timeline.service.ts(32,54): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
+src/services/application-timeline/application-timeline.service.ts(40,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-timeline/application-timeline.service.ts(314,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/application-timeline/application-timeline.service.ts(329,19): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-timeline/application-timeline.service.ts(329,43): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
+src/services/application-timeline/application-timeline.service.ts(330,13): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/application-timeline/application-timeline.service.ts(330,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
+src/services/application-timeline/application-timeline.service.ts(336,21): error TS2339: Property 'JsonNull' does not exist on type 'typeof Prisma'.
+src/services/application-tracking/application-tracking.service.ts(12,15): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/services/application-tracking/application-tracking.service.ts(83,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(215,35): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(380,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(465,17): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CanonicalCandidateIntelligenceGetPayload'.
+src/services/candidate-intelligence/extraction-run.service.ts(83,73): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/candidate-intelligence/extraction-run.service.ts(230,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/candidate-intelligence/extraction-run.service.ts(244,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/candidate-intelligence/extraction-run.service.ts(258,21): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
+src/services/candidate-intelligence/extraction-run.service.ts(278,17): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
+src/services/candidate-intelligence/extraction-run.service.ts(340,15): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
+src/services/candidate-intelligence/provenance.service.ts(103,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/candidate-intelligence/provenance.service.ts(115,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/candidate-intelligence/provenance.service.ts(148,15): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'FactProvenanceGetPayload'.
+src/services/company/company.service.ts(199,60): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/company/company.service.ts(202,64): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/company/company.service.ts(205,68): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/company/company.service.ts(301,30): error TS7006: Parameter 'application' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/services/dashboard/dashboard.service.ts(30,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/dashboard/dashboard.service.ts(42,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/dashboard/dashboard.service.ts(65,20): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(67,47): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(67,52): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(83,16): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(84,16): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(84,21): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(144,34): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(214,34): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/services/fact-correction.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
+src/services/fact-correction.service.ts(19,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/fact-correction.service.ts(49,45): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/fact.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
+src/services/fact.service.ts(49,54): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/fact.service.ts(94,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/gmail/checkpoint.service.ts(3,18): error TS2305: Module '"@prisma/client"' has no exported member 'SyncBatch'.
+src/services/gmail/checkpoint.service.ts(3,29): error TS2305: Module '"@prisma/client"' has no exported member 'GmailCheckpoint'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(11,10): error TS2305: Module '"@prisma/client"' has no exported member 'ConnectionStatus'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(11,28): error TS2305: Module '"@prisma/client"' has no exported member 'EmailProvider'.
+src/services/idempotency/idempotency.service.ts(85,31): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
+src/services/idempotency/idempotency.service.ts(89,69): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/idempotency/idempotency.service.ts(182,52): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/job-analytics/job-analytics.service.ts(65,55): error TS7006: Parameter 'app' implicitly has an 'any' type.
+src/services/job-analytics/job-analytics.service.ts(99,34): error TS7006: Parameter 'timelineEvent' implicitly has an 'any' type.
+src/services/job-analytics/job-analytics.service.ts(111,53): error TS7006: Parameter 'timelineEvent' implicitly has an 'any' type.
+src/services/job-analytics/job-analytics.service.ts(117,45): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/services/opportunity/opportunity.service.ts(23,15): error TS2305: Module '"@prisma/client"' has no exported member 'Opportunity'.
+src/services/opportunity/opportunity.service.ts(186,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/services/opportunity/opportunity.service.ts(204,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/services/opportunity/opportunity.service.ts(244,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'OpportunityUpdateInput'.
+src/services/opportunity/opportunity.service.ts(279,67): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/opportunity/opportunity.service.ts(314,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'OpportunityCreateInput'.
+src/services/opportunity/opportunity.service.ts(326,65): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/outcome.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'OutcomeEvent'.
+src/services/outcome.service.ts(89,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/queue/workers/reencryption.worker.ts(135,40): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/recruiter/recruiter.service.ts(212,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'RecruiterWhereInput'.
+src/services/recruiter/recruiter.service.ts(214,59): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/recruiter/recruiter.service.ts(220,71): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/recruiter/recruiter.service.ts(225,73): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
+src/services/resume/resume-upload.service.ts(294,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/retention/data-retention.service.ts(219,35): error TS7006: Parameter 'o' implicitly has an 'any' type.
+src/services/retention/data-retention.service.ts(223,25): error TS7006: Parameter 'o' implicitly has an 'any' type.
+src/services/retention/data-retention.service.ts(256,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/retention/data-retention.service.ts(300,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/snapshot.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
+src/services/snapshot.service.ts(2,35): error TS2305: Module '"@prisma/client"' has no exported member 'Snapshot'.
+src/services/snapshot.service.ts(16,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/services/snapshot.service.ts(46,47): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/status-engine/status-engine.service.ts(23,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(36,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/status-engine/status-engine.service.ts(53,31): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(67,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(163,25): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/services/status-engine/status-engine.service.ts(269,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(418,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(449,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(464,19): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/status-engine/status-engine.service.ts(465,13): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/status-engine/status-engine.service.ts(465,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
+src/services/status-engine/status-engine.service.ts(471,21): error TS2339: Property 'JsonNull' does not exist on type 'typeof Prisma'.
+src/services/user/user.service.ts(8,15): error TS2305: Module '"@prisma/client"' has no exported member 'CandidateProfile'.
+src/services/user/user.service.ts(8,33): error TS2305: Module '"@prisma/client"' has no exported member 'User'.
+src/services/user/user.service.ts(98,33): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
+src/services/user/user.service.ts(99,9): error TS18046: 'error' is of type 'unknown'.
+src/services/user/user.service.ts(145,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CandidateProfileUncheckedCreateInput'.
+src/services/user/user.service.ts(154,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CandidateProfileUpdateInput'.
+src/services/user/user.service.ts(160,70): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/services/user/user.service.ts(162,70): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+src/workers/gmail-sync.worker.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'JobStatus'.
+src/workers/gmail-sync.worker.ts(1,21): error TS2305: Module '"@prisma/client"' has no exported member 'JobType'.
+src/workers/job-queue.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'JobStatus'.
+src/workers/job-queue.service.ts(1,21): error TS2305: Module '"@prisma/client"' has no exported member 'JobType'.

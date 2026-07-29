@@ -458,7 +458,7 @@ describe('ResumeUploadService — application linkage', () => {
 
   it('linkApplicationResume upserts with snapshot metadata', async () => {
     const appliedAt = new Date('2026-03-01');
-    mockPrisma.applicationResume.upsert.mockResolvedValue(undefined as never);
+    mockPrisma.applicationResume.upsert.mockResolvedValue(undefined);
 
     await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, {
       appliedAt,
@@ -487,7 +487,7 @@ describe('ResumeUploadService — application linkage', () => {
 
   it('linkApplicationResume is idempotent — second call updates nothing', async () => {
     const appliedAt = new Date('2026-03-01');
-    mockPrisma.applicationResume.upsert.mockResolvedValue(undefined as never);
+    mockPrisma.applicationResume.upsert.mockResolvedValue(undefined);
 
     await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, { appliedAt });
     await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, { appliedAt });
@@ -557,7 +557,7 @@ describe('ResumeUploadService — deleteVersion (guarded against linkage)', () =
       updatedAt: new Date(),
       _count: { applicationLinks: 0 },
     });
-    mockPrisma.userResume.delete.mockResolvedValue(undefined as never);
+    mockPrisma.userResume.delete.mockResolvedValue(undefined);
 
     await service.deleteVersion(USER_ID, USER_RESUME_V1_ID);
     expect(mockPrisma.userResume.delete).toHaveBeenCalledWith({
