@@ -41,7 +41,7 @@ describe('ApplicationMergeService', () => {
     companyDomain: 'acme.com',
     roleTitle: 'Software Engineer',
     roleDepartment: 'Engineering',
-    status: 'APPLIED' as JobApplication['status'],
+    status: 'APPLIED',
     appliedDate: new Date('2026-07-10'),
     recruiterId: null,
     companyId: null,
@@ -58,14 +58,14 @@ describe('ApplicationMergeService', () => {
     atsApplicationId: 'ats-123',
     threadIds: ['thread-1'],
     snapshotId: null,
-    sourceProvider: 'MANUAL' as any,
+    sourceProvider: 'MANUAL',
     createdAt: new Date(),
     updatedAt: new Date(),
     lastActivityAt: new Date(),
     metadata: {},
     appliedAt: null,
     ...overrides,
-  } as JobApplication);
+  });
 
   afterEach(() => {
     jest.clearAllMocks();

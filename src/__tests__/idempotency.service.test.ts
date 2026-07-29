@@ -23,7 +23,7 @@ import {
 // ── Minimal in-memory Prisma mock that emulates a unique violation ─────────
 
 type IdemRow = Omit<IdempotencyRecord, 'resultData'> & {
-  resultData: unknown | null;
+  resultData: unknown;
 };
 
 function buildMockPrisma() {
@@ -48,7 +48,7 @@ function buildMockPrisma() {
           key,
           operationType: String(data.operationType),
           resultId: String(data.resultId),
-          resultData: (data.resultData ?? null) as unknown,
+          resultData: (data.resultData ?? null),
           createdAt: new Date(),
           expiresAt: data.expiresAt instanceof Date ? data.expiresAt : new Date(),
         };

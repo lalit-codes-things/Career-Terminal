@@ -1,4 +1,4 @@
-# Backup Security Policy — ApplyWise
+# Backup Security Policy — Career Terminal
 
 **Epic 0.7, Phase 23**  
 **Owner:** Platform Engineering  

@@ -1,4 +1,5 @@
 import { ResumeUploadService } from '../services/resume/resume-upload.service';
+import { storageService } from '../services/storage/storage.service';
 import type { IStorageService, UploadResult } from '../services/storage/storage.service';
 import { prisma } from '../config/database';
 import { queueService } from '../services/queue/queue.service';
@@ -119,7 +120,6 @@ function uploadResult(key: string, url: string): UploadResult {
 beforeEach(() => {
   jest.clearAllMocks();
 
-  const { storageService } = require('../services/storage/storage.service');
   mockStorage = storageService as MockStorage;
   mockQueue = queueService as jest.Mocked<typeof queueService>;
   mockUserSvc = userService as jest.Mocked<typeof userService>;

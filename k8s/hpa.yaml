@@ -1,15 +1,15 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: applywise-api
-  namespace: applywise
+  name: career-terminal-api
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: applywise-api
+    name: career-terminal-api
   minReplicas: 2
   maxReplicas: 10
   metrics:

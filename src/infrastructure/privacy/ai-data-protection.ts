@@ -1,7 +1,7 @@
 /**
  * AI Data Protection Policy — Epic 0.7, Phase 26.
  *
- * Documents the data protection rules that govern how ApplyWise
+ * Documents the data protection rules that govern how Career Terminal
  * interacts with AI/ML systems. The current matcher uses local taxonomy
  * data and deterministic similarity logic, with no external model calls.
  *

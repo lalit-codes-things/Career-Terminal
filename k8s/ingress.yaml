@@ -1,10 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: applywise-api
-  namespace: applywise
+  name: career-terminal-api
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
@@ -14,16 +14,16 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.applywise.io
-      secretName: applywise-tls
+        - api.career-terminal.io
+      secretName: career-terminal-tls
   rules:
-    - host: api.applywise.io
+    - host: api.career-terminal.io
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: applywise-api
+                name: career-terminal-api
                 port:
                   number: 80

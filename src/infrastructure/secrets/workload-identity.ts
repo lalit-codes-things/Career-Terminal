@@ -6,7 +6,7 @@
  * Current state (Kubernetes secretRef injection):
  *   - Each workload type (API, Gmail worker, Resume worker) is assigned a
  *     distinct Kubernetes ServiceAccount.
- *   - The deployment YAML already references `serviceAccountName: applywise-api`.
+ *   - The deployment YAML already references `serviceAccountName: career-terminal-api`.
  *   - A Kubernetes RBAC Role limits which Secrets each SA can read.
  *   - In production the Secret is populated from an external secret manager
  *     via the External Secrets Operator or CSI driver.
@@ -34,13 +34,13 @@ import { SECRET_NAMES } from './secret-provider';
 
 export const WORKLOAD_IDENTITIES = {
   /** Express API server — handles all HTTP requests */
-  API: 'applywise-api',
+  API: 'career-terminal-api',
   /** Gmail sync worker — processes email ingestion jobs */
-  GMAIL_WORKER: 'applywise-gmail-worker',
+  GMAIL_WORKER: 'career-terminal-gmail-worker',
   /** Resume parsing worker — processes file extraction jobs */
-  RESUME_WORKER: 'applywise-resume-worker',
+  RESUME_WORKER: 'career-terminal-resume-worker',
   /** Application tracking worker — processes status update jobs */
-  TRACKING_WORKER: 'applywise-tracking-worker',
+  TRACKING_WORKER: 'career-terminal-tracking-worker',
 } as const;
 
 export type WorkloadIdentity = (typeof WORKLOAD_IDENTITIES)[keyof typeof WORKLOAD_IDENTITIES];
@@ -103,7 +103,7 @@ export const WORKLOAD_SECRET_POLICY: Record<WorkloadIdentity, string[]> = {
  * Detect the current workload identity from the WORKLOAD_IDENTITY environment
  * variable, which is set per-workload in the Kubernetes Deployment manifest.
  *
- * Falls back to 'applywise-api' when not set (development / test).
+ * Falls back to 'career-terminal-api' when not set (development / test).
  */
 export function getCurrentWorkloadIdentity(): WorkloadIdentity | null {
   const identity = process.env.WORKLOAD_IDENTITY as WorkloadIdentity | undefined;

@@ -37,10 +37,10 @@ ENTRYPOINT ["npx", "prisma", "migrate", "deploy"]
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:20.19.3-alpine3.21 AS runtime
 
-LABEL org.opencontainers.image.title="applywise-api" \
-      org.opencontainers.image.description="ApplyWise backend API" \
+LABEL org.opencontainers.image.title="career-terminal-api" \
+      org.opencontainers.image.description="Career Terminal backend API" \
       org.opencontainers.image.version="0.1.0" \
-      org.opencontainers.image.source="https://github.com/applywise/backend"
+      org.opencontainers.image.source="https://github.com/career-terminal/backend"
 
 # tini: proper PID 1 signal forwarding (ensures SIGTERM reaches Node)
 RUN apk add --no-cache tini

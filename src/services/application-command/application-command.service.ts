@@ -379,7 +379,7 @@ export class ApplicationCommandService {
             app.id,
             activeResumeRow,
             {
-              appliedAt: app.appliedDate ?? undefined,
+              appliedAt: app.appliedDate ?? new Date(),
               usageContext: { strategy: 'generic' },
             },
             tx,

@@ -1,5 +1,5 @@
 /**
- * UserService — global identity layer for ApplyWise.
+ * UserService — global identity layer for Career Terminal.
  *
  * Manages user records, candidate profiles, consent tracking, and the
  * legacy → internal UUID mapping used during migration.

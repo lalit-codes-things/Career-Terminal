@@ -2,7 +2,7 @@
  * PII Inventory — Epic 0.7, Phase 20.
  *
  * Authoritative catalogue of all personally identifiable information (PII)
- * processed by the ApplyWise platform. Used for:
+ * processed by the Career Terminal platform. Used for:
  *   - Data Protection Impact Assessments (DPIA)
  *   - GDPR / CCPA compliance documentation
  *   - Log redaction configuration

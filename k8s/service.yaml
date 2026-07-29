@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: applywise-api
-  namespace: applywise
+  name: career-terminal-api
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   type: ClusterIP
   selector:
-    app: applywise-api
+    app: career-terminal-api
   ports:
     - name: http
       port: 80

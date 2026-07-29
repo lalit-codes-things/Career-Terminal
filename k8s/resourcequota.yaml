@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: applywise-resource-quota
-  namespace: applywise
+  name: career-terminal-resource-quota
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   hard:
     requests.cpu: "4"

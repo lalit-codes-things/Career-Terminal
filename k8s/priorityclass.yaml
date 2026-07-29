@@ -1,9 +1,9 @@
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: applywise-high-priority
+  name: career-terminal-high-priority
   labels:
-    app: applywise-api
+    app: career-terminal-api
 value: 100000
 globalDefault: false
-description: "High priority for ApplyWise API pods"
+description: "High priority for Career Terminal API pods"

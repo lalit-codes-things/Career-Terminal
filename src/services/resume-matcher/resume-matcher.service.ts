@@ -1,4 +1,5 @@
 import * as pdfParse from 'pdf-parse';
+
 import { SemanticMatcher } from './embeddings';
 import type { MatchScore, ParsedJob, ParsedResume } from './models';
 import { factService } from '../fact.service';
@@ -38,9 +39,9 @@ export class ResumeMatcherService {
     }
     if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       try {
-        const mammoth = require('mammoth') as {
-          extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }>;
-        };
+        // @ts-expect-error mammoth has no type declarations
+        const mammothModule = await import('mammoth');
+        const mammoth = mammothModule.default || mammothModule;
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
       } catch (error) {

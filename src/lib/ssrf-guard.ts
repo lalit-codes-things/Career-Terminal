@@ -4,7 +4,7 @@
  * Prevents the server from making outbound HTTP requests to internal
  * infrastructure based on user-supplied URLs.
  *
- * Current SSRF surface in ApplyWise:
+ * Current SSRF surface in Career Terminal:
  *  - No outbound HTTP calls to user-controlled URLs exist today.
  *  - The Gmail OAuth authorization URL is generated entirely from
  *    GOOGLE_REDIRECT_URI (server config), NOT from user input — safe.

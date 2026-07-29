@@ -3,20 +3,20 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: applywise-migrate
-  namespace: applywise
+  name: career-terminal-migrate
+  namespace: career-terminal
   labels:
-    app: applywise-migrate
+    app: career-terminal-migrate
 spec:
   backoffLimit: 1
   ttlSecondsAfterFinished: 86400
   template:
     metadata:
       labels:
-        app: applywise-migrate
+        app: career-terminal-migrate
     spec:
       restartPolicy: Never
-      serviceAccountName: applywise-api
+      serviceAccountName: career-terminal-api
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -25,13 +25,13 @@ spec:
       containers:
         - name: migrate
           # Publish Dockerfile target `migrator` under this distinct tag.
-          image: applywise-migrator:0.1.0
+          image: career-terminal-migrator:0.1.0
           imagePullPolicy: Always
           envFrom:
             - configMapRef:
-                name: applywise-config
+                name: career-terminal-config
             - secretRef:
-                name: applywise-secrets
+                name: career-terminal-secrets
           resources:
             requests:
               cpu: "100m"

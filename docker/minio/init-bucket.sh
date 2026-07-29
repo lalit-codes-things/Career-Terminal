@@ -2,7 +2,7 @@
 set -e
 
 ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
-BUCKET="${MINIO_BUCKET:-applywise-resumes}"
+BUCKET="${MINIO_BUCKET:-career-terminal-resumes}"
 ALIAS="local"
 
 echo "[minio-init] Waiting for MinIO at ${ENDPOINT}..."

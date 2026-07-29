@@ -58,7 +58,7 @@ export class EventDispatcherService {
           break;
         }
         default: {
-          logger.warn(`[EventDispatcher] No queue mapping for event type ${input.eventType}`);
+          logger.warn(`[EventDispatcher] No queue mapping for event type ${String(input.eventType)}`);
         }
       }
       

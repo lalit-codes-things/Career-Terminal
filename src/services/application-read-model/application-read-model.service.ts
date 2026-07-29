@@ -109,7 +109,7 @@ export class ApplicationReadModelService {
       createdAt:
         record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
       updatedAt:
-        record.updatedAt instanceof Date ? record.updatedAt.toISOString() : record.updatedAt,
+        record.updatedAt instanceof Date ? record.updatedAt.toISOString() : (record.updatedAt ?? ''),
     };
   }
 

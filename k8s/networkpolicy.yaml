@@ -1,14 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: applywise-api-netpol
-  namespace: applywise
+  name: career-terminal-api-netpol
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   podSelector:
     matchLabels:
-      app: applywise-api
+      app: career-terminal-api
   policyTypes:
     - Ingress
     - Egress
@@ -19,7 +19,7 @@ spec:
               kubernetes.io/metadata.name: ingress-nginx
         - podSelector:
             matchLabels:
-              app: applywise-api
+              app: career-terminal-api
       ports:
         - protocol: TCP
           port: 3000

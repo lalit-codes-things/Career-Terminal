@@ -1,12 +1,12 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: applywise-api-pdb
-  namespace: applywise
+  name: career-terminal-api-pdb
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: applywise-api
+      app: career-terminal-api

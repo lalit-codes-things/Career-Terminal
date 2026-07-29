@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: applywise-api
-  namespace: applywise
+  name: career-terminal-api
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: applywise-api
+      app: career-terminal-api
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,10 +18,10 @@ spec:
   template:
     metadata:
       labels:
-        app: applywise-api
+        app: career-terminal-api
     spec:
-      serviceAccountName: applywise-api
-      priorityClassName: applywise-high-priority
+      serviceAccountName: career-terminal-api
+      priorityClassName: career-terminal-high-priority
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
@@ -30,7 +30,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: api
-          image: applywise-api:0.1.0
+          image: career-terminal-api:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -38,13 +38,13 @@ spec:
               name: http
           envFrom:
             - configMapRef:
-                name: applywise-config
+                name: career-terminal-config
             - secretRef:
-                name: applywise-secrets
+                name: career-terminal-secrets
           env:
             # Epic 0.7: Workload identity — restricts secret access to API policy
             - name: WORKLOAD_IDENTITY
-              value: "applywise-api"
+              value: "career-terminal-api"
           resources:
             requests:
               cpu: "100m"
@@ -92,7 +92,7 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: applywise-api
-  namespace: applywise
+  name: career-terminal-api
+  namespace: career-terminal
   labels:
-    app: applywise-api
+    app: career-terminal-api

@@ -18,9 +18,9 @@ export const envSchema = z.object({
   DATABASE_CONNECT_TIMEOUT: z.coerce.number().int().positive().default(10),
 
   // PostgreSQL (used by docker-compose / migrations)
-  POSTGRES_USER: z.string().default('applywise'),
+  POSTGRES_USER: z.string().default('career-terminal'),
   POSTGRES_PASSWORD: z.string().optional(),
-  POSTGRES_DB: z.string().default('applywise'),
+  POSTGRES_DB: z.string().default('career-terminal'),
 
   // PgBouncer
   PGBOUNCER_HOST: z.string().optional(),
@@ -80,7 +80,7 @@ export const envSchema = z.object({
   // MinIO (docker-compose local dev)
   MINIO_ROOT_USER: z.string().default('minioadmin'),
   MINIO_ROOT_PASSWORD: z.string().optional(),
-  MINIO_BUCKET: z.string().default('applywise-resumes'),
+  MINIO_BUCKET: z.string().default('career-terminal-resumes'),
   MINIO_ENDPOINT: z.string().optional(),
 
   // CORS

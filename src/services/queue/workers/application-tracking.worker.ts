@@ -178,7 +178,8 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
     }),
   );
 
-  worker.on('failed', async (job, err) => {
+  worker.on('failed', (job, err) => {
+    void (async () => {
     logger.error('[AppTrackingWorker] Job failed', {
       jobId: job?.id,
       type: job?.data.type,
@@ -218,6 +219,11 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
         }
       }
     }
+    })().catch((e) =>
+      logger.error('[AppTrackingWorker] Unhandled error in failed handler', {
+        error: e instanceof Error ? e.message : String(e),
+      }),
+    );
   });
 
   worker.on('error', (err) =>
