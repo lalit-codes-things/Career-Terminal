@@ -20,6 +20,22 @@ jest.mock('../config/database', () => ({
       upsert: jest.fn(),
       update: jest.fn(),
     },
+    userIdMapping: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    candidateProfile: {
+      create: jest.fn(),
+      upsert: jest.fn(),
+    },
+    cell: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 jest.mock('../utils/encryption');
@@ -42,20 +58,29 @@ describe('GmailOAuthService', () => {
   const mockRefreshAccessToken = jest.fn();
   const mockUserinfoGet = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+beforeEach(() => {
+     jest.clearAllMocks();
 
-    // Setup googleapis mocks
-    (google.auth.OAuth2 as jest.Mock).mockImplementation(() => ({
-      generateAuthUrl: mockGenerateAuthUrl,
-      getToken: mockGetToken,
-      setCredentials: mockSetCredentials,
-      refreshAccessToken: mockRefreshAccessToken,
-    }));
+     // Setup googleapis mocks
+     (google.auth.OAuth2 as jest.Mock).mockImplementation(() => ({
+       generateAuthUrl: mockGenerateAuthUrl,
+       getToken: mockGetToken,
+       setCredentials: mockSetCredentials,
+       refreshAccessToken: mockRefreshAccessToken,
+     }));
 
-    (google.oauth2 as jest.Mock).mockReturnValue({
-      userinfo: { get: mockUserinfoGet },
-    });
+     (google.oauth2 as jest.Mock).mockReturnValue({
+       userinfo: { get: mockUserinfoGet },
+     });
+
+     (prisma.userIdMapping.findUnique as jest.Mock).mockResolvedValue(null);
+     (prisma.userIdMapping.upsert as jest.Mock).mockResolvedValue({ externalId: 'user_1', userId: 'user_1' });
+     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+     (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'user_1' });
+     (prisma.candidateProfile.create as jest.Mock).mockResolvedValue({ id: 'cp-1' });
+     (prisma.candidateProfile.upsert as jest.Mock).mockResolvedValue({ id: 'cp-1' });
+     (prisma.cell.findUnique as jest.Mock).mockResolvedValue(null);
+     (prisma.cell.create as jest.Mock).mockResolvedValue({ id: 'cell-1', userId: 'user_1' });
 
     service = new GmailOAuthService();
   });
@@ -112,14 +137,14 @@ describe('GmailOAuthService', () => {
         provider: 'GMAIL',
       });
 
-      expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({
-            userId: 'user_1',
-            emailAddress: 'test@gmail.com',
-          }),
-        }),
-      );
+expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
+	        expect.objectContaining({
+	          create: expect.objectContaining({
+	            legacyUserId: 'user_1',
+	            emailAddress: 'test@gmail.com',
+	          }),
+	        }),
+	      );
     });
 
     it('should throw OAuthError if token exchange fails', async () => {

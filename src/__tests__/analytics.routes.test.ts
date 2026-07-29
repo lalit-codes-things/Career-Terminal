@@ -1,12 +1,11 @@
 import request from 'supertest';
 import express from 'express';
 import { analyticsRouter } from '../routes/analytics.routes';
-import { jobAnalyticsService } from '../services/job-analytics/job-analytics.service';
+import { analyticsService } from '../services/analytics.service';
 
 const app = express();
 app.use(express.json());
 
-// Mock requireAuth middleware
 jest.mock('../middleware/auth', () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.user = { id: 'test-user-id' };
@@ -14,13 +13,13 @@ jest.mock('../middleware/auth', () => ({
   },
 }));
 
-app.use('/analytics', analyticsRouter);
-
-jest.mock('../services/job-analytics/job-analytics.service', () => ({
-  jobAnalyticsService: {
-    getAnalytics: jest.fn(),
+jest.mock('../services/analytics.service', () => ({
+  analyticsService: {
+    getOverallFunnel: jest.fn(),
   },
 }));
+
+app.use('/analytics', analyticsRouter);
 
 describe('Analytics Routes', () => {
   beforeEach(() => {
@@ -45,7 +44,7 @@ describe('Analytics Routes', () => {
       ],
     };
 
-    (jobAnalyticsService.getAnalytics as jest.Mock).mockResolvedValueOnce(mockAnalytics);
+    (analyticsService.getOverallFunnel as jest.Mock).mockResolvedValueOnce(mockAnalytics);
 
     const response = await request(app).get('/analytics/jobs');
 
@@ -54,15 +53,14 @@ describe('Analytics Routes', () => {
       success: true,
       data: mockAnalytics,
     });
-    expect(jobAnalyticsService.getAnalytics).toHaveBeenCalledWith('test-user-id');
+    expect(analyticsService.getOverallFunnel).toHaveBeenCalledWith('test-user-id');
   });
 
   it('GET /analytics/jobs should handle errors', async () => {
-    (jobAnalyticsService.getAnalytics as jest.Mock).mockRejectedValueOnce(
+    (analyticsService.getOverallFunnel as jest.Mock).mockRejectedValueOnce(
       new Error('Database error'),
     );
 
-    // Temporary error handler to prevent supertest from logging errors to console and failing tests
     const errorApp = express();
     errorApp.use(express.json());
     errorApp.use((req: any, _res: any, next: any) => {

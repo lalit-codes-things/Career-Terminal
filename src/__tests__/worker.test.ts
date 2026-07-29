@@ -9,7 +9,6 @@ jest.mock('../config/database', () => ({
       updateMany: jest.fn(),
       update: jest.fn(),
     },
-    // Include $transaction if used in the worker (your worker might not use it)
     $transaction: jest.fn((callback) => callback(prisma)),
   },
 }));
@@ -21,7 +20,6 @@ jest.mock('../services/gmail/ingestion/gmail-ingestion.service', () => ({
   },
 }));
 
-// Type-safe access
 const mockSyncJob = {
   findFirst: prisma.syncJob.findFirst as jest.Mock,
   updateMany: prisma.syncJob.updateMany as jest.Mock,
@@ -67,6 +65,7 @@ describe('GmailSyncWorker', () => {
       id: 'job-1',
       type: 'GMAIL_INITIAL_SYNC',
       userId: 'user-1',
+      legacyUserId: 'user-1',
       attempts: 0,
     });
 
@@ -90,7 +89,8 @@ describe('GmailSyncWorker', () => {
       id: 'job-1',
       type: 'GMAIL_INCREMENTAL_SYNC',
       userId: 'user-1',
-      attempts: 2,
+      legacyUserId: 'user-1',
+      attempts: 0,
     });
 
     mockSyncJob.updateMany.mockResolvedValue({ count: 1 });
@@ -116,6 +116,7 @@ describe('GmailSyncWorker', () => {
       id: 'job-1',
       type: 'GMAIL_INITIAL_SYNC',
       userId: 'user-1',
+      legacyUserId: 'user-1',
       attempts: 4,
     });
 
