@@ -137,14 +137,14 @@ beforeEach(() => {
         provider: 'GMAIL',
       });
 
-      expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({
-            userId: 'user_1',
-            emailAddress: 'test@gmail.com',
-          }),
-        }),
-      );
+expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
+	        expect.objectContaining({
+	          create: expect.objectContaining({
+	            legacyUserId: 'user_1',
+	            emailAddress: 'test@gmail.com',
+	          }),
+	        }),
+	      );
     });
 
     it('should throw OAuthError if token exchange fails', async () => {
