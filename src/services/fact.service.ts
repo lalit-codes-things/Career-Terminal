@@ -25,6 +25,7 @@ export interface RecordFactInput {
 export interface CreateExtractionRunInput {
   userId: string;
   cellId?: string;
+  modelId?: string;
   sourceType: string;
   sourceId: string;
   sourceVersion?: string;
@@ -55,6 +56,7 @@ export class FactService {
           sourceId: input.sourceId,
           sourceVersion: input.sourceVersion,
           sourceIdentity: input.sourceIdentity,
+          modelId: input.modelId ?? 'manual-correction',
           parserVersion: input.parserVersion,
           modelProvider: input.modelProvider ?? null,
           modelVersion: input.modelVersion ?? null,

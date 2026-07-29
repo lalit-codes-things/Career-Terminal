@@ -64,8 +64,8 @@ export async function processApplicationTrackingJob(
       // 2. Map to ClassifiableEmail
       const classifiableEmail: ClassifiableEmail = {
         emailId: email.providerMessageId,
-        sender: email.sender,
-        subject: email.subject,
+        sender: email.from ?? '',
+        subject: email.subject ?? '',
         bodyText: email.bodyText ?? undefined,
         bodyHtml: email.bodyHtml ?? undefined,
         receivedAt: email.receivedAt,

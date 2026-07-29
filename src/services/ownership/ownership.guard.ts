@@ -19,7 +19,7 @@ export class OwnershipGuard {
     userId: string,
     applicationId: string,
     db: DbClient = prisma,
-  ): Promise<{ id: string; userId: string | null; legacyUserId: string }> {
+  ): Promise<{ id: string; userId: string | null; legacyUserId: string | null }> {
     const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
@@ -122,7 +122,7 @@ export class OwnershipGuard {
     userId: string,
     runId: string,
     db: DbClient = prisma,
-  ): Promise<{ id: string; userId: string; cellId: string; status: string }> {
+  ): Promise<{ id: string; userId: string; cellId: string | null; status: string }> {
     const run = await db.extractionRun.findUnique({
       where: { id: runId },
       select: { id: true, userId: true, cellId: true, status: true },
@@ -152,7 +152,7 @@ export class OwnershipGuard {
     userId: string,
     provenanceId: string,
     db: DbClient = prisma,
-  ): Promise<{ id: string; userId: string; cellId: string; extractionRunId: string }> {
+  ): Promise<{ id: string; userId: string; cellId: string | null; extractionRunId: string }> {
     const record = await db.factProvenance.findUnique({
       where: { id: provenanceId },
       select: { id: true, userId: true, cellId: true, extractionRunId: true },
@@ -185,8 +185,8 @@ export class OwnershipGuard {
   ): Promise<{
     id: string;
     userId: string;
-    extractionRunId: string;
-    provenanceId: string;
+    extractionRunId: string | null;
+    provenanceId: string | null;
   }> {
     const fact = await db.factObservation.findUnique({
       where: { id: factId },
@@ -225,7 +225,7 @@ export class OwnershipGuard {
     const routing = await cellRoutingService.resolveUserRouting(userId);
 
     if (run.cellId !== routing.cellId) {
-      throw new CellBoundaryViolationError(userId, routing.cellId, run.cellId);
+      throw new CellBoundaryViolationError(userId, routing.cellId, run.cellId ?? 'unknown');
     }
   }
 

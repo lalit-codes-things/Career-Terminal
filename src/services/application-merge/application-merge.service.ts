@@ -100,17 +100,17 @@ export class ApplicationMergeService {
     // We check domains or exact name matches
     const sameDomain = existingApp.companyDomain === incomingData.company.domain;
     const sameName =
-      existingApp.companyName.toLowerCase() === incomingData.company.name.toLowerCase();
+      existingApp.companyName?.toLowerCase() === incomingData.company.name.toLowerCase();
 
     if (!sameDomain && !sameName) {
       return { confidence: 0, reasons: ['Strict Reject: Different companies'] };
     }
 
     // STRICT REJECT: Wildly different roles unless we have exact ATS id
-    const sameRole = existingApp.roleTitle.toLowerCase() === incomingData.role.title.toLowerCase();
+    const sameRole = existingApp.roleTitle?.toLowerCase() === incomingData.role.title.toLowerCase();
     const roleIsSubstring =
-      existingApp.roleTitle.toLowerCase().includes(incomingData.role.title.toLowerCase()) ||
-      incomingData.role.title.toLowerCase().includes(existingApp.roleTitle.toLowerCase());
+      existingApp.roleTitle?.toLowerCase().includes(incomingData.role.title.toLowerCase()) ||
+      incomingData.role.title.toLowerCase().includes(existingApp.roleTitle?.toLowerCase() ?? '');
 
     if (!sameRole && !roleIsSubstring && existingApp.atsApplicationId !== atsApplicationId) {
       return { confidence: 0, reasons: ['Strict Reject: Different roles without ATS ID override'] };
@@ -150,7 +150,7 @@ export class ApplicationMergeService {
     }
 
     // Date proximity (within 14 days)
-    const existingDate = existingApp.appliedDate.getTime();
+    const existingDate = existingApp.appliedDate?.getTime() ?? 0;
     const incomingDate = incomingData.appliedDate.getTime();
     const diffDays = Math.abs(existingDate - incomingDate) / (1000 * 60 * 60 * 24);
 

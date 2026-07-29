@@ -50,15 +50,15 @@ export interface ApplicationStatusUpdateResult {
 type JobApplicationRecord = {
   id: string;
   userId: string | null;
-  legacyUserId: string;
+  legacyUserId: string | null;
   companyId: string | null;
   opportunityId: string | null;
-  companyName: string;
-  companyDomain: string;
-  roleTitle: string;
-  roleDepartment: string;
+  companyName: string | null;
+  companyDomain: string | null;
+  roleTitle: string | null;
+  roleDepartment: string | null;
   status: string;
-  appliedDate: Date;
+  appliedDate: Date | null;
   recruiterName: string | null;
   recruiterEmail: string | null;
   sourceEmailId: string | null;
@@ -170,7 +170,7 @@ export class ApplicationCommandService {
       // unique index it is formally redundant, but we keep it to avoid
       // throwing expensive P2002 errors in the hot path.
       const existing = await prisma.applicationSource.findFirst({
-        where: { providerMessageId: email.emailId, provider: ApplicationSourceProvider.GMAIL },
+        where: { sourceEmailId: email.emailId, provider: ApplicationSourceProvider.GMAIL },
       });
       if (existing) {
         await idempotencySvc.commit(claim.recordId, existing.applicationId, {
@@ -285,14 +285,16 @@ export class ApplicationCommandService {
           });
         }
 
+        if (!app) throw new Error('Application not found or created');
+
         await tx.applicationSource.create({
           data: {
             applicationId: app.id,
             provider: ApplicationSourceProvider.GMAIL,
-            providerMessageId: email.emailId,
-            providerThreadId: email.threadId ?? null,
-            providerConversationId: email.threadId ?? null,
-            providerMetadata: {
+            sourceEmailId: email.emailId,
+            sourceData: {
+              threadId: email.threadId ?? null,
+              conversationId: email.threadId ?? null,
               sender: email.sender,
               subject: email.subject,
               classification: {
@@ -351,10 +353,10 @@ export class ApplicationCommandService {
             userId,
             application: {
               id: app.id,
-              userId: app.userId ?? app.legacyUserId,
-              companyName: app.companyName,
-              companyDomain: app.companyDomain,
-              roleTitle: app.roleTitle,
+              userId: (app.userId ?? app.legacyUserId)!,
+              companyName: app.companyName ?? '',
+              companyDomain: app.companyDomain ?? '',
+              roleTitle: app.roleTitle ?? '',
               recruiterName: app.recruiterName ?? extractedData.recruiter.name ?? 'Recruiter',
               recruiterEmail: app.recruiterEmail ?? extractedData.recruiter.email ?? email.sender,
             },
@@ -377,7 +379,7 @@ export class ApplicationCommandService {
             app.id,
             activeResumeRow,
             {
-              appliedAt: app.appliedDate,
+              appliedAt: app.appliedDate ?? undefined,
               usageContext: { strategy: 'generic' },
             },
             tx,

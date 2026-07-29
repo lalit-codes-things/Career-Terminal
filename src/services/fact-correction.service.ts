@@ -26,9 +26,13 @@ export class FactCorrectionService {
         throw new Error(`Fact not found: ${originalFactId}`);
       }
 
+      if (!originalFact.provenance) {
+        throw new Error(`Fact provenance not found: ${originalFactId}`);
+      }
+
       const provenance = await factService.createExtractionRun({
         userId: originalFact.userId,
-        cellId: originalFact.provenance.cellId,
+        cellId: originalFact.provenance.cellId ?? undefined,
         sourceType: 'MANUAL',
         sourceId: userId,
         sourceVersion: '1',

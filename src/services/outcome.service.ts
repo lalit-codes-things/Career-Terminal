@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { OutcomeEvent } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { analyticsService } from './analytics.service';
+import { ApplicationStatus } from '../domain/application-status';
 
 export interface RecordOutcomeInput {
   applicationId: string;
@@ -143,7 +144,7 @@ export class OutcomeService {
         await tx.jobApplication.update({
           where: { id: input.applicationId },
           data: {
-            status: resultingStatus,
+            status: resultingStatus as ApplicationStatus,
             updatedAt: new Date(),
           },
         });

@@ -12,13 +12,13 @@ export class ApplicationReadModelService {
   public toApplication(record: {
     id: string;
     userId: string | null;
-    legacyUserId?: string;
-    companyName: string;
-    companyDomain: string;
-    roleTitle: string;
-    roleDepartment: string;
+    legacyUserId?: string | null;
+    companyName: string | null;
+    companyDomain: string | null;
+    roleTitle: string | null;
+    roleDepartment: string | null;
     status: string;
-    appliedDate: Date;
+    appliedDate: Date | null;
     recruiterName: string | null;
     recruiterEmail: string | null;
     sourceEmailId: string | null;
@@ -32,22 +32,22 @@ export class ApplicationReadModelService {
       id: record.id,
       userId: record.userId ?? record.legacyUserId ?? '',
       company: {
-        name: record.companyName,
-        domain: record.companyDomain,
+        name: record.companyName ?? '',
+        domain: record.companyDomain ?? '',
       },
       role: {
-        title: record.roleTitle,
-        department: record.roleDepartment,
+        title: record.roleTitle ?? '',
+        department: record.roleDepartment ?? '',
       },
       status: normalizeApplicationStatus(record.status) ?? ApplicationStatus.SAVED,
-      appliedDate: record.appliedDate,
+      appliedDate: record.appliedDate ?? new Date(),
       recruiter: {
         name: record.recruiterName ?? 'Unknown',
         email: record.recruiterEmail ?? '',
       },
       sourceEmailId: record.sourceEmailId ?? '',
       details: {
-        applicationDate: record.appliedDate,
+        applicationDate: record.appliedDate ?? new Date(),
         location: record.location ?? '',
         employmentType: record.employmentType ?? '',
       },
@@ -91,7 +91,7 @@ export class ApplicationReadModelService {
     timestamp: string | Date;
     metadata: Prisma.JsonValue | null;
     createdAt: string | Date;
-    updatedAt: string | Date;
+    updatedAt: string | Date | null;
   }): ApplicationStatusHistoryModel {
     return {
       id: record.id,

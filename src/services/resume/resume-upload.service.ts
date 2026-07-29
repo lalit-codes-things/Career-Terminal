@@ -160,6 +160,9 @@ export class ResumeUploadService {
       data: {
         userId: userScope.userId,
         legacyUserId: userScope.legacyUserId,
+        filename: safeFilename,
+        s3Key: cleanStorageKey,
+        contentType: mimeType,
         originalName: safeFilename,
         resumeHashId,
         isActive: true,
@@ -248,13 +251,13 @@ export class ResumeUploadService {
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!record) return null;
+    if (!record || !record.resumeHash) return null;
 
     const presignedUrl = await this.storage.getPresignedUrl(record.resumeHash.storageKey);
 
     return {
       userResumeId: record.id,
-      originalName: record.originalName,
+      originalName: record.originalName ?? '',
       presignedUrl,
       hash: record.resumeHash.hash,
       fileSizeBytes: record.resumeHash.sizeBytes,
@@ -269,11 +272,11 @@ export class ResumeUploadService {
       include: { resumeHash: true },
       orderBy: { createdAt: 'desc' },
     });
-    if (!record) return null;
+    if (!record || !record.resumeHash) return null;
     return {
       userResumeId: record.id,
       storageKey: record.resumeHash.storageKey,
-      originalName: record.originalName,
+      originalName: record.originalName ?? '',
       mimeType: record.resumeHash.mimeType,
       fileSizeBytes: record.resumeHash.sizeBytes,
       hash: record.resumeHash.hash,
@@ -295,12 +298,12 @@ export class ResumeUploadService {
       id: r.id,
       version: r.version,
       isActive: r.isActive,
-      originalName: r.originalName,
+      originalName: r.originalName ?? '',
       supersededAt: r.supersededAt,
       createdAt: r.createdAt,
-      storageKey: r.resumeHash.storageKey,
-      fileSizeBytes: r.resumeHash.sizeBytes,
-      hash: r.resumeHash.hash,
+      storageKey: r.resumeHash?.storageKey ?? '',
+      fileSizeBytes: r.resumeHash?.sizeBytes ?? 0,
+      hash: r.resumeHash?.hash ?? '',
       applicationCount: r._count.applicationLinks,
     }));
   }
@@ -342,7 +345,12 @@ export class ResumeUploadService {
       version: activeRow.version,
     };
     await db.applicationResume.upsert({
-      where: { applicationId },
+      where: {
+        applicationId_resumeVersionId: {
+          applicationId,
+          resumeVersionId: activeRow.userResumeId,
+        },
+      },
       create: {
         applicationId,
         resumeVersionId: activeRow.userResumeId,
@@ -364,19 +372,19 @@ export class ResumeUploadService {
     usageContext?: unknown;
     fileSizeBytes?: number;
   } | null> {
-    const row = await prisma.applicationResume.findUnique({
+    const row = await prisma.applicationResume.findFirst({
       where: { applicationId },
       include: { resumeVersion: { include: { resumeHash: true } } },
     });
-    if (!row) return null;
+    if (!row || !row.resumeVersion) return null;
     return {
       userResumeId: row.resumeVersion.id,
       version: row.resumeVersion.version,
-      originalName: row.resumeVersion.originalName,
+      originalName: row.resumeVersion.originalName ?? '',
       snapshotKey: row.snapshotKey,
-      appliedAt: row.appliedAt,
+      appliedAt: row.appliedAt ?? new Date(0),
       usageContext: row.usageContext,
-      fileSizeBytes: row.resumeVersion.resumeHash.sizeBytes,
+      fileSizeBytes: row.resumeVersion.resumeHash?.sizeBytes ?? 0,
     };
   }
 

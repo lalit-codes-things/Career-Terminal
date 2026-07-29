@@ -83,8 +83,8 @@ export interface CompanyApplicationListItem {
   readonly userId: string;
   readonly appliedDate: string;
   readonly status: string;
-  readonly roleTitle: string;
-  readonly companyName: string;
+  readonly roleTitle: string | null;
+  readonly companyName: string | null;
   readonly recruiterName: string;
   readonly recruiterEmail: string;
 }
@@ -301,10 +301,10 @@ export class CompanyService {
     return applications.map((application) => ({
       id: application.id,
       userId: application.userId ?? application.legacyUserId,
-      appliedDate: application.appliedDate.toISOString(),
+      appliedDate: application.appliedDate?.toISOString() ?? '',
       status: application.status,
       roleTitle: application.roleTitle,
-      companyName: application.companyName,
+      companyName: application.companyName ?? '',
       recruiterName: application.recruiterName ?? '',
       recruiterEmail: application.recruiterEmail ?? '',
     }));

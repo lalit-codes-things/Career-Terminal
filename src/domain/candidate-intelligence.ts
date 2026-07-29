@@ -56,6 +56,12 @@ export interface CreateExtractionRunInput {
    */
   cellId?: string;
 
+  /**
+   * The model to use for this extraction run.
+   * References the Model table via FK.
+   */
+  modelId: string;
+
   /** Category of the source document. */
   sourceType: ExtractionSourceType | string;
 
@@ -304,13 +310,13 @@ export interface CreateProvenanceInput {
 export interface ProvenanceRecord {
   readonly id: string;
   readonly userId: string;
-  readonly cellId: string;
+  readonly cellId: string | null;
   readonly sourceType: string;
   readonly sourceId: string;
   readonly sourceVersion: string | null;
   readonly sourceIdentity: string | null;
   readonly extractionRunId: string;
-  readonly parserVersion: string;
+  readonly parserVersion: string | null;
   readonly modelProvider: string | null;
   readonly modelVersion: string | null;
   readonly promptVersion: string | null;
@@ -495,7 +501,7 @@ export interface MaterialiseResult {
   readonly promoted: boolean;
   /** The run / fact that is now canonical (may differ from the caller's fact). */
   readonly winningFactId: string;
-  readonly winningProvenanceId: string;
+  readonly winningProvenanceId: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

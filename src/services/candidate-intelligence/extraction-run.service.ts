@@ -89,6 +89,7 @@ export class ExtractionRunService {
           sourceId: input.sourceId,
           sourceVersion: input.sourceVersion ?? null,
           sourceIdentity: input.sourceIdentity ?? null,
+          modelId: input.modelId,
           parserVersion: input.parserVersion,
           modelProvider: input.modelProvider ?? null,
           modelVersion: input.modelVersion ?? null,
@@ -310,10 +311,10 @@ export class ExtractionRunService {
 
     if (sourceType === 'EMAIL') {
       const message = await db.emailMessage.findFirst({
-        where: { id: sourceId, userId },
-        select: { id: true },
+        where: { id: sourceId },
+        select: { id: true, userId: true },
       });
-      if (!message) {
+      if (!message || message.userId !== userId) {
         throw new InvalidSourceReferenceError(sourceType, sourceId);
       }
       return;
@@ -342,19 +343,19 @@ export class ExtractionRunService {
     return {
       id: r.id,
       userId: r.userId,
-      cellId: r.cellId,
+      cellId: r.cellId!,
       sourceType: r.sourceType,
       sourceId: r.sourceId,
       sourceVersion: r.sourceVersion,
       sourceIdentity: r.sourceIdentity,
-      parserVersion: r.parserVersion,
+      parserVersion: r.parserVersion!,
       modelProvider: r.modelProvider,
       modelVersion: r.modelVersion,
       promptVersion: r.promptVersion,
-      schemaVersion: r.schemaVersion,
+      schemaVersion: r.schemaVersion!,
       status: r.status,
       failureReason: r.failureReason,
-      startedAt: r.startedAt,
+      startedAt: r.startedAt!,
       completedAt: r.completedAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,

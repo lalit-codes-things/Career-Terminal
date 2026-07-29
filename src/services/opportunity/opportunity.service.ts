@@ -276,7 +276,7 @@ export class OpportunityService {
     }
 
     if (!current.salaryRange && input.salaryRange) {
-      update.salaryRange = input.salaryRange as unknown as Prisma.InputJsonValue;
+      update.salaryRange = JSON.stringify(input.salaryRange);
       shouldUpdate = true;
     }
 
@@ -323,7 +323,7 @@ export class OpportunityService {
     };
 
     if (input.salaryRange) {
-      data.salaryRange = input.salaryRange as unknown as Prisma.InputJsonValue;
+      data.salaryRange = JSON.stringify(input.salaryRange);
     }
     if (input.requirements && input.requirements.length > 0) {
       data.requirements = input.requirements;

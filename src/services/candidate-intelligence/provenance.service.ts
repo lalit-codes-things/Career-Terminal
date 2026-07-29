@@ -131,7 +131,7 @@ export class ProvenanceService {
     const routing = await cellRoutingService.resolveUserRouting(userId);
 
     if (record.cellId !== routing.cellId) {
-      throw new CellBoundaryViolationError(userId, routing.cellId, record.cellId);
+      throw new CellBoundaryViolationError(userId, routing.cellId, record.cellId!);
     }
   }
 

@@ -187,11 +187,11 @@ describe('1. Multiple extraction runs per source', () => {
 
     const ctx1 = await svc.createRun({
       userId: USER_A, sourceType: 'RESUME', sourceId: RESUME_ID,
-      parserVersion: '1.0.0', schemaVersion: 'v1',
+      parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
     });
     const ctx2 = await svc.createRun({
       userId: USER_A, sourceType: 'RESUME', sourceId: RESUME_ID,
-      parserVersion: '2.0.0', schemaVersion: 'v1',
+      parserVersion: '2.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
     });
 
     expect(ctx1.runId).toBe('run-0001');
@@ -380,6 +380,7 @@ describe('4. Provenance traces back to the original source', () => {
       sourceIdentity: 'sha256-abc',
       parserVersion: '1.0.0',
       schemaVersion: 'v1',
+      modelId: 'test-model-id',
     });
 
     // Provenance must be created with the same source fields as the run
@@ -504,6 +505,7 @@ describe('5. Cross-user ownership rejection', () => {
         sourceId: RESUME_ID,  // owned by USER_A
         parserVersion: '1.0.0',
         schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -536,6 +538,7 @@ describe('6. Cell boundary enforcement', () => {
         sourceId: RESUME_ID,
         parserVersion: '1.0.0',
         schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(CellBoundaryViolationError);
   });
@@ -612,7 +615,7 @@ describe('7. Invalid source / run relationships', () => {
     await expect(
       runSvc.createRun({
         userId: USER_A, sourceType: 'RESUME', sourceId: 'nonexistent-resume',
-        parserVersion: '1.0.0', schemaVersion: 'v1',
+        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -623,7 +626,7 @@ describe('7. Invalid source / run relationships', () => {
     await expect(
       runSvc.createRun({
         userId: USER_A, sourceType: 'EMAIL', sourceId: 'nonexistent-email',
-        parserVersion: '1.0.0', schemaVersion: 'v1',
+        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -632,7 +635,7 @@ describe('7. Invalid source / run relationships', () => {
     await expect(
       runSvc.createRun({
         userId: USER_A, sourceType: 'RESUME', sourceId: '',
-        parserVersion: '1.0.0', schemaVersion: 'v1',
+        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -641,7 +644,7 @@ describe('7. Invalid source / run relationships', () => {
     await expect(
       runSvc.createRun({
         userId: USER_A, sourceType: '', sourceId: RESUME_ID,
-        parserVersion: '1.0.0', schemaVersion: 'v1',
+        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -669,7 +672,7 @@ describe('7. Invalid source / run relationships', () => {
     // Should not throw even though resume.findFirst is not mocked
     const ctx = await runSvc.createRun({
       userId: USER_A, sourceType: 'MANUAL', sourceId: USER_A,
-      parserVersion: '1.0.0', schemaVersion: 'v1',
+      parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
     });
     expect(ctx.runId).toBe('run-0001');
     expect(prisma.resume.findFirst).not.toHaveBeenCalled();

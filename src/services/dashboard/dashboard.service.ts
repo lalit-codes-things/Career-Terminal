@@ -21,8 +21,8 @@ export interface DashboardSummary {
 export interface DashboardActivityItem {
   readonly id: string;
   readonly applicationId: string;
-  readonly companyName: string;
-  readonly roleTitle: string;
+  readonly companyName: string | null;
+  readonly roleTitle: string | null;
   readonly eventType: ApplicationTimelineEventType;
   readonly timestamp: string;
   readonly sourceEmailId: string | null;
@@ -33,8 +33,8 @@ export interface DashboardActivityItem {
 export interface DashboardUpcomingInterviewItem {
   readonly id: string;
   readonly applicationId: string;
-  readonly companyName: string;
-  readonly roleTitle: string;
+  readonly companyName: string | null;
+  readonly roleTitle: string | null;
   readonly eventType: ApplicationTimelineEventType;
   readonly timestamp: string;
   readonly sourceEmailId: string | null;

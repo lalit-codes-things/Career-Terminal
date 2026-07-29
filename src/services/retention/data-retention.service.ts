@@ -201,7 +201,7 @@ export class DataRetentionService {
     // Find ResumeHash records with no remaining UserResume references
     const orphans = await this.db.resumeHash.findMany({
       where: {
-        userResumes: {
+        resumes: {
           none: {},
         },
       },

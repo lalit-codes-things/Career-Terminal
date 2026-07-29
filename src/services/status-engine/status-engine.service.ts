@@ -22,7 +22,7 @@ export interface ApplicationStatusHistoryRecord {
   readonly timestamp: string;
   readonly metadata: Prisma.JsonValue | null;
   readonly createdAt: string;
-  readonly updatedAt: string;
+  readonly updatedAt: string | null;
 }
 
 export interface StatusChangeInput {
@@ -66,7 +66,7 @@ export interface StatusHistoryItem {
   readonly timestamp: string;
   readonly metadata: Prisma.JsonValue | null;
   readonly createdAt: string;
-  readonly updatedAt: string;
+  readonly updatedAt: string | null;
 }
 
 export class StatusEngine {
@@ -292,7 +292,11 @@ export class StatusEngine {
 
       if (timelineInput) {
         timelineEvent = await db.applicationTimeline.create({
-          data: timelineInput,
+          data: {
+            ...timelineInput,
+            occurredAt: timelineInput.timestamp,
+            metadata: timelineInput.metadata === null ? Prisma.JsonNull : timelineInput.metadata,
+          },
         });
       }
 
@@ -409,15 +413,14 @@ export class StatusEngine {
   private mapHistory(entry: {
     id: string;
     applicationId: string;
-    previousStatus: ApplicationStatus | null;
-    status: ApplicationStatus;
+    previousStatus: string | null;
+    status: string;
     source: string;
     sourceEmailId: string | null;
     changedByUserId: string | null;
     timestamp: Date;
-    metadata: Prisma.JsonValue | null;
+    metadata: any;
     createdAt: Date;
-    updatedAt: Date;
   }): ApplicationStatusHistoryRecord {
     return {
       id: entry.id,
@@ -432,7 +435,7 @@ export class StatusEngine {
       timestamp: entry.timestamp.toISOString(),
       metadata: entry.metadata,
       createdAt: entry.createdAt.toISOString(),
-      updatedAt: entry.updatedAt.toISOString(),
+      updatedAt: entry.createdAt.toISOString(),
     };
   }
 
@@ -462,7 +465,7 @@ export class StatusEngine {
 
   private normalizeJson(
     value: Prisma.InputJsonValue | null | undefined,
-  ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  ): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined {
     if (value === undefined) {
       return undefined;
     }

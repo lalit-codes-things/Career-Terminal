@@ -28,8 +28,9 @@ export interface CreateTimelineEventInput {
   readonly applicationId: string;
   readonly eventType: ApplicationTimelineEventType;
   readonly timestamp: Date;
+  readonly occurredAt?: Date;
   readonly sourceEmailId?: string | null;
-  readonly metadata?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput;
+  readonly metadata?: Prisma.InputJsonValue | null | undefined;
   readonly description?: string | null;
 }
 
@@ -123,6 +124,7 @@ export class ApplicationTimelineService {
         applicationId: input.applicationId,
         eventType: input.eventType,
         timestamp: input.timestamp,
+        occurredAt: input.timestamp,
         sourceEmailId: input.sourceEmailId ?? null,
         metadata: this.normalizeJson(input.metadata),
         description: input.description ?? null,
@@ -160,6 +162,7 @@ export class ApplicationTimelineService {
       data: {
         eventType: input.eventType,
         timestamp: input.timestamp,
+        occurredAt: input.timestamp,
         sourceEmailId: input.sourceEmailId,
         metadata: this.normalizeJson(input.metadata),
         description: input.description,
@@ -326,8 +329,8 @@ export class ApplicationTimelineService {
   }
 
   private normalizeJson(
-    value: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | null | undefined,
-  ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+    value: Prisma.InputJsonValue | null | undefined,
+  ): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined {
     if (value === undefined) {
       return undefined;
     }

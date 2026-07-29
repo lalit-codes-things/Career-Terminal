@@ -52,7 +52,7 @@ export class AnalyticsService {
         select: {
           id: true,
           status: true,
-          resumes: {
+          applicationResumes: {
             select: {
               resumeVersionId: true,
               resumeVersion: {
@@ -65,7 +65,7 @@ export class AnalyticsService {
 
       const grouped = new Map<string, { applications: number; interviews: number; offers: number }>();
       for (const application of applications) {
-        const resumeVersionKey = application.resumes[0]?.resumeVersionId ?? 'unlinked';
+        const resumeVersionKey = application.applicationResumes[0]?.resumeVersionId ?? 'unlinked';
         const row = grouped.get(resumeVersionKey) ?? {
           applications: 0,
           interviews: 0,
@@ -211,7 +211,7 @@ export class AnalyticsService {
 
       for (const application of applications) {
         const firstOutcome = application.outcomeEvents[0]?.occurredAt;
-        const diffMs = firstOutcome ? firstOutcome.getTime() - application.appliedDate.getTime() : 0;
+        const diffMs = firstOutcome ? firstOutcome.getTime() - (application.appliedDate?.getTime() ?? 0) : 0;
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
         const bucket =
           diffDays <= 1 ? 'within_24h' : diffDays <= 7 ? '1_to_7d' : 'over_7d';

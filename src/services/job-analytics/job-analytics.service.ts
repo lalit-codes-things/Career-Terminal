@@ -116,14 +116,14 @@ export class JobAnalyticsService {
           const earliestResponse = new Date(
             Math.min(...responseEvents.map((e) => e.timestamp.getTime())),
           );
-          const responseTimeMs = earliestResponse.getTime() - app.appliedDate.getTime();
+          const responseTimeMs = earliestResponse.getTime() - (app.appliedDate?.getTime() ?? 0);
           if (responseTimeMs >= 0) {
             totalResponseTimeMs += responseTimeMs;
             responseTimeCount++;
           }
         } else if (isResponseStatus(app.status)) {
           // Fallback if no timeline event but status is a response status
-          const responseTimeMs = app.updatedAt.getTime() - app.appliedDate.getTime();
+          const responseTimeMs = app.updatedAt.getTime() - (app.appliedDate?.getTime() ?? 0);
           if (responseTimeMs >= 0) {
             totalResponseTimeMs += responseTimeMs;
             responseTimeCount++;

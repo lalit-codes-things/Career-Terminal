@@ -41,7 +41,7 @@ type RecruiterInsightQueryRecord = RecruiterBaseRecord & {
     applicationId: string | null;
     providerMessageId: string;
     subject: string;
-    sender: string;
+    from: string;
     threadId: string | null;
     receivedAt: Date;
   }>;
@@ -289,9 +289,10 @@ export class RecruiterService {
           orderBy: { receivedAt: 'asc' },
           select: {
             id: true,
+            applicationId: true,
             providerMessageId: true,
             subject: true,
-            sender: true,
+            from: true,
             threadId: true,
             receivedAt: true,
           },
@@ -363,7 +364,7 @@ export class RecruiterService {
         applicationId: email.applicationId,
         providerMessageId: email.providerMessageId,
         subject: email.subject,
-        sender: email.sender,
+        sender: email.from,
         threadId: email.threadId,
         receivedAt: email.receivedAt.toISOString(),
       })),

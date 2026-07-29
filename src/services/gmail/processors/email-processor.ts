@@ -20,8 +20,8 @@ export class GmailEmailProcessor implements EmailProcessor {
 
     const classifiableEmail: ClassifiableEmail = {
       emailId: email.providerMessageId,
-      sender: email.sender,
-      subject: email.subject,
+      sender: email.from ?? '',
+      subject: email.subject ?? '',
       bodyText: email.bodyText ?? undefined,
       bodyHtml: email.bodyHtml ?? undefined,
       receivedAt: email.receivedAt,
@@ -35,7 +35,7 @@ export class GmailEmailProcessor implements EmailProcessor {
     await applicationTrackingService.processEmailForJobApplication(
       classifiableEmail,
       classification,
-      email.legacyUserId,
+      email.legacyUserId ?? '',
     );
   }
 

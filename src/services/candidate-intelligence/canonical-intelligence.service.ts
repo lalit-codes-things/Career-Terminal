@@ -291,7 +291,7 @@ export class CanonicalIntelligenceService {
           factType:         fact.factType,
           deduplicationKey: dedupKey,
           sourceFactId:     input.sourceFactId,
-          provenanceId,
+          provenanceId: provenanceId!,
           confidence:       input.confidence,
           lastObservedAt:   input.observedAt,
           sourceVersion:    input.sourceVersion ?? fact.sourceVersion ?? null,
@@ -299,7 +299,7 @@ export class CanonicalIntelligenceService {
         },
         update: {
           sourceFactId:   input.sourceFactId,
-          provenanceId,
+          provenanceId: provenanceId!,
           confidence:     input.confidence,
           lastObservedAt: input.observedAt,
           sourceVersion:  input.sourceVersion ?? fact.sourceVersion ?? null,

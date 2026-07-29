@@ -1,46 +1,32 @@
-
-> job-search-platform@0.1.0 typecheck
-> tsc --noEmit
-
-src/__tests__/application-merge.service.test.ts(5,15): error TS2305: Module '"@prisma/client"' has no exported member 'JobApplication'.
-src/__tests__/dashboard.service.test.ts(3,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
+src/__tests__/application-merge.service.test.ts(36,82): error TS2322: Type '{ status: $Enums.ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata?: JsonValue | undefined; ... 24 more ...; atsApplicationId: string | null; }' is not assignable to type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }'.
+  Types of property 'metadata' are incompatible.
+    Type 'JsonValue | undefined' is not assignable to type 'JsonValue'.
+      Type 'undefined' is not assignable to type 'JsonValue'.
 src/__tests__/idempotency.service.test.ts(9,15): error TS2305: Module '"@prisma/client"' has no exported member 'IdempotencyRecord'.
-src/__tests__/idempotency.service.test.ts(39,55): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
-src/__tests__/resilience.test.ts(49,37): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/db/transaction-utils.ts(26,32): error TS2339: Property 'TransactionIsolationLevel' does not exist on type 'typeof Prisma'.
-src/db/transaction-utils.ts(34,33): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/db/transaction-utils.ts(34,66): error TS18046: 'error' is of type 'unknown'.
-src/domain/application-status.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationStatus'.
-src/domain/application.models.ts(38,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/domain/application.models.ts(48,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/domain/application.models.ts(61,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/middleware/error-handler.ts(49,27): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(50,27): error TS2339: Property 'PrismaClientUnknownRequestError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(51,27): error TS2339: Property 'PrismaClientValidationError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(52,27): error TS2339: Property 'PrismaClientInitializationError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(61,35): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(61,71): error TS2339: Property 'code' does not exist on type 'Error'.
-src/middleware/error-handler.ts(68,31): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/middleware/error-handler.ts(69,15): error TS2339: Property 'code' does not exist on type 'Error'.
-src/middleware/error-handler.ts(73,22): error TS2339: Property 'code' does not exist on type 'Error'.
-src/middleware/error-handler.ts(77,22): error TS2339: Property 'code' does not exist on type 'Error'.
-src/repository/base.repository.ts(183,49): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
-src/repository/base.repository.ts(197,52): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
-src/repository/base.repository.ts(202,49): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'BatchPayload'.
-src/routes/timeline.routes.ts(4,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
-src/services/action.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'ActionEvent'.
-src/services/action.service.ts(102,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/action.service.ts(104,45): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/action.service.ts(107,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ActionEventUncheckedCreateInput'.
-src/services/action.service.ts(147,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ActionEventWhereInput'.
-src/services/action.service.ts(162,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'DateTimeFilter'.
-src/services/action.service.ts(165,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'DateTimeFilter'.
-src/services/application-command/application-command.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
-src/services/application-command/application-command.service.ts(41,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/application-command/application-command.service.ts(124,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/application-command/application-command.service.ts(235,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JobApplicationUncheckedUpdateInput'.
+src/__tests__/idempotency.service.test.ts(39,55): error TS2694: Namespace '"/workspace/node_modules/.prisma/client/index".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
+src/services/analytics.service.ts(58,15): error TS2561: Object literal may only specify known properties, but 'resumeVersion' does not exist in type 'ResumeSelect<DefaultArgs>'. Did you mean to write 'resumeVersionId'?
+src/services/analytics.service.ts(68,46): error TS2339: Property 'resumes' does not exist on type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }'.
+src/services/analytics.service.ts(214,64): error TS18047: 'application.appliedDate' is possibly 'null'.
+src/services/application-command/application-command.service.ts(106,62): error TS2345: Argument of type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to parameter of type '{ id: string; userId: string | null; legacyUserId?: string | undefined; companyName: string; companyDomain: string; roleTitle: string; roleDepartment: string; status: string; appliedDate: Date; ... 7 more ...; deadlines: string[] | null; }'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/services/application-command/application-command.service.ts(172,37): error TS2339: Property 'applicationSource' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/application-command/application-command.service.ts(224,11): error TS2322: Type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; } | null' is not assignable to type 'JobApplicationRecord | null'.
+  Type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to type 'JobApplicationRecord'.
+    Types of property 'legacyUserId' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/services/application-command/application-command.service.ts(254,13): error TS2322: Type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to type 'JobApplicationRecord'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/services/application-command/application-command.service.ts(263,11): error TS2322: Type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to type 'JobApplicationRecord'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/services/application-command/application-command.service.ts(288,18): error TS2339: Property 'applicationSource' does not exist on type 'TransactionClient'.
 src/services/application-command/application-command.service.ts(290,28): error TS18047: 'app' is possibly 'null'.
-src/services/application-command/application-command.service.ts(310,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
 src/services/application-command/application-command.service.ts(315,26): error TS18047: 'app' is possibly 'null'.
 src/services/application-command/application-command.service.ts(338,11): error TS18047: 'app' is possibly 'null'.
 src/services/application-command/application-command.service.ts(353,19): error TS18047: 'app' is possibly 'null'.
@@ -54,113 +40,252 @@ src/services/application-command/application-command.service.ts(359,31): error T
 src/services/application-command/application-command.service.ts(377,13): error TS18047: 'app' is possibly 'null'.
 src/services/application-command/application-command.service.ts(380,26): error TS18047: 'app' is possibly 'null'.
 src/services/application-command/application-command.service.ts(387,30): error TS18047: 'app' is possibly 'null'.
-src/services/application-merge/application-merge.service.ts(2,15): error TS2305: Module '"@prisma/client"' has no exported member 'JobApplication'.
-src/services/application-query/application-query.service.ts(33,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JobApplicationWhereInput'.
-src/services/application-query/application-query.service.ts(66,30): error TS7006: Parameter 'record' implicitly has an 'any' type.
+src/services/application-merge/application-merge.service.ts(103,7): error TS18047: 'existingApp.companyName' is possibly 'null'.
+src/services/application-merge/application-merge.service.ts(110,22): error TS18047: 'existingApp.roleTitle' is possibly 'null'.
+src/services/application-merge/application-merge.service.ts(112,7): error TS18047: 'existingApp.roleTitle' is possibly 'null'.
+src/services/application-merge/application-merge.service.ts(113,54): error TS18047: 'existingApp.roleTitle' is possibly 'null'.
+src/services/application-merge/application-merge.service.ts(153,26): error TS18047: 'existingApp.appliedDate' is possibly 'null'.
+src/services/application-query/application-query.service.ts(66,83): error TS2345: Argument of type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to parameter of type '{ id: string; userId: string | null; legacyUserId?: string | undefined; companyName: string; companyDomain: string; roleTitle: string; roleDepartment: string; status: string; appliedDate: Date; ... 7 more ...; deadlines: string[] | null; }'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/services/application-query/application-query.service.ts(82,9): error TS2353: Object literal may only specify known properties, and 'emailMessages' does not exist in type 'JobApplicationInclude<DefaultArgs>'.
+src/services/application-query/application-query.service.ts(96,62): error TS2345: Argument of type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }' is not assignable to parameter of type '{ id: string; userId: string | null; legacyUserId?: string | undefined; companyName: string; companyDomain: string; roleTitle: string; roleDepartment: string; status: string; appliedDate: Date; ... 7 more ...; deadlines: string[] | null; }'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/services/application-query/application-query.service.ts(97,39): error TS2339: Property 'emailMessages' does not exist on type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }'.
 src/services/application-query/application-query.service.ts(97,58): error TS7006: Parameter 'email' implicitly has an 'any' type.
-src/services/application-read-model/application-read-model.service.ts(68,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/application-read-model/application-read-model.service.ts(92,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/application-timeline/application-timeline.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
-src/services/application-timeline/application-timeline.service.ts(23,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/application-timeline/application-timeline.service.ts(32,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/application-timeline/application-timeline.service.ts(32,54): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
-src/services/application-timeline/application-timeline.service.ts(40,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/application-timeline/application-timeline.service.ts(314,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/application-timeline/application-timeline.service.ts(329,19): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/application-timeline/application-timeline.service.ts(329,43): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
-src/services/application-timeline/application-timeline.service.ts(330,13): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/application-timeline/application-timeline.service.ts(330,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
-src/services/application-timeline/application-timeline.service.ts(336,21): error TS2339: Property 'JsonNull' does not exist on type 'typeof Prisma'.
-src/services/application-tracking/application-tracking.service.ts(12,15): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
-src/services/application-tracking/application-tracking.service.ts(83,25): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/candidate-intelligence/canonical-intelligence.service.ts(215,35): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/candidate-intelligence/canonical-intelligence.service.ts(380,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
-src/services/candidate-intelligence/canonical-intelligence.service.ts(465,17): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CanonicalCandidateIntelligenceGetPayload'.
-src/services/candidate-intelligence/extraction-run.service.ts(83,73): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/candidate-intelligence/extraction-run.service.ts(230,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/candidate-intelligence/extraction-run.service.ts(244,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/candidate-intelligence/extraction-run.service.ts(258,21): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
-src/services/candidate-intelligence/extraction-run.service.ts(278,17): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
-src/services/candidate-intelligence/extraction-run.service.ts(340,15): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'ExtractionRunGetPayload'.
-src/services/candidate-intelligence/provenance.service.ts(103,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/candidate-intelligence/provenance.service.ts(115,25): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/candidate-intelligence/provenance.service.ts(148,15): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'FactProvenanceGetPayload'.
-src/services/company/company.service.ts(199,60): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/company/company.service.ts(202,64): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/company/company.service.ts(205,68): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/company/company.service.ts(301,30): error TS7006: Parameter 'application' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'ApplicationTimelineEventType'.
-src/services/dashboard/dashboard.service.ts(30,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/dashboard/dashboard.service.ts(42,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/dashboard/dashboard.service.ts(65,20): error TS7006: Parameter 'row' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(67,47): error TS7006: Parameter 'sum' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(67,52): error TS7006: Parameter 'row' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(83,16): error TS7006: Parameter 'row' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(84,16): error TS7006: Parameter 'sum' implicitly has an 'any' type.
-src/services/dashboard/dashboard.service.ts(84,21): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/application-timeline/application-timeline.service.ts(71,29): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(93,18): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(101,18): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(121,28): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(142,18): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(150,18): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/application-timeline/application-timeline.service.ts(158,28): error TS2551: Property 'applicationTimeline' does not exist on type 'TimelineDb'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(215,5): error TS2322: Type '{ canonicalId: string; promoted: false; winningFactId: string; winningProvenanceId: string | null; } | { canonicalId: string; promoted: true; winningFactId: string; winningProvenanceId: string | null; }' is not assignable to type 'MaterialiseResult'.
+  Type '{ canonicalId: string; promoted: false; winningFactId: string; winningProvenanceId: string | null; }' is not assignable to type 'MaterialiseResult'.
+    Types of property 'winningProvenanceId' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(294,11): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/candidate-intelligence/canonical-intelligence.service.ts(302,11): error TS2322: Type 'string | null' is not assignable to type 'string | StringFieldUpdateOperationsInput | undefined'.
+  Type 'null' is not assignable to type 'string | StringFieldUpdateOperationsInput | undefined'.
+src/services/candidate-intelligence/extraction-run.service.ts(90,11): error TS2353: Object literal may only specify known properties, and 'sourceVersion' does not exist in type 'Without<ExtractionRunCreateInput, ExtractionRunUncheckedCreateInput> & ExtractionRunUncheckedCreateInput'.
+src/services/candidate-intelligence/extraction-run.service.ts(111,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(112,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(113,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(191,9): error TS2353: Object literal may only specify known properties, and 'failureReason' does not exist in type '(Without<ExtractionRunUpdateInput, ExtractionRunUncheckedUpdateInput> & ExtractionRunUncheckedUpdateInput) | (Without<...> & ExtractionRunUpdateInput)'.
+src/services/candidate-intelligence/extraction-run.service.ts(313,32): error TS2353: Object literal may only specify known properties, and 'userId' does not exist in type 'EmailMessageWhereInput'.
+src/services/candidate-intelligence/extraction-run.service.ts(345,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(348,24): error TS2339: Property 'sourceVersion' does not exist on type '{ error: string | null; status: string; userId: string; cellId: string | null; metadata: JsonValue; id: string; createdAt: Date; startedAt: Date | null; completedAt: Date | null; ... 6 more ...; schemaVersion: string | null; }'.
+src/services/candidate-intelligence/extraction-run.service.ts(349,25): error TS2339: Property 'sourceIdentity' does not exist on type '{ error: string | null; status: string; userId: string; cellId: string | null; metadata: JsonValue; id: string; createdAt: Date; startedAt: Date | null; completedAt: Date | null; ... 6 more ...; schemaVersion: string | null; }'.
+src/services/candidate-intelligence/extraction-run.service.ts(350,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(352,23): error TS2339: Property 'modelVersion' does not exist on type '{ error: string | null; status: string; userId: string; cellId: string | null; metadata: JsonValue; id: string; createdAt: Date; startedAt: Date | null; completedAt: Date | null; ... 6 more ...; schemaVersion: string | null; }'.
+src/services/candidate-intelligence/extraction-run.service.ts(354,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/candidate-intelligence/extraction-run.service.ts(356,24): error TS2339: Property 'failureReason' does not exist on type '{ error: string | null; status: string; userId: string; cellId: string | null; metadata: JsonValue; id: string; createdAt: Date; startedAt: Date | null; completedAt: Date | null; ... 6 more ...; schemaVersion: string | null; }'.
+src/services/candidate-intelligence/extraction-run.service.ts(357,7): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/candidate-intelligence/extraction-run.service.ts(360,20): error TS2339: Property 'updatedAt' does not exist on type '{ error: string | null; status: string; userId: string; cellId: string | null; metadata: JsonValue; id: string; createdAt: Date; startedAt: Date | null; completedAt: Date | null; ... 6 more ...; schemaVersion: string | null; }'.
+src/services/company/company.service.ts(301,5): error TS2322: Type '{ id: string; userId: string; appliedDate: string; status: ApplicationStatus; roleTitle: string | null; companyName: string | null; recruiterName: string; recruiterEmail: string; }[]' is not assignable to type 'readonly CompanyApplicationListItem[]'.
+  Type '{ id: string; userId: string; appliedDate: string; status: $Enums.ApplicationStatus; roleTitle: string | null; companyName: string | null; recruiterName: string; recruiterEmail: string; }' is not assignable to type 'CompanyApplicationListItem'.
+    Types of property 'roleTitle' are incompatible.
+      Type 'string | null' is not assignable to type 'string'.
+        Type 'null' is not assignable to type 'string'.
+src/services/company/company.service.ts(304,20): error TS18047: 'application.appliedDate' is possibly 'null'.
+src/services/dashboard/dashboard.service.ts(120,29): error TS2551: Property 'applicationTimeline' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'applicationTimelineEvent'?
 src/services/dashboard/dashboard.service.ts(144,34): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/services/dashboard/dashboard.service.ts(180,29): error TS2551: Property 'applicationTimeline' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'applicationTimelineEvent'?
 src/services/dashboard/dashboard.service.ts(214,34): error TS7006: Parameter 'event' implicitly has an 'any' type.
-src/services/fact-correction.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
-src/services/fact-correction.service.ts(19,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/fact-correction.service.ts(49,45): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/fact.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
-src/services/fact.service.ts(49,54): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/fact.service.ts(94,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/gmail/checkpoint.service.ts(3,18): error TS2305: Module '"@prisma/client"' has no exported member 'SyncBatch'.
-src/services/gmail/checkpoint.service.ts(3,29): error TS2305: Module '"@prisma/client"' has no exported member 'GmailCheckpoint'.
-src/services/gmail/ingestion/gmail-ingestion.service.ts(11,10): error TS2305: Module '"@prisma/client"' has no exported member 'ConnectionStatus'.
-src/services/gmail/ingestion/gmail-ingestion.service.ts(11,28): error TS2305: Module '"@prisma/client"' has no exported member 'EmailProvider'.
-src/services/idempotency/idempotency.service.ts(85,31): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
-src/services/idempotency/idempotency.service.ts(89,69): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/idempotency/idempotency.service.ts(182,52): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/job-analytics/job-analytics.service.ts(65,55): error TS7006: Parameter 'app' implicitly has an 'any' type.
+src/services/deletion.service.ts(42,79): error TS2353: Object literal may only specify known properties, and 'resumeHash' does not exist in type 'UserResumeInclude<DefaultArgs>'.
+src/services/fact-correction.service.ts(31,17): error TS18047: 'originalFact.provenance' is possibly 'null'.
+src/services/fact.service.ts(56,11): error TS2353: Object literal may only specify known properties, and 'sourceVersion' does not exist in type 'Without<ExtractionRunCreateInput, ExtractionRunUncheckedCreateInput> & ExtractionRunUncheckedCreateInput'.
+src/services/fact.service.ts(78,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/fact.service.ts(79,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/fact.service.ts(80,11): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(245,11): error TS2353: Object literal may only specify known properties, and 'unique_user_message' does not exist in type 'EmailMessageWhereUniqueInput'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(254,11): error TS2353: Object literal may only specify known properties, and 'unique_user_message' does not exist in type 'EmailMessageWhereUniqueInput'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(261,11): error TS2353: Object literal may only specify known properties, and 'userId' does not exist in type '(Without<EmailMessageCreateInput, EmailMessageUncheckedCreateInput> & EmailMessageUncheckedCreateInput) | (Without<...> & EmailMessageCreateInput)'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(267,11): error TS2353: Object literal may only specify known properties, and 'labels' does not exist in type '(Without<EmailMessageUpdateInput, EmailMessageUncheckedUpdateInput> & EmailMessageUncheckedUpdateInput) | (Without<...> & EmailMessageUpdateInput)'.
+src/services/gmail/ingestion/gmail-ingestion.service.ts(278,15): error TS2353: Object literal may only specify known properties, and 'unique_user_message' does not exist in type 'EmailMessageWhereUniqueInput'.
+src/services/gmail/processors/email-processor.ts(23,21): error TS2339: Property 'sender' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/gmail/processors/email-processor.ts(24,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/gmail/processors/email-processor.ts(25,23): error TS2339: Property 'bodyText' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/gmail/processors/email-processor.ts(26,23): error TS2339: Property 'bodyHtml' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/gmail/processors/email-processor.ts(38,13): error TS2339: Property 'legacyUserId' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/idempotency/idempotency.service.ts(85,31): error TS2694: Namespace '"/workspace/node_modules/.prisma/client/index".Prisma' has no exported member 'IdempotencyRecordCreateInput'.
+src/services/idempotency/idempotency.service.ts(100,21): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(107,40): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(139,37): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(151,40): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(178,19): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(191,21): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(207,31): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/idempotency/idempotency.service.ts(227,34): error TS2339: Property 'idempotencyRecord' does not exist on type 'DbClient'.
+  Property 'idempotencyRecord' does not exist on type 'TransactionClient'.
+src/services/job-analytics/job-analytics.service.ts(39,13): error TS2353: Object literal may only specify known properties, and 'description' does not exist in type 'ApplicationTimelineEventSelect<DefaultArgs>'.
+src/services/job-analytics/job-analytics.service.ts(99,16): error TS2339: Property 'timeline' does not exist on type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }'.
 src/services/job-analytics/job-analytics.service.ts(99,34): error TS7006: Parameter 'timelineEvent' implicitly has an 'any' type.
+src/services/job-analytics/job-analytics.service.ts(111,36): error TS2339: Property 'timeline' does not exist on type '{ status: ApplicationStatus; candidateEmail: string | null; recruiterEmail: string | null; userId: string; metadata: JsonValue; id: string; createdAt: Date; ... 22 more ...; atsApplicationId: string | null; }'.
 src/services/job-analytics/job-analytics.service.ts(111,53): error TS7006: Parameter 'timelineEvent' implicitly has an 'any' type.
 src/services/job-analytics/job-analytics.service.ts(117,45): error TS7006: Parameter 'e' implicitly has an 'any' type.
-src/services/opportunity/opportunity.service.ts(23,15): error TS2305: Module '"@prisma/client"' has no exported member 'Opportunity'.
-src/services/opportunity/opportunity.service.ts(186,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
-src/services/opportunity/opportunity.service.ts(204,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
-src/services/opportunity/opportunity.service.ts(244,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'OpportunityUpdateInput'.
-src/services/opportunity/opportunity.service.ts(279,67): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/opportunity/opportunity.service.ts(314,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'OpportunityCreateInput'.
-src/services/opportunity/opportunity.service.ts(326,65): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/outcome.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'OutcomeEvent'.
-src/services/outcome.service.ts(89,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/queue/workers/reencryption.worker.ts(135,40): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/recruiter/recruiter.service.ts(212,36): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'RecruiterWhereInput'.
-src/services/recruiter/recruiter.service.ts(214,59): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/recruiter/recruiter.service.ts(220,71): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/recruiter/recruiter.service.ts(225,73): error TS2339: Property 'QueryMode' does not exist on type 'typeof Prisma'.
-src/services/resume/resume-upload.service.ts(294,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/job-analytics/job-analytics.service.ts(119,63): error TS18047: 'app.appliedDate' is possibly 'null'.
+src/services/job-analytics/job-analytics.service.ts(126,60): error TS18047: 'app.appliedDate' is possibly 'null'.
+src/services/opportunity/opportunity.service.ts(161,13): error TS2353: Object literal may only specify known properties, and 'url' does not exist in type 'OpportunityWhereInput'.
+src/services/opportunity/opportunity.service.ts(181,11): error TS2353: Object literal may only specify known properties, and 'requirements' does not exist in type 'OpportunitySelect<DefaultArgs>'.
+src/services/opportunity/opportunity.service.ts(245,7): error TS2353: Object literal may only specify known properties, and 'lastSeenAt' does not exist in type 'OpportunityUpdateInput'.
+src/services/opportunity/opportunity.service.ts(254,9): error TS2353: Object literal may only specify known properties, and 'requirements' does not exist in type 'OpportunitySelect<DefaultArgs>'.
+src/services/opportunity/opportunity.service.ts(268,18): error TS2339: Property 'url' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date | null; externalId: string | null; companyId: string; location: string | null; employmentType: string | null; ... 5 more ...; careersPageUrl: string | null; }'.
+src/services/opportunity/opportunity.service.ts(269,14): error TS2339: Property 'url' does not exist on type 'OpportunityUpdateInput'.
+src/services/opportunity/opportunity.service.ts(279,7): error TS2322: Type 'InputJsonValue' is not assignable to type 'string | NullableStringFieldUpdateOperationsInput | null | undefined'.
+  Type 'number' is not assignable to type 'string | NullableStringFieldUpdateOperationsInput | null | undefined'.
+src/services/opportunity/opportunity.service.ts(283,18): error TS2339: Property 'requirements' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date | null; externalId: string | null; companyId: string; location: string | null; employmentType: string | null; ... 5 more ...; careersPageUrl: string | null; }'.
+src/services/opportunity/opportunity.service.ts(284,14): error TS2339: Property 'requirements' does not exist on type 'OpportunityUpdateInput'.
+src/services/opportunity/opportunity.service.ts(289,14): error TS2339: Property 'sourceMetadata' does not exist on type 'OpportunityUpdateInput'.
+src/services/opportunity/opportunity.service.ts(290,23): error TS2339: Property 'sourceMetadata' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; expiresAt: Date | null; externalId: string | null; companyId: string; location: string | null; employmentType: string | null; ... 5 more ...; careersPageUrl: string | null; }'.
+src/services/opportunity/opportunity.service.ts(302,17): error TS2353: Object literal may only specify known properties, and 'lastSeenAt' does not exist in type '(Without<OpportunityUpdateInput, OpportunityUncheckedUpdateInput> & OpportunityUncheckedUpdateInput) | (Without<...> & OpportunityUpdateInput)'.
+src/services/opportunity/opportunity.service.ts(319,7): error TS2353: Object literal may only specify known properties, and 'url' does not exist in type 'OpportunityCreateInput'.
+src/services/opportunity/opportunity.service.ts(326,7): error TS2322: Type 'InputJsonValue' is not assignable to type 'string | null | undefined'.
+  Type 'number' is not assignable to type 'string'.
+src/services/opportunity/opportunity.service.ts(329,12): error TS2339: Property 'requirements' does not exist on type 'OpportunityCreateInput'.
+src/services/opportunity/opportunity.service.ts(332,12): error TS2339: Property 'sourceMetadata' does not exist on type 'OpportunityCreateInput'.
+src/services/outcome.service.ts(146,13): error TS2322: Type 'string' is not assignable to type 'ApplicationStatus | EnumApplicationStatusFieldUpdateOperationsInput | undefined'.
+src/services/ownership/ownership.guard.ts(35,5): error TS2322: Type '{ userId: string; id: string; legacyUserId: string | null; }' is not assignable to type '{ id: string; userId: string | null; legacyUserId: string; }'.
+  Types of property 'legacyUserId' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/services/ownership/ownership.guard.ts(43,28): error TS2551: Property 'applicationTimeline' does not exist on type 'DbClient'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
+src/services/ownership/ownership.guard.ts(139,5): error TS2322: Type '{ status: string; userId: string; cellId: string | null; id: string; }' is not assignable to type '{ id: string; userId: string; cellId: string; status: string; }'.
+  Types of property 'cellId' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/services/ownership/ownership.guard.ts(204,5): error TS2322: Type '{ userId: string; id: string; extractionRunId: string | null; provenanceId: string | null; }' is not assignable to type '{ id: string; userId: string; extractionRunId: string; provenanceId: string; }'.
+  Types of property 'extractionRunId' are incompatible.
+    Type 'string | null' is not assignable to type 'string'.
+      Type 'null' is not assignable to type 'string'.
+src/services/queue/workers/application-tracking.worker.ts(67,23): error TS2339: Property 'sender' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/queue/workers/application-tracking.worker.ts(68,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/queue/workers/application-tracking.worker.ts(69,25): error TS2339: Property 'bodyText' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/queue/workers/application-tracking.worker.ts(70,25): error TS2339: Property 'bodyHtml' does not exist on type '{ providerMessageId: string; subject: string | null; applicationId: string | null; id: string; createdAt: Date; updatedAt: Date; recruiterId: string | null; threadId: string; ... 5 more ...; isRead: boolean; }'.
+src/services/queue/workers/malware-scan.worker.ts(46,13): error TS2353: Object literal may only specify known properties, and 'scanningStatus' does not exist in type '(Without<UserResumeUpdateInput, UserResumeUncheckedUpdateInput> & UserResumeUncheckedUpdateInput) | (Without<...> & UserResumeUpdateInput)'.
+src/services/queue/workers/malware-scan.worker.ts(55,15): error TS2353: Object literal may only specify known properties, and 'scanningStatus' does not exist in type '(Without<UserResumeUpdateInput, UserResumeUncheckedUpdateInput> & UserResumeUncheckedUpdateInput) | (Without<...> & UserResumeUpdateInput)'.
+src/services/queue/workers/malware-scan.worker.ts(77,7): error TS2353: Object literal may only specify known properties, and 'scanningStatus' does not exist in type '(Without<UserResumeUpdateInput, UserResumeUncheckedUpdateInput> & UserResumeUncheckedUpdateInput) | (Without<...> & UserResumeUpdateInput)'.
+src/services/queue/workers/resume-parsing.worker.ts(45,7): error TS2353: Object literal may only specify known properties, and 'legacyUserId' does not exist in type 'UserResumeWhereInput'.
+src/services/queue/workers/resume-parsing.worker.ts(69,15): error TS2353: Object literal may only specify known properties, and 'scanningStatus' does not exist in type '(Without<UserResumeUpdateInput, UserResumeUncheckedUpdateInput> & UserResumeUncheckedUpdateInput) | (Without<...> & UserResumeUpdateInput)'.
+src/services/recruiter/recruiter.service.ts(184,9): error TS2353: Object literal may only specify known properties, and 'unique_user_message' does not exist in type 'EmailMessageWhereUniqueInput'.
+src/services/recruiter/recruiter.service.ts(232,24): error TS2352: Conversion of type '{ email: string; name: string; id: string; createdAt: Date; updatedAt: Date; companyId: string; title: string; }[]' to type 'RecruiterListQueryRecord[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ email: string; name: string; id: string; createdAt: Date; updatedAt: Date; companyId: string; title: string; }' is not comparable to type 'RecruiterListQueryRecord'.
+    Property 'company' is missing in type '{ email: string; name: string; id: string; createdAt: Date; updatedAt: Date; companyId: string; title: string; }' but required in type 'RecruiterBaseRecord'.
+src/services/recruiter/recruiter.service.ts(246,20): error TS2353: Object literal may only specify known properties, and 'userId' does not exist in type 'EmailMessageWhereInput'.
+src/services/recruiter/recruiter.service.ts(288,20): error TS2353: Object literal may only specify known properties, and 'userId' does not exist in type 'EmailMessageWhereInput'.
+src/services/recruiter/recruiter.service.ts(294,13): error TS2353: Object literal may only specify known properties, and 'sender' does not exist in type 'EmailMessageSelect<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(111,39): error TS2339: Property 'resumeHash' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(126,36): error TS2339: Property 'resumeHash' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(147,7): error TS2322: Type '{ OR: ({ userId: string; } | { legacyUserId: string; })[]; }' is not assignable to type 'UserResumeWhereInput'.
+  Types of property 'OR' are incompatible.
+    Type '({ userId: string; } | { legacyUserId: string; })[]' is not assignable to type 'UserResumeWhereInput[]'.
+      Type '{ userId: string; } | { legacyUserId: string; }' is not assignable to type 'UserResumeWhereInput'.
+        Type '{ legacyUserId: string; }' has no properties in common with type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(148,18): error TS2353: Object literal may only specify known properties, and 'version' does not exist in type 'UserResumeOrderByWithRelationInput | UserResumeOrderByWithRelationInput[]'.
+src/services/resume/resume-upload.service.ts(149,17): error TS2353: Object literal may only specify known properties, and 'version' does not exist in type 'UserResumeSelect<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(151,41): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(155,36): error TS2353: Object literal may only specify known properties, and 'isActive' does not exist in type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(156,15): error TS2353: Object literal may only specify known properties, and 'isActive' does not exist in type '(Without<UserResumeUpdateManyMutationInput, UserResumeUncheckedUpdateManyInput> & UserResumeUncheckedUpdateManyInput) | (Without<...> & UserResumeUpdateManyMutationInput)'.
+src/services/resume/resume-upload.service.ts(162,9): error TS2353: Object literal may only specify known properties, and 'legacyUserId' does not exist in type 'Without<UserResumeCreateInput, UserResumeUncheckedCreateInput> & UserResumeUncheckedCreateInput'.
+src/services/resume/resume-upload.service.ts(246,48): error TS2353: Object literal may only specify known properties, and 'isActive' does not exist in type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(247,18): error TS2353: Object literal may only specify known properties, and 'resumeHash' does not exist in type 'UserResumeInclude<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(253,68): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(257,28): error TS2339: Property 'originalName' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(259,20): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(260,29): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(262,23): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(268,48): error TS2353: Object literal may only specify known properties, and 'isActive' does not exist in type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(269,18): error TS2353: Object literal may only specify known properties, and 'resumeHash' does not exist in type 'UserResumeInclude<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(275,26): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(276,28): error TS2339: Property 'originalName' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(277,24): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(278,29): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(279,20): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(280,23): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(287,7): error TS2322: Type '{ OR: ({ userId: string; } | { legacyUserId: string; })[]; }' is not assignable to type 'UserResumeWhereInput'.
+  Types of property 'OR' are incompatible.
+    Type '({ userId: string; } | { legacyUserId: string; })[]' is not assignable to type 'UserResumeWhereInput[]'.
+      Type '{ userId: string; } | { legacyUserId: string; }' is not assignable to type 'UserResumeWhereInput'.
+        Type '{ legacyUserId: string; }' has no properties in common with type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(289,9): error TS2353: Object literal may only specify known properties, and 'resumeHash' does not exist in type 'UserResumeInclude<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(292,19): error TS2353: Object literal may only specify known properties, and 'version' does not exist in type 'UserResumeOrderByWithRelationInput'.
+src/services/resume/resume-upload.service.ts(296,18): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(297,19): error TS2339: Property 'isActive' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(298,23): error TS2339: Property 'originalName' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(299,23): error TS2339: Property 'supersededAt' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(301,21): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(302,24): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(303,15): error TS2339: Property 'resumeHash' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(304,27): error TS2339: Property '_count' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(311,7): error TS2322: Type '{ OR: ({ userId: string; } | { legacyUserId: string; })[]; id: string; }' is not assignable to type 'UserResumeWhereInput'.
+  Types of property 'OR' are incompatible.
+    Type '({ userId: string; } | { legacyUserId: string; })[]' is not assignable to type 'UserResumeWhereInput[]'.
+      Type '{ userId: string; } | { legacyUserId: string; }' is not assignable to type 'UserResumeWhereInput'.
+        Type '{ legacyUserId: string; }' has no properties in common with type 'UserResumeWhereInput'.
+src/services/resume/resume-upload.service.ts(312,18): error TS2353: Object literal may only specify known properties, and '_count' does not exist in type 'UserResumeInclude<DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(315,13): error TS2339: Property '_count' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(317,45): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(317,78): error TS2339: Property '_count' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(324,20): error TS2339: Property 'version' does not exist on type '{ parsedContent: JsonValue; userId: string; id: string; createdAt: Date; updatedAt: Date; filename: string; s3Key: string; contentType: string; isPrimary: boolean; }'.
+src/services/resume/resume-upload.service.ts(344,14): error TS2339: Property 'applicationResume' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs> | TransactionClient'.
+  Property 'applicationResume' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/resume/resume-upload.service.ts(367,30): error TS2339: Property 'applicationResume' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/retention/data-retention.service.ts(101,9): error TS2322: Type '{ OR: ({ userId: string; } | { legacyUserId: string; })[]; }' is not assignable to type 'EmailMessageWhereInput'.
+  Types of property 'OR' are incompatible.
+    Type '({ userId: string; } | { legacyUserId: string; })[]' is not assignable to type 'EmailMessageWhereInput[]'.
+      Type '{ userId: string; } | { legacyUserId: string; }' is not assignable to type 'EmailMessageWhereInput'.
+        Type '{ userId: string; }' has no properties in common with type 'EmailMessageWhereInput'.
+src/services/retention/data-retention.service.ts(119,44): error TS2551: Property 'applicationTimeline' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'applicationTimelineEvent'?
+src/services/retention/data-retention.service.ts(125,49): error TS2339: Property 'applicationStatusHistory' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/retention/data-retention.service.ts(131,43): error TS2339: Property 'applicationSource' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+src/services/retention/data-retention.service.ts(144,9): error TS2322: Type '{ OR: ({ userId: string; } | { legacyUserId: string; })[]; }' is not assignable to type 'UserResumeWhereInput'.
+  Types of property 'OR' are incompatible.
+    Type '({ userId: string; } | { legacyUserId: string; })[]' is not assignable to type 'UserResumeWhereInput[]'.
+      Type '{ userId: string; } | { legacyUserId: string; }' is not assignable to type 'UserResumeWhereInput'.
+        Type '{ legacyUserId: string; }' has no properties in common with type 'UserResumeWhereInput'.
+src/services/retention/data-retention.service.ts(202,35): error TS2339: Property 'resumeHash' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 src/services/retention/data-retention.service.ts(219,35): error TS7006: Parameter 'o' implicitly has an 'any' type.
 src/services/retention/data-retention.service.ts(223,25): error TS7006: Parameter 'o' implicitly has an 'any' type.
-src/services/retention/data-retention.service.ts(256,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/retention/data-retention.service.ts(300,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
-src/services/snapshot.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'FactObservation'.
-src/services/snapshot.service.ts(2,35): error TS2305: Module '"@prisma/client"' has no exported member 'Snapshot'.
-src/services/snapshot.service.ts(16,39): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-src/services/snapshot.service.ts(46,47): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/status-engine/status-engine.service.ts(23,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/status-engine/status-engine.service.ts(36,30): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/status-engine/status-engine.service.ts(53,31): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/status-engine/status-engine.service.ts(67,29): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
+src/services/status-engine/status-engine.service.ts(157,30): error TS2339: Property 'applicationStatusHistory' does not exist on type 'DbClient'.
+  Property 'applicationStatusHistory' does not exist on type 'TransactionClient'.
 src/services/status-engine/status-engine.service.ts(163,25): error TS7006: Parameter 'entry' implicitly has an 'any' type.
-src/services/status-engine/status-engine.service.ts(269,24): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/status-engine/status-engine.service.ts(418,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/status-engine/status-engine.service.ts(449,22): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'JsonValue'.
-src/services/status-engine/status-engine.service.ts(464,19): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/status-engine/status-engine.service.ts(465,13): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/status-engine/status-engine.service.ts(465,37): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'NullableJsonNullValueInput'.
-src/services/status-engine/status-engine.service.ts(471,21): error TS2339: Property 'JsonNull' does not exist on type 'typeof Prisma'.
-src/services/user/user.service.ts(8,15): error TS2305: Module '"@prisma/client"' has no exported member 'CandidateProfile'.
-src/services/user/user.service.ts(8,33): error TS2305: Module '"@prisma/client"' has no exported member 'User'.
-src/services/user/user.service.ts(98,33): error TS2339: Property 'PrismaClientKnownRequestError' does not exist on type 'typeof Prisma'.
-src/services/user/user.service.ts(99,9): error TS18046: 'error' is of type 'unknown'.
-src/services/user/user.service.ts(145,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CandidateProfileUncheckedCreateInput'.
-src/services/user/user.service.ts(154,26): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'CandidateProfileUpdateInput'.
-src/services/user/user.service.ts(160,70): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/services/user/user.service.ts(162,70): error TS2694: Namespace '"C:/Users/lalit/Downloads/Startup _3-20260724T160925Z-1-001/Startup _3/Job Search Startup/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
-src/workers/gmail-sync.worker.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'JobStatus'.
-src/workers/gmail-sync.worker.ts(1,21): error TS2305: Module '"@prisma/client"' has no exported member 'JobType'.
-src/workers/job-queue.service.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'JobStatus'.
-src/workers/job-queue.service.ts(1,21): error TS2305: Module '"@prisma/client"' has no exported member 'JobType'.
+src/services/status-engine/status-engine.service.ts(224,35): error TS2339: Property 'applicationStatusHistory' does not exist on type 'DbClient'.
+  Property 'applicationStatusHistory' does not exist on type 'TransactionClient'.
+src/services/status-engine/status-engine.service.ts(232,30): error TS2339: Property 'applicationStatusHistory' does not exist on type 'DbClient'.
+  Property 'applicationStatusHistory' does not exist on type 'TransactionClient'.
+src/services/status-engine/status-engine.service.ts(246,31): error TS2339: Property 'applicationStatusHistory' does not exist on type 'DbClient'.
+  Property 'applicationStatusHistory' does not exist on type 'TransactionClient'.
+src/services/status-engine/status-engine.service.ts(294,34): error TS2551: Property 'applicationTimeline' does not exist on type 'DbClient'. Did you mean 'applicationTimelineEvent'?
+  Property 'applicationTimeline' does not exist on type 'TransactionClient'.
