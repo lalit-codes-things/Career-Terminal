@@ -1,7 +1,6 @@
 {
-  "name": "job-search-platform",
-  "version": "0.1.0",
-  "description": "AI-powered job search platform with email ingestion",
+  "name": "Career-Terminal",
+  "description": "Bloomberg Terminal for job seeking",
   "private": true,
   "main": "dist/index.js",
   "scripts": {
