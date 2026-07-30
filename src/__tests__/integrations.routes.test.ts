@@ -26,21 +26,20 @@ describe('Integration Routes', () => {
     jest.clearAllMocks();
   });
 
-  describe('GET /integrations/gmail/connect', () => {
+  describe('GET /integrations/connect', () => {
     it('should return authorization URL for authenticated user', async () => {
       (gmailOAuthService.getAuthorizationUrl as jest.Mock).mockReturnValue('https://auth.url');
 
-      const response = await authedGet('/integrations/gmail/connect');
+      const response = await authedGet('/integrations/connect');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.authorizationUrl).toBe('https://auth.url');
-      // userId must come from the JWT/x-user-id header, not a query param
       expect(gmailOAuthService.getAuthorizationUrl).toHaveBeenCalledWith('user-123');
     });
 
     it('should return 401 when no authentication is provided', async () => {
-      const response = await request(app).get('/integrations/gmail/connect');
+      const response = await request(app).get('/integrations/connect');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -48,10 +47,8 @@ describe('Integration Routes', () => {
     });
 
     it('should reject userId supplied as query param (no longer accepted)', async () => {
-      // With auth restored, userId must come from the token — a bare query-param
-      // request without a valid auth header must be rejected, not fulfilled.
       const response = await request(app).get(
-        '/integrations/gmail/connect?userId=attacker-supplied-id',
+        '/integrations/connect?userId=attacker-supplied-id',
       );
 
       expect(response.status).toBe(401);
@@ -59,7 +56,7 @@ describe('Integration Routes', () => {
     });
   });
 
-  describe('GET /integrations/gmail/callback', () => {
+  describe('GET /integrations/callback', () => {
     it('should handle successful callback', async () => {
       (gmailOAuthService.handleCallback as jest.Mock).mockResolvedValue({
         connectionId: 'conn_1',
@@ -67,7 +64,7 @@ describe('Integration Routes', () => {
         provider: 'GMAIL',
       });
 
-      const response = await request(app).get('/integrations/gmail/callback?code=abc&state=xyz');
+      const response = await request(app).get('/integrations/callback?code=abc&state=xyz');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -79,7 +76,7 @@ describe('Integration Routes', () => {
         new OAuthError('Invalid state', 'INVALID_STATE'),
       );
 
-      const response = await request(app).get('/integrations/gmail/callback?code=abc&state=xyz');
+      const response = await request(app).get('/integrations/callback?code=abc&state=xyz');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -88,7 +85,7 @@ describe('Integration Routes', () => {
 
     it('should return 400 for missing code or state', async () => {
       const response = await request(app).get(
-        '/integrations/gmail/callback?code=abc', // missing state
+        '/integrations/callback?code=abc',
       );
 
       expect(response.status).toBe(400);
