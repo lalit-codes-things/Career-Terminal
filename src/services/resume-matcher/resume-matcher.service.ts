@@ -8,6 +8,8 @@ import { logger } from '../../lib/logger';
 import {
   getJobSkillLexicon,
   getResumeSkillLexicon,
+  getJobOccupationLexicon,
+  getResumeOccupationLexicon,
 } from '../../config/resume-lexicon';
 
 const EXPERIENCE_PATTERNS = [
@@ -66,6 +68,7 @@ export class ResumeMatcherService {
   public async parseResume(text: string): Promise<ParsedResume> {
     const lowerText = text.toLowerCase();
     const skills = await this.matchTerms(lowerText, await getResumeSkillLexicon());
+    const occupations = await this.matchTerms(lowerText, await getResumeOccupationLexicon());
     const technologies = skills;
     const experience = this.extractExperienceHints(text);
     const education = this.extractEducationHints(text);
@@ -73,9 +76,10 @@ export class ResumeMatcherService {
     return {
       skills,
       technologies,
+      occupations,
       experience,
       education,
-      keywords: [...skills, ...technologies],
+      keywords: [...skills, ...technologies, ...occupations],
     };
   }
 
@@ -85,6 +89,7 @@ export class ResumeMatcherService {
   public async parseJobDescription(text: string): Promise<ParsedJob> {
     const lowerText = text.toLowerCase();
     const skills = await this.matchTerms(lowerText, await getJobSkillLexicon());
+    const occupations = await this.matchTerms(lowerText, await getJobOccupationLexicon());
     const technologies = skills;
     const minExperience = this.inferMinimumExperience(lowerText);
 
@@ -92,8 +97,9 @@ export class ResumeMatcherService {
       requirements: [],
       skills,
       technologies,
+      occupations,
       minExperience,
-      keywords: [...skills, ...technologies],
+      keywords: [...skills, ...technologies, ...occupations],
     };
   }
 
@@ -140,17 +146,33 @@ export class ResumeMatcherService {
     const techMatch =
       parsedJob.technologies.length > 0 ? techScoreSum / parsedJob.technologies.length : 1.0;
 
+    // Occupation matching
+    let occupationScoreSum = 0;
+    for (const reqOcc of parsedJob.occupations) {
+      let bestMatch = 0;
+      for (const resOcc of parsedResume.occupations) {
+        const score = await this.semanticMatcher.scoreSimilarity(reqOcc, resOcc);
+        if (score > bestMatch) bestMatch = score;
+      }
+      occupationScoreSum += bestMatch;
+    }
+    const occupationMatch =
+      parsedJob.occupations.length > 0 ? occupationScoreSum / parsedJob.occupations.length : 1.0;
+
     // Experience matching
     const totalExpYears = parsedResume.experience.reduce((sum, exp) => sum + exp.years, 0);
     let experienceMatch =
       parsedJob.minExperience > 0 ? Math.min(totalExpYears / parsedJob.minExperience, 1.0) : 1.0;
 
-    // Combined overall score (Weighted: 40% skills, 30% tech, 30% experience)
-    const overallScore = skillMatch * 0.4 + techMatch * 0.3 + experienceMatch * 0.3;
+    // Combined overall score (Weighted: 35% skills, 25% tech, 20% occupation, 20% experience)
+    const overallScore = skillMatch * 0.35 + techMatch * 0.25 + occupationMatch * 0.20 + experienceMatch * 0.20;
 
     const improvementSuggestions = [];
     if (missingSkills.length > 0) {
       improvementSuggestions.push(`Consider adding experience with: ${missingSkills.join(', ')}`);
+    }
+    if (occupationMatch < 1.0) {
+      improvementSuggestions.push('Resume occupation focus does not fully align with the target role.');
     }
     if (experienceMatch < 1.0) {
       improvementSuggestions.push(
@@ -161,6 +183,7 @@ export class ResumeMatcherService {
     return {
       overallScore: Number(overallScore.toFixed(2)),
       skillMatch: Number(skillMatch.toFixed(2)),
+      occupationMatch: Number(occupationMatch.toFixed(2)),
       experienceMatch: Number(experienceMatch.toFixed(2)),
       missingSkills,
       improvementSuggestions,

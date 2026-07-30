@@ -42,18 +42,22 @@ async function loadIsco(version: string = '08') {
   const stats: ImportStats = { source: 'ISCO', version, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [], durationMs: 0 };
   console.log(`[ISCO] Starting import version ${version}...`);
 
-  const iscoFile = path.join(DATA_DIR, 'raw', 'isco', 'latest', 'isco08.csv');
+  const iscoFile = path.join(DATA_DIR, 'raw', 'isco', 'latest', 'isco.csv');
   try {
     await registerSource('ISCO', version, 'International Labour Organization', 'Public Domain', 'https://www.ilo.org/', iscoFile);
     const content = await fs.readFile(iscoFile, 'utf8');
     const rows = parseCsv(content);
     const header = rows.shift();
-    if (!header) throw new Error('Missing header in isco08.csv');
+    if (!header) throw new Error('Missing header in isco.csv');
 
     const idx = {
-      code: header.indexOf('ISCO-08 Code'),
-      title: header.indexOf('Title'),
+      code: header.indexOf('unit'),
+      title: header.indexOf('description'),
     };
+
+    if (idx.code === -1 || idx.title === -1) {
+      throw new Error(`ISCO CSV headers not found. Found: ${header.join(', ')}`);
+    }
 
     for (const row of rows) {
       stats.recordsProcessed++;
@@ -383,7 +387,7 @@ async function loadCurrencies() {
           },
           update: { name, symbol: row[symIdx]?.trim() }
         });
-        stats.recordsCreated++;
+  stats.recordsCreated++;
       }
     }
   } catch (err: any) {
@@ -395,82 +399,74 @@ async function loadCurrencies() {
 }
 
 /**
- * NAICS Industries Importer
+ * O*NET Skills, Abilities, and Knowledge Importer
+ * Imports unique skill/ability/knowledge names from O*NET CSVs into canonical_skills
  */
-async function loadNaics(version: string = '2022') {
+async function loadOnetContentSkills(version: string = '30.3') {
   const start = Date.now();
-  const stats: ImportStats = { source: 'NAICS', version, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [], durationMs: 0 };
-  console.log(`[NAICS] Loading version ${version}...`);
+  const stats: ImportStats = { source: 'ONET-Skills', version, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [], durationMs: 0 };
+  console.log('[ONET-Skills] Importing essential skills...');
 
-  try {
-    const filePath = path.join(DATA_DIR, 'raw', 'naics', version, 'naics-2022-v1.0-isic4-en.csv');
-    const content = await fs.readFile(filePath, 'utf8');
-    const rows = parseCsv(content);
-    const header = rows.shift();
+  const onetDir = path.join(DATA_DIR, 'raw', 'onet', `v${version}`);
 
-    if (header) {
-      const codeIdx  = header.findIndex(h => h.includes('NAICS') && h.toLowerCase().includes('code'));
-      const titleIdx = header.findIndex(h => h.includes('NAICS') && h.toLowerCase().includes('title'));
+  const contentFiles = [
+    { file: 'essential_skills.csv', type: 'SKILL', prefix: 'ONET-SKILL-' },
+    { file: 'abilities.csv', type: 'ABILITY', prefix: 'ONET-ABILITY-' },
+    { file: 'knowledge.csv', type: 'KNOWLEDGE', prefix: 'ONET-KNOWLEDGE-' },
+  ];
+
+  const uniqueElements = new Map<string, { name: string; type: string }>();
+
+  for (const { file, type } of contentFiles) {
+    try {
+      const filePath = path.join(onetDir, file);
+      const content = await fs.readFile(filePath, 'utf8');
+      const rows = parseCsv(content);
+      const header = rows.shift();
+      if (!header) continue;
+
+      const nameIdx = header.indexOf('Element Name');
+      if (nameIdx === -1) continue;
 
       for (const row of rows) {
-        stats.recordsProcessed++;
-        const code  = row[codeIdx]?.trim();
-        const title = row[titleIdx]?.trim();
-        if (!code || !title) continue;
-
-        const sourceId = `NAICS:${code}`;
-        await prisma.canonicalIndustry.upsert({
-          where:  { source_sourceId: { source: 'NAICS', sourceId } },
-          create: { code, name: title, source: 'NAICS', sourceId, sourceVersion: version },
-          update: { name: title },
-        });
-        stats.recordsCreated++;
+        const name = row[nameIdx]?.trim();
+        if (!name) continue;
+        const key = name.toLowerCase().trim();
+        if (!uniqueElements.has(key)) {
+          uniqueElements.set(key, { name, type });
+        }
       }
+    } catch (err: any) {
+      stats.errors.push(`Failed to read ${file}: ${err.message}`);
     }
-  } catch (err: any) {
-    stats.errors.push(err.message);
   }
 
-  stats.durationMs = Date.now() - start;
-  globalStats.push(stats);
-}
-
-/**
- * ISO 639 (Languages) Importer
- */
-async function loadLanguages() {
-  const start = Date.now();
-  const stats: ImportStats = { source: 'ISO-639', version: 'latest', recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, errors: [], durationMs: 0 };
-  console.log('[ISO] Loading Languages...');
-
-  try {
-    const filePath = path.join(DATA_DIR, 'raw', 'iso', '639', 'iso_639.csv');
-    const content = await fs.readFile(filePath, 'utf8');
-    const rows = parseCsv(content);
-    
-    for (const row of rows) {
-      stats.recordsProcessed++;
-      if (row.length < 5) continue;
-      const iso1 = row[0]?.trim() || '';
-      const iso2 = row[1]?.trim() || '';
-      const name = row[3]?.trim();
-      const native = row[4]?.trim();
-      
-      if (!iso2 || !name) continue;
-      
-      await prisma.canonicalLanguage.upsert({
-        where: { iso6392: iso2 },
-        create: { iso6391: iso1, iso6392: iso2, name, nativeName: native },
-        update: { iso6391: iso1, name, nativeName: native }
+  let created = 0;
+  for (const [, { name, type }] of uniqueElements) {
+    stats.recordsProcessed++;
+    const sourceId = `ONET-${name.replace(/[^a-z0-9]+/gi, '-').replace(/-+/g, '-').toLowerCase()}`;
+    try {
+      await prisma.canonicalSkill.upsert({
+        where: { source_sourceId: { source: 'ONET', sourceId } },
+        create: {
+          canonicalName: name.toLowerCase(),
+          source: 'ONET',
+          sourceId,
+          sourceVersion: version,
+          skillType: type,
+        },
+        update: {},
       });
-      stats.recordsCreated++;
+      created++;
+    } catch (e: any) {
+      stats.errors.push(`Skill ${name}: ${e.message}`);
     }
-  } catch (err: any) {
-    stats.errors.push(err.message);
   }
 
+  stats.recordsCreated = created;
   stats.durationMs = Date.now() - start;
   globalStats.push(stats);
+  console.log(`[ONET-Skills] Finished. Imported ${created} unique skills from ${contentFiles.length} files.`);
 }
 
 /**
@@ -486,6 +482,7 @@ async function main() {
     await loadCurrencies();
     await loadEsco('1.2.1');
     await loadOnet('30.3');
+    await loadOnetContentSkills('30.3');
     await loadNaics('2022');
 
     // Generate Report

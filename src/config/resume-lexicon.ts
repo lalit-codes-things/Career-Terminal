@@ -15,3 +15,11 @@ export async function getJobSkillLexicon(): Promise<string[]> {
 export async function getJobTechLexicon(): Promise<string[]> {
   return careerTaxonomyService.getSkillTerms();
 }
+
+export async function getResumeOccupationLexicon(): Promise<string[]> {
+  return careerTaxonomyService.getOccupationTerms();
+}
+
+export async function getJobOccupationLexicon(): Promise<string[]> {
+  return careerTaxonomyService.getOccupationTerms();
+}
