@@ -34,7 +34,7 @@ applicationsRouter.get(
   validateQuery(listQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
@@ -70,7 +70,7 @@ applicationsRouter.get(
   validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
@@ -92,7 +92,7 @@ applicationsRouter.get(
   validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
@@ -121,7 +121,7 @@ applicationsRouter.get(
   validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
@@ -150,7 +150,7 @@ applicationsRouter.get(
   validateParams(paramIdSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
@@ -173,7 +173,7 @@ applicationsRouter.patch(
   validateBody(statusPatchSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }

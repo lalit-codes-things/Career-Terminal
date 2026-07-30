@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../../config/database';
 import { queueService } from '../queue/queue.service';
 import { logger } from '../../lib/logger';
+import type { Prisma } from '@prisma/client';
 import { CreateEventInput, EVENT_TYPES } from './event.types';
 import type { MalwareScanJobPayload, ResumeParsingJobPayload } from '../queue/queue.types';
 
@@ -26,7 +27,7 @@ export class EventDispatcherService {
         aggregateType: input.aggregateType,
         userId: input.userId,
         cellId: input.cellId,
-        payload: input.payload,
+        payload: input.payload as Prisma.InputJsonValue,
         correlationId,
         status: 'pending',
       },

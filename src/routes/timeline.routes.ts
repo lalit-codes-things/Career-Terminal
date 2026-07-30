@@ -29,7 +29,7 @@ timelineRouter.patch(
   validateBody(patchTimelineSchema),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as Request & { user?: { id: string } }).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }

@@ -13,6 +13,11 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    opportunityObservation: {
+      create: jest.fn(),
+      updateMany: jest.fn(),
     },
     company: {
       findUnique: jest.fn(),
@@ -45,6 +50,11 @@ type MockPrisma = {
     findUnique: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  opportunityObservation: {
+    create: jest.Mock;
+    updateMany: jest.Mock;
   };
   company: {
     findUnique: jest.Mock;
@@ -101,6 +111,33 @@ describe('OpportunityService', () => {
     service = new OpportunityService(prisma);
 
     (companyService.resolveCompany as jest.Mock).mockResolvedValue(COMPANY_1);
+    mockPrisma.opportunityObservation.create.mockResolvedValue({
+      id: 'obs-1',
+      opportunityId: OPPORTUNITY_EXISTING.id,
+      userId: null,
+      sourceType: 'EMAIL',
+      sourceId: 'test',
+      extractionRunId: null,
+      observedAt: new Date(),
+      title: null,
+      description: null,
+      location: null,
+      compensation: null,
+      requirements: [],
+      department: null,
+      employmentType: null,
+      remotePolicy: null,
+      seniority: null,
+      hiringInfo: {},
+      confidence: 1.0,
+      url: null,
+      isCurrent: true,
+      supersededById: null,
+      supersededAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockPrisma.opportunityObservation.updateMany.mockResolvedValue({ count: 0 });
   });
 
   it('creates a new opportunity when no match exists (fallback path)', async () => {

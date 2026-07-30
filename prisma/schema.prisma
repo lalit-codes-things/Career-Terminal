@@ -137,6 +137,7 @@ model User {
   homeCell              Cell?                            @relation(fields: [cellId], references: [id], onDelete: SetNull)
   canonicalIntelligence CanonicalCandidateIntelligence[]
   events                Event[]
+  opportunityObservations OpportunityObservation[]
 
   @@index([region])
   @@index([deletionStatus])
@@ -407,11 +408,50 @@ model Opportunity {
   extractionRuns    ExtractionRun[]
   predictions       Prediction[]
   actionEvents      ActionEvent[]
+  observations      OpportunityObservation[]
 
   @@index([companyId])
   @@index([title])
   @@index([location])
   @@map("opportunities")
+}
+
+model OpportunityObservation {
+  id               String   @id @default(uuid()) @db.Uuid
+  opportunityId    String   @map("opportunity_id") @db.Uuid
+  userId           String?  @map("user_id") @db.Uuid
+  sourceType       String   @map("source_type")
+  sourceId         String   @map("source_id")
+  extractionRunId  String?  @map("extraction_run_id") @db.Uuid
+  observedAt       DateTime @default(now()) @map("observed_at") @db.Timestamptz
+  title            String?
+  description      String?  @db.Text
+  location         String?
+  compensation     Json?
+  requirements     Json?    @default("[]")
+  department       String?
+  employmentType   String?  @map("employment_type")
+  remotePolicy     String?  @map("remote_policy")
+  seniority        String?
+  hiringInfo       Json?    @map("hiring_info") @default("{}")
+  confidence       Float    @default(1.0)
+  url              String?
+  isCurrent        Boolean  @default(true) @map("is_current")
+  supersededById   String?  @map("superseded_by_id") @db.Uuid
+  supersededAt     DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  opportunity  Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  supersededBy OpportunityObservation? @relation("ObservationSuperseded", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes   OpportunityObservation[] @relation("ObservationSuperseded")
+
+  @@index([opportunityId])
+  @@index([userId])
+  @@index([observedAt])
+  @@index([opportunityId, observedAt])
+  @@map("opportunity_observations")
 }
 
 model JobApplication {

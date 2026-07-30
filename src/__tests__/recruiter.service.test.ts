@@ -105,9 +105,9 @@ describe('RecruiterService', () => {
     expect(mockPrisma.emailMessage.update).toHaveBeenCalledWith({
       where: {
 unique_user_message: {
-	          legacyUserId: 'user-1',
-	          providerMessageId: 'email-1',
-	        },
+            legacyUserId: 'user-1',
+            providerMessageId: 'email-1',
+          },
       },
       data: {
         application: {

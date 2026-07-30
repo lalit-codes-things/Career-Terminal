@@ -77,18 +77,18 @@ describe('DashboardService', () => {
     expect(activity[0]?.companyName).toBe('Stripe');
     expect(activity[0]?.eventType).toBe(ApplicationTimelineEventType.INTERVIEW);
 expect(mockPrisma.applicationTimeline.findMany).toHaveBeenCalledWith(
-	      expect.objectContaining({
-	        where: expect.objectContaining({
-	          application: expect.objectContaining({
-	            OR: [
-	              { userId: 'user-1' },
-	              { legacyUserId: 'user-1' },
-	            ],
-	          }),
-	        }),
-	        take: 5,
-	      }),
-	    );
+        expect.objectContaining({
+          where: expect.objectContaining({
+            application: expect.objectContaining({
+              OR: [
+                { userId: 'user-1' },
+                { legacyUserId: 'user-1' },
+              ],
+            }),
+          }),
+          take: 5,
+        }),
+      );
   });
 
   it('returns upcoming interviews in chronological order', async () => {

@@ -1,5 +1,5 @@
 /**
- * OpportunityService — canonical opportunity resolution (Prompt 2 of 19).
+ * OpportunityService — canonical opportunity resolution.
  *
  * Implements idempotent resolution of a "job opportunity" from extracted
  * application data.  Opportunities live in the global `opportunities` table
@@ -12,13 +12,18 @@
  *   3. Company + normalized-title fuzzy match (ignore location differences).
  *   4. Create a new opportunity row.
  *
- * On re-observation of a known opportunity we update enrichment fields
- * (description / salary / requirements / url) when the new data is richer,
- * and always bump `last_seen_at` to keep temporal signals fresh.
+ * On re-observation of a known opportunity we:
+ *   a. Create an immutable OpportunityObservation preserving the incoming data.
+ *   b. Update enrichment fields on the canonical opportunity row only when
+ *      the new data is richer and the canonical row would otherwise gap.
+ *   c. Bump `lastSeenAt` to keep temporal signals fresh.
  *
  * Concurrency: every resolution is serialized via a mutex keyed by the
  * normalized (company, title) pair, preventing two concurrent email
  * processors from creating duplicate rows for the same opportunity.
+ *
+ * N+1 mitigation: candidates are pre-filtered in SQL before in-memory fuzzy
+ * matching so we never scan the full company opportunity set.
  */
 import type { Opportunity, Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../../config/database';
@@ -26,6 +31,9 @@ import { companyService, type CompanyResolveInput } from '../company';
 import { acquireLock, releaseLock } from '../../lib/mutex';
 import { logger } from '../../lib/logger';
 import { executeWithTransientRetry } from '../../db/transaction-utils';
+import type {
+  OpportunityObservationRecord,
+} from '../../domain/opportunity';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -88,7 +96,7 @@ const TITLE_NOISE_WORDS = new Set([
   'manager',
 ]);
 
-/** Simple Levenshtein-ish similarity: containment + length ratio. */
+/** Simple containment + token-overlap similarity. */
 function titlesAreSimilar(a: string, b: string, threshold = 0.75): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -167,10 +175,11 @@ export class OpportunityService {
         }
       }
 
-      // Step 2: fetch opportunity candidates by company + fuzzy title
+      // Step 2: pre-filter candidates in SQL by title to avoid full-table scans
       const candidates = await tx.opportunity.findMany({
         where: {
           companyId: company.id,
+          title: { contains: input.roleTitle, mode: 'insensitive' },
         },
         select: {
           id: true,
@@ -216,8 +225,6 @@ export class OpportunityService {
     };
 
     try {
-      // When an explicit DbClient is passed (e.g. transaction client), use it
-      // directly. Otherwise wrap in retry to handle transient DB errors.
       if (db !== prisma) {
         return await run(db);
       }
@@ -302,6 +309,8 @@ export class OpportunityService {
         data: { lastSeenAt: new Date() },
       });
     }
+
+    await this.recordObservation(id, input, tx);
   }
 
   private async createOpportunity(
@@ -336,6 +345,48 @@ export class OpportunityService {
     }
 
     return tx.opportunity.create({ data });
+  }
+
+  private async recordObservation(
+    opportunityId: string,
+    input: OpportunityResolutionInput,
+    tx: DbClient,
+  ): Promise<OpportunityObservationRecord | null> {
+    const record = await tx.opportunityObservation.create({
+      data: {
+        opportunityId,
+        sourceType: 'EMAIL',
+        sourceId: input.sourceEmailId ?? `manual:${opportunityId}`,
+        title: input.roleTitle ?? undefined,
+        description: input.description ?? undefined,
+        location: input.location ?? undefined,
+        compensation: input.salaryRange
+          ? { min: input.salaryRange.min, max: input.salaryRange.max, currency: input.salaryRange.currency }
+          : undefined,
+        requirements: input.requirements && input.requirements.length > 0
+          ? (input.requirements as Prisma.InputJsonValue)
+          : undefined,
+        url: input.url ?? undefined,
+        hiringInfo: (input.sourceMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
+        confidence: 1.0,
+        isCurrent: true,
+      },
+    });
+
+    await tx.opportunityObservation.updateMany({
+      where: {
+        opportunityId,
+        id: { not: record.id },
+        isCurrent: true,
+      },
+      data: {
+        isCurrent: false,
+        supersededById: record.id,
+        supersededAt: new Date(),
+      },
+    });
+
+    return record as OpportunityObservationRecord;
   }
 
   private inferDomain(companyName: string): string {
