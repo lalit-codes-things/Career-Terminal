@@ -1,0 +1,497 @@
+# CAREER TERMINAL — EPIC 4
+
+## PROMPTS 9–19
+
+## GLOBAL RULE FOR PROMPTS 9–19
+
+Do not redo completed Epic 4 work.
+
+Inspect the current repository before changing anything.
+
+Reuse existing implementations.
+
+Do not create duplicate models/services.
+
+Preserve:
+
+* user ownership
+* cells/regions/residency
+* canonical Opportunity
+* O*NET/ESCO ontology
+* async workers
+* Gmail checkpoints
+* resume versioning
+* current Candidate Intelligence architecture
+
+Do not use `any`, unsafe casts, fake data, or destructive rewrites.
+
+All changes must support Career Terminal's long-term goal:
+**global Career Intelligence Operating System, eventually capable of extreme horizontal scale and up to 1 billion users.**
+
+---
+
+# PROMPT 9 — PROVENANCE & VERSIONED FACTS
+
+The repository already contains:
+
+* `ExtractionRun`
+* `FactObservation`
+* `FactProvenance`
+* provenance references
+* `CanonicalCandidateIntelligence`
+
+Do NOT recreate them.
+
+Audit and consolidate the existing implementation into one authoritative provenance pipeline:
+
+```text
+Source
+→ ExtractionRun
+→ FactObservation
+→ Provenance/Evidence
+→ Canonical Intelligence
+```
+
+Ensure every machine-derived fact can identify:
+
+* user
+* source type
+* source ID
+* extractionRunId
+* processor/model/version
+* observedAt
+* confidence
+* evidence where appropriate
+
+Preserve historical observations.
+
+User corrections must create new authoritative evidence without destroying the original machine observation.
+
+Do not confuse Gmail checkpoints with ExtractionRun.
+
+Support resume and Gmail sources through the same provenance contract.
+
+Add migration/backfill only where provenance is reliably known. Never fabricate historical provenance.
+
+Add tests for:
+
+* provenance linkage
+* versioning
+* user correction
+* duplicate processing
+* ownership
+* missing/legacy provenance
+
+Run typecheck/lint/tests.
+
+---
+
+# PROMPT 10 — TEMPORAL SNAPSHOTS & FACT VERSIONING
+
+Build on Prompt 9.
+
+Do not replace immutable observations.
+
+Introduce/complete historical candidate-state snapshots so Career Terminal can answer:
+
+> "What did the system know about this user at time X?"
+
+Support snapshots of materialized candidate intelligence.
+
+A snapshot must identify:
+
+* user
+* timestamp
+* last included event/fact/version
+* snapshot version/schema
+* relevant canonical state
+
+Keep snapshots as read-optimised historical projections.
+
+Do not implement full event sourcing.
+
+Do not duplicate the existing FactObservation history.
+
+Add tests for:
+
+* snapshot creation
+* chronological reconstruction
+* snapshot isolation
+* user isolation
+* rebuilding current state from observations
+
+---
+
+# PROMPT 11 — DATA QUALITY / CONFIDENCE / EVIDENCE
+
+Standardize candidate-intelligence quality semantics.
+
+Create explicit handling for:
+
+* confidence
+* evidence
+* source reliability
+* needs review
+* user verified
+* machine extracted
+* inferred
+
+Do not fabricate confidence.
+
+Do not treat inference as direct observation.
+
+Ensure the materialisation layer uses the existing precedence rules consistently.
+
+A fact must be distinguishable as:
+
+```text
+observed
+inferred
+user-confirmed
+superseded
+invalid
+```
+
+Expose enough evidence to explain why a fact exists.
+
+Add tests for conflicting facts and precedence.
+
+---
+
+# PROMPT 12 — EXPLICIT OUTCOME EVENTS
+
+Strengthen the existing outcome/event foundation.
+
+Do not create a second event system.
+
+Ensure important career outcomes can be represented explicitly, including:
+
+* application submitted
+* screening
+* interview
+* assessment
+* rejection
+* offer
+* offer accepted
+* offer declined
+* withdrawal
+
+Preserve:
+
+* user
+* timestamp
+* source
+* provenance
+* opportunity/application relationship
+* correlation ID
+
+Outcome events must remain historical records.
+
+Do not derive success merely from a mutable application status.
+
+Add tests for event creation, ordering, duplication, ownership, and provenance.
+
+---
+
+# PROMPT 13 — USER ACTION / STRATEGY LOG
+
+Strengthen the existing user action/event infrastructure.
+
+Track meaningful user decisions such as:
+
+* opportunity viewed
+* saved
+* dismissed
+* applied
+* resume selected
+* recommendation accepted
+* recommendation rejected
+* preference changed
+* career goal changed
+
+Distinguish:
+
+**stated preference**
+from
+**observed behaviour**
+
+Do not overwrite explicit user preferences with inferred behaviour.
+
+Make events suitable for future recommendation/prediction systems.
+
+Preserve provenance and timestamps.
+
+Add tests for:
+
+* action creation
+* deduplication
+* ownership
+* chronological ordering
+* privacy/deletion behaviour
+
+---
+
+# PROMPT 14 — RESUME PARSING COMPATIBILITY LAYER
+
+Review the current resume parser.
+
+Do NOT invent career facts.
+
+Remove/avoid heuristics that fabricate:
+
+* years of experience
+* roles
+* companies
+* education
+* proficiency
+
+Build the parser as:
+
+```text
+Document
+→ extracted text
+→ structured observations
+→ evidence/confidence
+```
+
+Reuse the existing O*NET/ESCO taxonomy.
+
+Preserve raw source evidence.
+
+Keep this prompt focused on reliable extraction, not future AI/LLM systems.
+
+The parser must be replaceable later without changing the canonical candidate domain.
+
+Add malformed/ambiguous document tests.
+
+---
+
+# PROMPT 15 — MODEL REGISTRY & PREDICTION LOGGING
+
+Use the existing `Model` and `Prediction` architecture.
+
+Do not build a complete ML platform.
+
+Standardize recording of:
+
+* model ID/version
+* model/provider
+* task
+* input/source reference
+* prediction
+* confidence
+* timestamp
+* extractionRun where applicable
+* eventual evaluation outcome
+
+Predictions must be auditable and versioned.
+
+Do not generate fake predictions just to populate tables.
+
+Make the system ready for future recommendation/prediction models.
+
+Add tests for model versioning, prediction ownership, and evaluation updates.
+
+---
+
+# PROMPT 16 — APPLICATION STRATEGY ANALYTICS
+
+Build analytics on existing application/action/outcome data.
+
+Support trustworthy metrics such as:
+
+* applications per period
+* interview progression
+* offer progression
+* conversion rates
+* response time
+* outcomes by source
+* outcomes by role
+* outcomes by company
+* resume/version usage
+
+Do not introduce speculative ML.
+
+Do not duplicate existing analytics services.
+
+Avoid N+1 queries.
+
+Ensure analytics are:
+
+* user-scoped
+* indexed
+* paginated/aggregated efficiently
+* based on canonical entities
+
+Add tests against known datasets and edge cases.
+
+---
+
+# PROMPT 17 — MALWARE QUARANTINE
+
+Harden the existing quarantine-first resume pipeline.
+
+Do NOT keep the current heuristic word-search as the final malware solution.
+
+Introduce a real `MalwareScanner` abstraction.
+
+Pipeline:
+
+```text
+Upload
+→ Quarantine
+→ Scan
+→ Clean OR Rejected
+→ Promote only if clean
+→ Parse only after clean
+```
+
+Requirements:
+
+* fail-safe promotion
+* scanner timeout
+* scanner failure handling
+* retry
+* audit event
+* ownership
+* no sensitive logging
+
+Keep S3/object storage for document bytes.
+
+PostgreSQL stores metadata/state.
+
+Add tests for:
+
+* clean file
+* malicious file
+* scanner failure
+* timeout
+* retry
+* duplicate upload
+
+---
+
+# PROMPT 18 — DELETION / EXPORT / LEGAL HOLD / TOMBSTONE
+
+Audit the existing privacy/lifecycle implementation.
+
+Do not create another deletion framework.
+
+Ensure deletion/export/lifecycle covers:
+
+* user
+* resumes
+* stored documents
+* Gmail-derived records
+* candidate facts
+* provenance
+* snapshots
+* opportunities created from user data
+* recommendations
+* predictions
+* action/outcome events
+* queued jobs
+* cached data
+
+Support:
+
+```text
+active
+→ deletion requested
+→ tombstoned
+→ deletion executed
+```
+
+Respect legal holds and retention requirements.
+
+Queued work must detect deleted/tombstoned users and stop safely.
+
+Add end-to-end deletion and export tests.
+
+---
+
+# PROMPT 19 — RESILIENCE / OBSERVABILITY / COST CONTROLS
+
+Final Epic 4 hardening.
+
+Do not redesign the architecture.
+
+Verify and strengthen:
+
+### Resilience
+
+* retries
+* idempotency
+* timeouts
+* graceful shutdown
+* worker crash recovery
+* concurrent execution safety
+* external API failures
+
+### Observability
+
+Every major pipeline should expose:
+
+* correlation ID
+* user-safe ID
+* job/run ID
+* stage
+* duration
+* success/failure
+* retry count
+* failure category
+
+### Cost controls
+
+Control expensive operations such as:
+
+* document parsing
+* embeddings
+* external APIs
+* large Gmail syncs
+* repeated processing
+
+Track:
+
+* processing counts
+* retries
+* queue depth
+* expensive operation latency
+* external call counts where measurable
+
+### Scale
+
+Verify:
+
+* no correctness-critical process-local state
+* worker horizontal scaling
+* bounded memory
+* efficient DB queries
+* pagination
+* no N+1 hot paths
+* user/cell isolation
+* regional readiness
+
+### Final validation
+
+Run:
+
+```text
+typecheck
+lint
+tests
+build
+Prisma validation/generation
+relevant integration tests
+security/dependency checks
+```
+
+Report:
+
+1. changes
+2. tests
+3. performance/resilience validation
+4. remaining limitations
+5. Epic 4 readiness status
+
+Do not claim production readiness unless the evidence supports it.
