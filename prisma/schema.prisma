@@ -248,6 +248,9 @@ model GmailCheckpoint {
   status           String   @default("idle")
   lastSyncAt       DateTime @default(now()) @map("last_sync_at") @db.Timestamptz
   lastError        String?  @map("last_error") @db.Text
+  leaseOwner       String?  @map("lease_owner")
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.Timestamptz
+  workerId         String?  @map("worker_id")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -351,6 +354,41 @@ model DeadLetterEmail {
   @@index([emailId])
   @@index([resolved])
   @@map("dead_letter_emails")
+}
+
+model GmailSyncQueue {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  legacyUserId String    @map("legacy_user_id")
+  connectionId String    @map("connection_id") @db.Uuid
+  syncMode     String    @map("sync_mode")
+  priority     Int       @default(0)
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(5) @map("max_attempts")
+  nextRunAt    DateTime  @default(now()) @map("next_run_at") @db.Timestamptz
+  lastError    String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([userId, syncMode], name: "unique_user_sync_mode")
+  @@index([nextRunAt, priority])
+  @@map("gmail_sync_queue")
+}
+
+model MalwareScanResult {
+  id             String    @id @default(uuid()) @db.Uuid
+  userResumeId   String    @map("user_resume_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  scanner        String
+  result         String
+  threats        Json?
+  scanDurationMs Int?      @map("scan_duration_ms")
+  scannedAt      DateTime  @default(now()) @map("scanned_at") @db.Timestamptz
+  metadata       Json      @default("{}")
+
+  @@index([userResumeId])
+  @@index([userId])
+  @@map("malware_scan_results")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

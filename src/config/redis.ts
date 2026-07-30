@@ -9,33 +9,26 @@
  */
 import Redis from 'ioredis';
 import { logger } from '../lib/logger';
+import { config } from './index';
 
 export interface RedisConfig {
   host: string;
   port: number;
   password?: string;
-  /** Database index (0–15). Defaults to 0. */
   db?: number;
-  /** Max reconnection attempts before giving up. Defaults to 20. */
   maxRetriesPerRequest?: number | null;
 }
 
-function buildRedisConfig(): RedisConfig {
+export function buildRedisConfig(): RedisConfig {
   return {
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB ?? '0', 10),
-    // BullMQ requires this to be null (disables the default retry limit per command).
+    host: config.redis.host,
+    port: config.redis.port,
+    password: config.redis.password,
+    db: config.redis.db,
     maxRetriesPerRequest: null,
   };
 }
 
-/**
- * Creates a new ioredis client instance with standard error/connect logging.
- * Call this once per consumer (cache service, queue, worker) so each has its
- * own connection that BullMQ/ioredis can manage independently.
- */
 export function createRedisClient(label = 'redis'): Redis {
   const cfg = buildRedisConfig();
 
@@ -45,7 +38,6 @@ export function createRedisClient(label = 'redis'): Redis {
     password: cfg.password,
     db: cfg.db,
     maxRetriesPerRequest: cfg.maxRetriesPerRequest,
-    // Reconnect with exponential backoff, cap at 10 s, stop after 20 attempts
     retryStrategy: (times) => {
       if (times > 20) {
         logger.error(`[${label}] Redis max retries reached. Failing permanently.`);
@@ -71,8 +63,8 @@ export function createRedisClient(label = 'redis'): Redis {
 
 /** Shared BullMQ connection config (host/port only — BullMQ manages the socket). */
 export const bullMQConnection = {
-  host: process.env.REDIS_HOST ?? 'localhost',
-  port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-  password: process.env.REDIS_PASSWORD || undefined,
-  db: parseInt(process.env.REDIS_DB ?? '0', 10),
+  host: config.redis.host,
+  port: config.redis.port,
+  password: config.redis.password,
+  db: config.redis.db,
 };

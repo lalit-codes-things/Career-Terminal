@@ -115,33 +115,34 @@ describe('ResumeMatcherService', () => {
     expect(parsed.skills).toHaveLength(0);
   });
 
-  it('extracts experience hints from level keywords', async () => {
+  it('extracts experience entries with explicit evidence only', async () => {
     seedOntology([]);
 
-    const text = 'Senior nurse with experience in patient care and clinical assessment.';
+    const text = `Senior nurse with experience in patient care and clinical assessment.
+    Nurse at City Hospital (2018-2023)`;
     const parsed = await service.parseResume(text);
 
-    expect(parsed.experience[0]?.role).toBe('Senior Developer');
-    expect(parsed.experience[0]?.years).toBe(5);
+    expect(parsed.experience.length).toBeGreaterThan(0);
+    expect(parsed.experience[0]?.raw).toContain('City Hospital');
   });
 
-  it('infers manager-level experience for director/manager keywords', async () => {
+  it('returns empty experience array when no explicit experience patterns are found', async () => {
     seedOntology([]);
 
-    const text = 'Project manager with 10 years in construction project delivery.';
+    const text = 'I am a marketing intern who assisted with campaign analysis.';
     const parsed = await service.parseResume(text);
 
-    expect(parsed.experience[0]?.role).toBe('Manager');
-    expect(parsed.experience[0]?.years).toBe(7);
+    expect(parsed.experience).toHaveLength(0);
   });
 
-  it('defaults to junior developer experience when no level keyword is found', async () => {
+  it('extracts education entries with explicit evidence only', async () => {
     seedOntology([]);
 
-    const text = 'I completed a marketing internship and assisted with campaign analysis.';
+    const text = `Bachelor of Science in Computer Science from State University`;
     const parsed = await service.parseResume(text);
 
-    expect(parsed.experience[0]?.years).toBe(2);
+    expect(parsed.education.length).toBeGreaterThan(0);
+    expect(parsed.education[0]?.raw).toContain('Bachelor');
   });
 
   // ── scoreMatch ──────────────────────────────────────────────────────────────
@@ -180,28 +181,21 @@ describe('ResumeMatcherService', () => {
     expect(score.missingSkills).toContain('sql');
   });
 
-  it('penalizes missing experience (developer vs senior role)', async () => {
-    seedOntology([
-      skillRow('accounting'),
-      skillRow('auditing'),
-    ]);
+  it('returns experienceMatch = 1.0 when job does not specify an experience requirement', async () => {
+    seedOntology([skillRow('accounting'), skillRow('auditing')]);
 
     const resumeText = 'I am an accountant experienced in accounting and auditing.';
-    const jobText    = 'Looking for a senior accountant who knows accounting, auditing.';
+    const jobText    = 'Looking for an accountant who knows accounting, auditing.';
 
     const score = await service.scoreMatch(resumeText, jobText);
 
-    // Resume → developer (2 yrs). Job → senior (5 yrs). Match = 2/5.
-    expect(score.experienceMatch).toBeCloseTo(2 / 5, 5);
-    expect(score.improvementSuggestions).toContain(
-      'Highlight more relevant experience to meet the 5 year requirement.',
-    );
+    expect(score.experienceMatch).toBe(1.0);
   });
 
-  it('returns experienceMatch = 1.0 when resume seniority meets the job requirement', async () => {
+  it('returns experienceMatch = 1.0 when resume explicitly states meeting seniority', async () => {
     seedOntology([skillRow('nursing'), skillRow('patient care')]);
 
-    const resumeText = 'Senior nurse with nursing and patient care experience.';
+    const resumeText = 'Senior nurse with 5 years of nursing and patient care experience.';
     const jobText    = 'Senior nurse needed who knows nursing and patient care.';
 
     const score = await service.scoreMatch(resumeText, jobText);

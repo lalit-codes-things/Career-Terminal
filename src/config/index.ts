@@ -168,12 +168,16 @@ function validateSecrets(cfg: {
     throw new Error('INTERNAL_API_KEY is required in production.');
   }
 
-  // Epic 0.7: validate encryption subsystem (key format, version config)
-  // This catches misconfiguration early — before any data is encrypted.
   validateEncryptionConfig();
-
-  // Epic 0.7: validate workload identity (logs warning in production if unset)
   validateWorkloadIdentity();
+}
+
+function validateProductionStorage(cfg: AppConfig): void {
+  if (cfg.isProduction && !cfg.s3.bucket) {
+    throw new Error(
+      'S3_BUCKET is required in production. Durable storage must not fall back to NullStorage in production.',
+    );
+  }
 }
 
 function validateSecurityConfig(cfg: AppConfig): void {
@@ -305,6 +309,7 @@ function loadConfig(): AppConfig {
 
   validateSecrets(cfg);
   validateSecurityConfig(cfg);
+  validateProductionStorage(cfg);
   return cfg;
 }
 

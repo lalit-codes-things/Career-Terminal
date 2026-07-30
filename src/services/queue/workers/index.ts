@@ -15,6 +15,7 @@ import { startEmailWorker } from './email.worker';
 import { startMalwareScanWorker } from './malware-scan.worker';
 import { startResumeParsingWorker } from './resume-parsing.worker';
 import { startApplicationTrackingWorker } from './application-tracking.worker';
+import { startGmailSyncWorker } from './gmail-sync.worker';
 import { logger } from '../../../lib/logger';
 
 let workers: Worker[] = [];
@@ -24,6 +25,7 @@ const workerFactories = {
   'malware-scan': startMalwareScanWorker,
   'resume-parsing': startResumeParsingWorker,
   'application-tracking': startApplicationTrackingWorker,
+  'gmail-sync': startGmailSyncWorker,
 } as const;
 
 export type WorkerQueue = keyof typeof workerFactories;

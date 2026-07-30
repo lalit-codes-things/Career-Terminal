@@ -97,6 +97,17 @@ export const PREDICTION_EVENTS = {
 export type PredictionEventType = (typeof PREDICTION_EVENTS)[keyof typeof PREDICTION_EVENTS];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Gmail sync events
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const GMAIL_SYNC_EVENTS = {
+  GMAIL_SYNC_COMPLETED: 'GMAIL_SYNC_COMPLETED',
+  GMAIL_SYNC_FAILED: 'GMAIL_SYNC_FAILED',
+} as const;
+
+export type GmailSyncEventType = (typeof GMAIL_SYNC_EVENTS)[keyof typeof GMAIL_SYNC_EVENTS];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Aggregate union
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -108,6 +119,7 @@ export const EVENT_TYPES = {
   ...OPPORTUNITY_EVENTS,
   ...SKILL_EVENTS,
   ...PREDICTION_EVENTS,
+  ...GMAIL_SYNC_EVENTS,
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];

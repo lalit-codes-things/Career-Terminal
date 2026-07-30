@@ -7,12 +7,10 @@ import { GmailApiError } from '../errors/app-errors';
 // Mock dependencies
 jest.mock('../services/gmail/client/gmail-client');
 
-jest.mock('uuid', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const actual = require('uuid');
-  const mockV4 = () => 'mock-correlation-id';
-  return { ...actual, v4: mockV4 };
-});
+jest.mock('uuid', () => ({
+  v4: () => 'mock-correlation-id',
+  v7: () => 'mock-uuid-v7',
+}));
 
 jest.mock('../services/gmail/durable-checkpoint.service', () => ({
   durableCheckpointService: {
@@ -95,7 +93,7 @@ describe('GmailIngestionService', () => {
       userId: 'user-1',
       provider: 'GMAIL',
       status: 'ACTIVE',
-    } as any);
+    });
 
     (gmailOAuthService.getValidAccessToken as jest.Mock).mockResolvedValue('fake-token');
     mockPrisma.emailMessage.findUnique.mockResolvedValue(null);
@@ -164,7 +162,7 @@ describe('GmailIngestionService', () => {
         hasAttachments: false,
         receivedAt: new Date(),
         headers: {},
-      } as any);
+      });
 
       await service.syncInitialMailbox('user-1');
 
@@ -188,7 +186,7 @@ describe('GmailIngestionService', () => {
       // Mock existing state
       mockPrisma.gmailSyncState.findUnique.mockResolvedValue({
         historyId: 'old-hist-1',
-      } as any);
+      });
 
       // Mock history fetch
       mockClient.getHistory.mockResolvedValue({
@@ -207,7 +205,7 @@ describe('GmailIngestionService', () => {
         hasAttachments: false,
         receivedAt: new Date(),
         headers: {},
-      } as any);
+      });
 
       await service.syncNewEmails('user-1');
 
@@ -227,7 +225,7 @@ describe('GmailIngestionService', () => {
       // Mock existing state
       mockPrisma.gmailSyncState.findUnique.mockResolvedValue({
         historyId: 'expired-hist',
-      } as any);
+      });
 
       // Force 404
       mockClient.getHistory.mockRejectedValue(new GmailApiError('Not found', 404));
@@ -238,7 +236,7 @@ describe('GmailIngestionService', () => {
       await service.syncNewEmails('user-1');
 
       // Verify fallback triggered
-      expect(initialSyncSpy).toHaveBeenCalledWith('user-1');
+      expect(initialSyncSpy).toHaveBeenCalledWith('user-1', expect.any(String));
     });
   });
 });

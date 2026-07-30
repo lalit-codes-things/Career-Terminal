@@ -11,4 +11,45 @@ process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
 process.env.GOOGLE_REDIRECT_URI = 'http://localhost:3000/integrations/gmail/callback';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/testdb';
 process.env.INTERNAL_API_KEY = 'test-internal-api-key-32-chars-ok';
-// No REDIS_HOST — keeps rate limiter in memory mode during tests
+process.env.REDIS_HOST = 'localhost';
+process.env.REDIS_PORT = '6379';
+process.env.S3_BUCKET = 'test-bucket';
+process.env.AWS_REGION = 'us-east-1';
+
+jest.mock('uuid', () => ({
+  v4: () => 'mock-uuid-v4',
+  v7: () => 'mock-uuid-v7',
+}));
+
+jest.mock('bullmq', () => {
+  const mockQueue = {
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    close: jest.fn().mockResolvedValue(undefined),
+    getJobCounts: jest.fn().mockResolvedValue({ waiting: 0, active: 0, delayed: 0 }),
+  };
+  return {
+    Queue: jest.fn(() => mockQueue),
+    Worker: jest.fn(() => ({
+      close: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+    })),
+  };
+});
+
+jest.mock('ioredis', () => {
+  const mockRedis = {
+    connect: jest.fn().mockResolvedValue(undefined),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    quit: jest.fn().mockResolvedValue(undefined),
+    ping: jest.fn().mockResolvedValue('PONG'),
+    on: jest.fn(),
+    duplicate: jest.fn().mockReturnValue({
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      quit: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+    }),
+  };
+  return jest.fn(() => mockRedis);
+});
+

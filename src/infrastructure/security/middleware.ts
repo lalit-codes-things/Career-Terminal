@@ -128,7 +128,7 @@ export function parameterPollutionProtection(): RequestHandler {
 export function requestTimeout(): RequestHandler {
   return (req, res, next) => {
     const controller = new AbortController();
-    (req as any).abortController = controller;
+    req.abortController = controller;
 
     const timer = setTimeout(() => {
       controller.abort();

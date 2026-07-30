@@ -27,6 +27,7 @@ import {
   type ApplicationTrackingJobPayload,
   type MalwareScanJobPayload,
   type IntelligenceJobPayload,
+  type GmailSyncJobPayload,
 } from './queue.types';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,7 @@ export interface IQueueService {
     opts?: JobsOptions,
   ): Promise<string>;
   addIntelligenceJob(payload: IntelligenceJobPayload, opts?: JobsOptions): Promise<string>;
+  addGmailSyncJob(payload: GmailSyncJobPayload, opts?: JobsOptions): Promise<string>;
   getDepths(): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
@@ -66,6 +68,7 @@ export class QueueService implements IQueueService {
   private readonly trackingQueue: Queue<ApplicationTrackingJobPayload>;
   private readonly malwareQueue: Queue<MalwareScanJobPayload>;
   private readonly intelligenceQueue: Queue<IntelligenceJobPayload>;
+  private readonly gmailSyncQueue: Queue<GmailSyncJobPayload>;
 
   constructor() {
     const conn = { connection: bullMQConnection };
@@ -78,6 +81,7 @@ export class QueueService implements IQueueService {
     );
     this.malwareQueue = new Queue<MalwareScanJobPayload>(QUEUE_NAMES.MALWARE_SCAN, conn);
     this.intelligenceQueue = new Queue<IntelligenceJobPayload>(QUEUE_NAMES.INTELLIGENCE, conn);
+    this.gmailSyncQueue = new Queue<GmailSyncJobPayload>(QUEUE_NAMES.GMAIL_SYNC, conn);
 
     logger.info('[QueueService] Queues initialised', {
       queues: Object.values(QUEUE_NAMES),
@@ -199,13 +203,33 @@ export class QueueService implements IQueueService {
     return job.id!;
   }
 
+  async addGmailSyncJob(
+    payload: GmailSyncJobPayload,
+    opts: JobsOptions = {},
+  ): Promise<string> {
+    const deterministicId = opts.jobId ?? `${payload.userId}:${payload.type}:${payload.connectionId}`;
+    const job = await this.gmailSyncQueue.add(payload.type, payload, {
+      ...DEFAULT_JOB_OPTIONS,
+      jobId: deterministicId,
+      ...opts,
+    });
+    logger.info('[QueueService] Gmail sync job enqueued', {
+      jobId: job.id,
+      userId: payload.userId,
+      type: payload.type,
+      legacyUserId: payload.legacyUserId,
+    });
+    return job.id!;
+  }
+
   async getDepths(): Promise<Record<string, number>> {
-    const [email, resume, tracking, malware, intelligence] = await Promise.all([
+    const [email, resume, tracking, malware, intelligence, gmailSync] = await Promise.all([
       this.emailQueue.getJobCounts(),
       this.resumeQueue.getJobCounts(),
       this.trackingQueue.getJobCounts(),
       this.malwareQueue.getJobCounts(),
       this.intelligenceQueue.getJobCounts(),
+      this.gmailSyncQueue.getJobCounts(),
     ]);
     return {
       email: (email.waiting ?? 0) + (email.active ?? 0) + (email.delayed ?? 0),
@@ -213,6 +237,7 @@ export class QueueService implements IQueueService {
       tracking: (tracking.waiting ?? 0) + (tracking.active ?? 0) + (tracking.delayed ?? 0),
       malware: (malware.waiting ?? 0) + (malware.active ?? 0) + (malware.delayed ?? 0),
       intelligence: (intelligence.waiting ?? 0) + (intelligence.active ?? 0) + (intelligence.delayed ?? 0),
+      gmailSync: (gmailSync.waiting ?? 0) + (gmailSync.active ?? 0) + (gmailSync.delayed ?? 0),
     };
   }
 
@@ -224,6 +249,7 @@ export class QueueService implements IQueueService {
       this.trackingQueue.close(),
       this.malwareQueue.close(),
       this.intelligenceQueue.close(),
+      this.gmailSyncQueue.close(),
     ]);
     logger.info('[QueueService] All queues closed');
   }

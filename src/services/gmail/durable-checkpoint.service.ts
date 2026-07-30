@@ -2,8 +2,10 @@
  * DurableCheckpointService — Durable, resumable Gmail sync checkpoints (Epic 4 Prompt 8)
  *
  * Provides atomic checkpoint operations with:
+ *   - PostgreSQL advisory locks for real concurrency control
+ *   - Lease-based checkpoint ownership with worker identity
+ *   - Stale lease recovery
  *   - Optimistic concurrency control (version field)
- *   - SELECT ... FOR UPDATE connection-level locking
  *   - Per-item batch tracking (processed/failed/retryable)
  *   - Page token persistence for pagination resumability
  *   - Full recovery: load checkpoint → determine last commit → continue
@@ -14,6 +16,9 @@ import { prisma } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { Prisma, SyncBatch, GmailCheckpoint } from '@prisma/client';
 import { userService } from '../user';
+
+export const CHECKPOINT_LEASE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+export const CHECKPOINT_STALE_LEASE_MS = 2 * 60 * 1000; // 2 minutes
 
 export interface DurableCheckpointState {
   checkpoint: GmailCheckpoint | null;
@@ -27,12 +32,15 @@ export interface SyncOpResult {
 }
 
 export interface ResumeResult {
-  /** True if a resumeable sync was found */
   canResume: boolean;
-  /** The durable state for resuming */
   state: DurableCheckpointState;
-  /** Recovery suggestion */
   action: 'continue' | 'restart_batch' | 'start_fresh' | 'fallback_to_initial';
+}
+
+export interface ClaimCheckpointResult {
+  claimed: boolean;
+  checkpoint: GmailCheckpoint | null;
+  reason?: string;
 }
 
 export class DurableCheckpointService {
@@ -40,7 +48,7 @@ export class DurableCheckpointService {
 
   /**
    * Initialize a new sync operation with durable checkpoint and batch.
-   * Creates all three records atomically.
+   * Creates all three records atomically with a real advisory lock.
    */
   async initializeSyncOp(
     userId: string,
@@ -48,15 +56,17 @@ export class DurableCheckpointService {
     syncMode: 'INITIAL_SYNC' | 'INCREMENTAL_SYNC',
     correlationId: string,
     historyId: string,
+    workerId: string,
     pageToken?: string,
   ): Promise<SyncOpResult> {
     const userScope = await userService.userScopeFor(userId);
 
     return prisma.$transaction(async (tx) => {
-      // Lock the connection's checkpoint to prevent concurrent syncs
-      await this.lockCheckpoint(tx, userId);
+      const claim = await this.claimCheckpoint(tx, userScope.userId, workerId);
+      if (!claim.claimed) {
+        throw new Error(`Cannot initialize sync: ${claim.reason}`);
+      }
 
-      // Create sync operation
       const syncOp = await tx.syncOperation.create({
         data: {
           userId: userScope.userId,
@@ -69,7 +79,6 @@ export class DurableCheckpointService {
         },
       });
 
-      // Create batch
       const batch = await tx.syncBatch.create({
         data: {
           userId: userScope.userId,
@@ -80,7 +89,6 @@ export class DurableCheckpointService {
         },
       });
 
-      // Upsert checkpoint with version=1
       const checkpoint = await tx.gmailCheckpoint.upsert({
         where: { userId: userScope.userId },
         create: {
@@ -91,6 +99,9 @@ export class DurableCheckpointService {
           version: 1,
           status: 'syncing',
           lastSyncAt: new Date(),
+          leaseOwner: workerId,
+          leaseExpiresAt: new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS),
+          workerId,
         },
         update: {
           pendingHistoryId: historyId,
@@ -99,6 +110,9 @@ export class DurableCheckpointService {
           version: { increment: 1 },
           status: 'syncing',
           lastSyncAt: new Date(),
+          leaseOwner: workerId,
+          leaseExpiresAt: new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS),
+          workerId,
         },
       });
 
@@ -110,6 +124,7 @@ export class DurableCheckpointService {
         syncMode,
         correlationId,
         checkpointVersion: checkpoint.version,
+        workerId,
       });
 
       return { syncOpId: syncOp.id, batchId: batch.id };
@@ -118,7 +133,6 @@ export class DurableCheckpointService {
 
   /**
    * Atomically advance the checkpoint after a batch has been durably processed.
-   * Uses optimistic locking via version check.
    * Rule: processed successfully → durable state committed → checkpoint advanced
    */
   async advanceCheckpoint(
@@ -141,7 +155,6 @@ export class DurableCheckpointService {
 
       const oldVersion = checkpoint.version;
 
-      // Atomic checkpoint advancement: only if version matches
       const result = await tx.gmailCheckpoint.updateMany({
         where: { userId: batch.userId, version: oldVersion },
         data: {
@@ -152,6 +165,8 @@ export class DurableCheckpointService {
           version: { increment: 1 },
           lastSyncAt: new Date(),
           lastError: null,
+          leaseExpiresAt: nextPageToken ? new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS) : null,
+          leaseOwner: nextPageToken ? checkpoint.leaseOwner : null,
         },
       });
 
@@ -162,7 +177,6 @@ export class DurableCheckpointService {
         );
       }
 
-      // Mark batch completed
       await tx.syncBatch.update({
         where: { id: batchId },
         data: {
@@ -225,27 +239,21 @@ export class DurableCheckpointService {
     const state = await this.loadDurableState(userId);
 
     if (!state.checkpoint) {
-      // No checkpoint exists — start fresh
       return { canResume: false, state, action: 'start_fresh' };
     }
 
     if (state.checkpoint.status === 'idle') {
-      // Previous sync completed successfully — start fresh
       return { canResume: false, state, action: 'start_fresh' };
     }
 
     if (state.checkpoint.status === 'failed' && state.checkpoint.currentHistoryId) {
-      // Checkpoint has a valid currentHistoryId — we can resume
-      // The last batch may have failed, but we have a valid cursor
       return { canResume: true, state, action: 'continue' };
     }
 
     if (state.checkpoint.status === 'syncing' && state.pendingBatch) {
-      // Interrupted sync with a pending batch — check if we can resume
       const batch = state.pendingBatch;
 
       if (batch.totalEmails && batch.totalEmails > 0) {
-        // We know the expected count — check if there are unfinished jobs
         const unprocessedJobs = await prisma.batchEmailJob.count({
           where: {
             batchId: batch.id,
@@ -254,26 +262,133 @@ export class DurableCheckpointService {
         });
 
         if (unprocessedJobs > 0) {
-          // Resume — re-enqueue unprocessed jobs
           return { canResume: true, state, action: 'restart_batch' };
         }
       }
 
-      // Batch was created but no emails were tracked yet — restart the batch
       return { canResume: true, state, action: 'restart_batch' };
     }
 
     if (state.checkpoint.status === 'failed' && !state.checkpoint.currentHistoryId) {
-      // Failed with no valid cursor — may need fallback
       if (state.checkpoint.syncMode === 'INCREMENTAL_SYNC') {
         return { canResume: false, state, action: 'fallback_to_initial' };
       }
-      // Initial sync failed with no cursor — start over
       return { canResume: false, state, action: 'start_fresh' };
     }
 
-    // Default: start fresh
     return { canResume: false, state, action: 'start_fresh' };
+  }
+
+  /**
+   * Claim a checkpoint lease using PostgreSQL advisory lock.
+   * This is the real concurrency control primitive.
+   * Returns whether the claim succeeded and the reason if not.
+   */
+  async claimCheckpoint(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    workerId: string,
+  ): Promise<ClaimCheckpointResult> {
+    const userScope = await userService.userScopeFor(userId);
+    const advisoryKey = this.getAdvisoryKey(userScope.userId);
+
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${advisoryKey})`;
+
+    const checkpoint = await tx.gmailCheckpoint.findUnique({
+      where: { userId: userScope.userId },
+    });
+
+    if (!checkpoint) {
+      return { claimed: true, checkpoint: null };
+    }
+
+    const now = new Date();
+    const isStaleLease = checkpoint.leaseExpiresAt
+      ? checkpoint.leaseExpiresAt < now
+      : false;
+
+    if (checkpoint.status === 'syncing' && !isStaleLease) {
+      if (checkpoint.leaseOwner === workerId) {
+        return { claimed: true, checkpoint };
+      }
+      return {
+        claimed: false,
+        checkpoint,
+        reason: `Checkpoint already locked by worker ${checkpoint.leaseOwner}`,
+      };
+    }
+
+    if (checkpoint.status === 'syncing' && isStaleLease) {
+      this.emitTelemetry('STALE_LEASE_RECOVERED', {
+        userId: userScope.userId,
+        previousOwner: checkpoint.leaseOwner,
+        newWorkerId: workerId,
+      });
+    }
+
+    return { claimed: true, checkpoint };
+  }
+
+  /**
+   * Refresh the lease on a checkpoint to keep ownership alive.
+   * Call this periodically during long sync operations.
+   */
+  async refreshLease(userId: string, workerId: string): Promise<boolean> {
+    const result = await prisma.gmailCheckpoint.updateMany({
+      where: {
+        userId,
+        leaseOwner: workerId,
+        status: 'syncing',
+      },
+      data: {
+        leaseExpiresAt: new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS),
+      },
+    });
+    return result.count > 0;
+  }
+
+  /**
+   * Release a checkpoint lease when sync completes or fails.
+   */
+  async releaseLease(userId: string, workerId: string): Promise<void> {
+    await prisma.gmailCheckpoint.updateMany({
+      where: {
+        userId,
+        leaseOwner: workerId,
+      },
+      data: {
+        leaseOwner: null,
+        leaseExpiresAt: null,
+      },
+    });
+
+    this.emitTelemetry('LEASE_RELEASED', { userId, workerId });
+  }
+
+  /**
+   * Recover stale leases from crashed workers.
+   * Sets checkpoint back to idle if the lease has expired.
+   */
+  async recoverStaleLeases(): Promise<number> {
+    const now = new Date();
+    const result = await prisma.gmailCheckpoint.updateMany({
+      where: {
+        status: 'syncing',
+        leaseExpiresAt: { lt: now },
+      },
+      data: {
+        status: 'idle',
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        lastError: 'Stale lease recovered',
+      },
+    });
+
+    if (result.count > 0) {
+      logger.warn('[DurableCheckpoint] Recovered stale leases', { count: result.count });
+    }
+
+    return result.count;
   }
 
   /**
@@ -309,10 +424,6 @@ export class DurableCheckpointService {
 
   // ── Per-Item Tracking ─────────────────────────────────────────────────────
 
-  /**
-   * Track an individual email within a batch with per-item status.
-   * Supports: processed, skipped, failed, retryable, permanently_failed
-   */
   async trackEmailJob(
     batchId: string,
     emailId: string,
@@ -349,7 +460,6 @@ export class DurableCheckpointService {
         });
       }
 
-      // Update batch counters
       const incrementProcessed = status === 'processed' || status === 'skipped' ? 1 : 0;
       const incrementFailed = (status === 'failed' || status === 'permanently_failed') ? 1 : 0;
 
@@ -366,9 +476,6 @@ export class DurableCheckpointService {
     });
   }
 
-  /**
-   * Mark remaining unprocessed emails in a batch as skipped when a page completes.
-   */
   async finalizeBatchEmails(batchId: string): Promise<void> {
     await prisma.batchEmailJob.updateMany({
       where: {
@@ -385,29 +492,7 @@ export class DurableCheckpointService {
   // ── Concurrency Protection ────────────────────────────────────────────────
 
   /**
-   * Lock the checkpoint row for a user to prevent concurrent syncs.
-   * Uses SELECT ... FOR UPDATE within a transaction.
-   * Must be called inside a $transaction callback.
-   */
-  async lockCheckpoint(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-    const userScope = await userService.userScopeFor(userId);
-
-    // SELECT ... FOR UPDATE on the checkpoint row
-    const locked = await tx.gmailCheckpoint.findUnique({
-      where: { userId: userScope.userId },
-    });
-
-    if (locked && locked.status === 'syncing') {
-      throw new Error(
-        `Checkpoint for user ${userId} is already locked (status: syncing). ` +
-        `A sync operation is already in progress. Retry after it completes.`,
-      );
-    }
-  }
-
-  /**
    * Optimistic update: advance checkpoint only if version matches.
-   * This is the compare-and-set primitive used by advanceCheckpoint.
    */
   async compareAndSetVersion(
     userId: string,
@@ -428,6 +513,16 @@ export class DurableCheckpointService {
 
   private emitTelemetry(event: string, data: Record<string, unknown>): void {
     logger.info('[DurableCheckpoint]', { event, ...data, timestamp: new Date().toISOString() });
+  }
+
+  private getAdvisoryKey(userId: string): number {
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      const char = userId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash) % 2147483647;
   }
 }
 

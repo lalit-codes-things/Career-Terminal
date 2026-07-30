@@ -9,10 +9,9 @@
  *   5. Emits structured telemetry
  */
 
-import { JobStatus, JobType } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { logger } from '../../lib/logger';
-import { jobQueueService } from '../../workers/job-queue.service';
+import { queueService } from '../../services/queue/queue.service';
 import { idempotencyService } from '../idempotency/idempotency.service';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 import {
@@ -21,6 +20,7 @@ import {
   FailureClassification,
 } from './models/gmail-ingestion.types';
 import { NotFoundError, ValidationError } from '../../errors/app-errors';
+import { config } from '../../config';
 
 /**
  * Enqueue a Gmail ingestion request with idempotency guarantees.
@@ -86,20 +86,21 @@ export async function enqueueGmailIngestion(command: GmailIngestionCommand): Pro
       throw new ValidationError('Ingestion temporarily unavailable due to high load. Please retry.');
     }
 
-    // Step 4: Enqueue the job via JobQueueService
+    // Step 4: Enqueue the job via QueueService (BullMQ)
     const jobType =
       command.mode === 'INITIAL_SYNC'
-        ? JobType.GMAIL_INITIAL_SYNC
-        : JobType.GMAIL_INCREMENTAL_SYNC;
+        ? 'GMAIL_INITIAL_SYNC'
+        : 'GMAIL_INCREMENTAL_SYNC';
 
-    // Note: JobQueueService already has basic deduplication for incremental sync
-    // Here we add the full idempotency guard on top
-    await jobQueueService.enqueueIngestionJob({
+    await queueService.addGmailSyncJob({
+      type: jobType,
       userId: command.userId,
+      cellId: command.cellId,
+      legacyUserId: command.legacyUserId ?? command.userId,
       connectionId: command.connectionId,
-      jobType,
-      correlationId: command.correlationId,
-      startHistoryId: command.startHistoryId,
+      historyId: command.startHistoryId,
+      pageToken: command.pageToken,
+      priority: command.priority === 'HIGH' ? 10 : 0,
     });
 
     // Step 5: Commit the idempotency record with the job reference
@@ -167,12 +168,11 @@ async function validateUserOwnsConnection(userId: string, connectionId: string):
  * Check if the ingestion queue is backpressured.
  */
 async function isBackpressured(): Promise<boolean> {
-  const limit = Number.parseInt(process.env.INGESTION_QUEUE_DEPTH_LIMIT ?? '10000', 10);
+  const limit = config.limits.maxQueryParams;
 
-  // Check syncJob queue depth (jobs pending + running)
   const pendingCount = await prisma.syncJob.count({
     where: {
-      status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
+      status: { in: ['PENDING', 'RUNNING'] },
     },
   });
 

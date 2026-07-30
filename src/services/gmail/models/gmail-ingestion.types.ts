@@ -40,6 +40,15 @@ export interface GmailIngestionCommand {
 
   /** Optional batch ID if this is part of a larger batch operation. */
   batchId?: string;
+
+  /** Cell routing context */
+  cellId?: string;
+
+  /** Legacy user ID for Gmail API calls */
+  legacyUserId?: string;
+
+  /** Page token for pagination resumption */
+  pageToken?: string;
 }
 
 /**
