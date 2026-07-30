@@ -69,8 +69,8 @@ export class GmailOAuthService {
    * @param userId - The platform user ID initiating the connection
    * @returns The full authorization URL to redirect the user to
    */
-  getAuthorizationUrl(userId: string): string {
-    const state = oauthStateService.generateState(userId);
+  async getAuthorizationUrl(userId: string): Promise<string> {
+    const state = await oauthStateService.generateState(userId);
 
     const url = this.oauth2Client.generateAuthUrl({
       access_type: 'offline', // Request refresh token
@@ -80,7 +80,7 @@ export class GmailOAuthService {
       include_granted_scopes: true,
     });
 
-    return url;
+    return Promise.resolve(url);
   }
 
   /**

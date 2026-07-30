@@ -1396,3 +1396,83 @@ model CanonicalRole {
   @@index([seniority])
   @@map("canonical_roles")
 }
+
+// ---------------------------------------------------------------------------
+// EMBEDDINGS (pgvector semantic search)
+// ---------------------------------------------------------------------------
+
+model EmbeddingModel {
+  id          String   @id
+  name        String
+  version     String
+  dimensions  Int
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  candidateProfileEmbeddings CandidateProfileEmbedding[]
+  opportunityEmbeddings      OpportunityEmbedding[]
+  applicationEmbeddings      ApplicationEmbedding[]
+
+  @@map("embedding_models")
+}
+
+model CandidateProfileEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("PROFILE") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_candidate_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("candidate_profile_embeddings")
+}
+
+model OpportunityEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("OPPORTUNITY") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_opportunity_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("opportunity_embeddings")
+}
+
+model ApplicationEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("APPLICATION") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_application_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("application_embeddings")
+}

@@ -42,7 +42,7 @@ jest.mock('../utils/encryption');
 // Mock oauthStateService so validateAndConsume returns a Promise
 jest.mock('../services/gmail/auth/oauth-state.service', () => ({
   oauthStateService: {
-    generateState: jest.fn((userId: string) => `mock-state-${userId}`),
+    generateState: jest.fn(async (userId: string) => `mock-state-${userId}`),
     validateAndConsume: jest.fn(),
     destroy: jest.fn(),
   },
@@ -86,19 +86,19 @@ beforeEach(() => {
   });
 
   describe('getAuthorizationUrl', () => {
-    it('should generate URL with state', () => {
+    it('should generate URL with state', async () => {
       mockGenerateAuthUrl.mockReturnValue(
         'https://accounts.google.com/o/oauth2/v2/auth?state=mocked-state',
       );
 
-      const url = service.getAuthorizationUrl('user_123');
+      const url = await service.getAuthorizationUrl('user_123');
 
       expect(url).toBe('https://accounts.google.com/o/oauth2/v2/auth?state=mocked-state');
       expect(mockGenerateAuthUrl).toHaveBeenCalledWith(
         expect.objectContaining({
           access_type: 'offline',
           prompt: 'consent',
-          state: expect.any(String),
+          state: 'mock-state-user_123',
         }),
       );
     });
@@ -107,7 +107,7 @@ beforeEach(() => {
   describe('handleCallback', () => {
     it('should complete full oauth flow successfully', async () => {
       // Mock state validation — validateAndConsume is now async
-      const state = oauthStateService.generateState('user_1');
+      const state = await oauthStateService.generateState('user_1');
       (oauthStateService.validateAndConsume as jest.Mock).mockResolvedValue('user_1');
 
       // Mock token exchange
@@ -137,18 +137,18 @@ beforeEach(() => {
         provider: 'GMAIL',
       });
 
-expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
-          expect.objectContaining({
-            create: expect.objectContaining({
-              legacyUserId: 'user_1',
-              emailAddress: 'test@gmail.com',
-            }),
+      expect(prisma.userEmailConnection.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            legacyUserId: 'user_1',
+            emailAddress: 'test@gmail.com',
           }),
-        );
+        }),
+      );
     });
 
     it('should throw OAuthError if token exchange fails', async () => {
-      const state = oauthStateService.generateState('user_1');
+      const state = await oauthStateService.generateState('user_1');
       (oauthStateService.validateAndConsume as jest.Mock).mockResolvedValue('user_1');
       mockGetToken.mockRejectedValue(new Error('Google API Error'));
 

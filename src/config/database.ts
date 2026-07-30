@@ -22,6 +22,7 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseRouter } from '../db/database-router';
 import { config } from './index';
+import { attachRlsMiddleware } from '../middleware/rls';
 
 // ---------------------------------------------------------------------------
 // Global stash (hot-reload safety)
@@ -65,6 +66,9 @@ export const prisma: PrismaClient =
     log: logLevels,
   });
 
+// Attach RLS middleware — sets app.current_user_id before each model query
+attachRlsMiddleware(prisma);
+
 if (config.nodeEnv !== 'production') {
   g.prisma = prisma;
 }
@@ -83,6 +87,9 @@ export const prismaReplica: PrismaClient =
         log: logLevels,
       })
     : prisma);
+
+// Attach RLS middleware to replica as well
+attachRlsMiddleware(prismaReplica);
 
 if (config.nodeEnv !== 'production') {
   g.prismaReplica = prismaReplica;

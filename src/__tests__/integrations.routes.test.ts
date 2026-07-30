@@ -7,7 +7,7 @@ import { OAuthError } from '../errors/app-errors';
 
 jest.mock('../services/gmail', () => ({
   gmailOAuthService: {
-    getAuthorizationUrl: jest.fn(),
+    getAuthorizationUrl: jest.fn(async () => 'https://auth.url'),
     handleCallback: jest.fn(),
   },
 }));

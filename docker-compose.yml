@@ -22,7 +22,8 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data:
+  redis_queue_data:
+  redis_cache_data:
   minio_data:
 
 services:
@@ -79,29 +80,56 @@ services:
     ports:
       - "6432:6432"
 
-  # ── Redis ───────────────────────────────────────────────────────────────────
-  redis:
+  # ── Redis Queue Cluster (BullMQ + worker coordination) ──────────────────────
+  # NEVER use an eviction policy that can silently drop BullMQ state.
+  # noeviction ensures writes fail loudly (OOM) rather than silently losing jobs.
+  redis-queue:
     image: redis:7-alpine
     restart: unless-stopped
     networks:
       - career_terminal_net
     volumes:
-      - redis_data:/data
+      - redis_queue_data:/data
     command: >
       redis-server
       --appendonly yes
       --appendfsync everysec
       --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --requirepass ${REDIS_PASSWORD:-}
+      --maxmemory-policy noeviction
+      --requirepass ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
     ports:
       - "6379:6379"
+
+  # ── Redis Ephemeral Cluster (cache + rate-limiting + OAuth state) ───────────
+  # Eviction policy is acceptable here because data is disposable.
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    volumes:
+      - redis_cache_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "6380:6379"
 
   # ── MinIO ───────────────────────────────────────────────────────────────────
   minio:
@@ -158,7 +186,9 @@ services:
     depends_on:
       pgbouncer:
         condition: service_healthy
-      redis:
+      redis-queue:
+        condition: service_healthy
+      redis-cache:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -167,10 +197,16 @@ services:
       PORT:                3000
       DATABASE_URL:        postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
       DATABASE_CONNECTION_LIMIT: 5
-      REDIS_HOST:          redis
-      REDIS_PORT:          6379
-      REDIS_PASSWORD:      ${REDIS_PASSWORD:-}
-      REDIS_DB:            0
+      # Redis Queue (BullMQ) — no eviction, separate from cache
+      REDIS_QUEUE_HOST:     redis-queue
+      REDIS_QUEUE_PORT:     6379
+      REDIS_QUEUE_PASSWORD: ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_QUEUE_DB:       0
+      # Redis Ephemeral (cache + rate-limiting + OAuth state)
+      REDIS_CACHE_HOST:     redis-cache
+      REDIS_CACHE_PORT:     6379
+      REDIS_CACHE_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_CACHE_DB:       0
       AWS_ENDPOINT_URL_S3: http://minio:9000
       AWS_REGION:          us-east-1
       AWS_ACCESS_KEY_ID:   ${MINIO_ROOT_USER:-minioadmin}
@@ -202,10 +238,14 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
       DATABASE_CONNECTION_LIMIT: 5
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_DB: 0
+      REDIS_QUEUE_HOST:     redis-queue
+      REDIS_QUEUE_PORT:     6379
+      REDIS_QUEUE_PASSWORD: ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_QUEUE_DB:       0
+      REDIS_CACHE_HOST:     redis-cache
+      REDIS_CACHE_PORT:     6379
+      REDIS_CACHE_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_CACHE_DB:       0
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
       WORKER_QUEUES: ${WORKER_QUEUES:-email,resume-parsing,application-tracking}
     ports: []

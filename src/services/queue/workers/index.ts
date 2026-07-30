@@ -16,6 +16,7 @@ import { startMalwareScanWorker } from './malware-scan.worker';
 import { startResumeParsingWorker } from './resume-parsing.worker';
 import { startApplicationTrackingWorker } from './application-tracking.worker';
 import { startGmailSyncWorker } from './gmail-sync.worker';
+import { outboxDispatcher } from '../../event/outbox-dispatcher.service';
 import { logger } from '../../../lib/logger';
 
 let workers: Worker[] = [];
@@ -26,6 +27,10 @@ const workerFactories = {
   'resume-parsing': startResumeParsingWorker,
   'application-tracking': startApplicationTrackingWorker,
   'gmail-sync': startGmailSyncWorker,
+  'outbox-dispatcher': () => {
+    outboxDispatcher.start();
+    return { close: async () => outboxDispatcher.stop() } as unknown as Worker;
+  },
 } as const;
 
 export type WorkerQueue = keyof typeof workerFactories;

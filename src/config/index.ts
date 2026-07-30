@@ -48,7 +48,28 @@ interface AppConfig {
   jwtSecret: string;
   internalApiKey?: string;
 
-  /** Redis connection details */
+  /** Redis Queue Cluster (BullMQ + job state) */
+  redisQueue: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+    timeout: number;
+  };
+
+  /** Redis Ephemeral Cluster (cache + rate-limiting + OAuth state + coordination) */
+  redisCache: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+    timeout: number;
+  };
+
+  /**
+   * Legacy single-Redis connection — used as fallback when separate
+   * REDIS_QUEUE_* / REDIS_CACHE_* env vars are not provided.
+   */
   redis: {
     host: string;
     port: number;
@@ -213,11 +234,28 @@ function loadConfig(): AppConfig {
     jwtSecret: env.JWT_SECRET,
     internalApiKey: env.INTERNAL_API_KEY,
 
+    // Legacy Redis (queue + cache fallback)
     redis: {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,
       password: env.REDIS_PASSWORD,
       db: env.REDIS_DB,
+      timeout: env.REDIS_TIMEOUT,
+    },
+
+    // Logical Redis clusters
+    redisQueue: {
+      host: env.REDIS_QUEUE_HOST,
+      port: env.REDIS_QUEUE_PORT,
+      password: env.REDIS_QUEUE_PASSWORD,
+      db: env.REDIS_QUEUE_DB,
+      timeout: env.REDIS_TIMEOUT,
+    },
+    redisCache: {
+      host: env.REDIS_CACHE_HOST ?? env.REDIS_HOST,
+      port: env.REDIS_CACHE_PORT ?? env.REDIS_PORT,
+      password: env.REDIS_CACHE_PASSWORD ?? env.REDIS_PASSWORD,
+      db: env.REDIS_CACHE_DB ?? env.REDIS_DB,
       timeout: env.REDIS_TIMEOUT,
     },
 

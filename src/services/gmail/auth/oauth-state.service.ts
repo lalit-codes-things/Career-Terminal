@@ -135,17 +135,8 @@ class RedisStateBackend implements IOAuthStateBackend {
     if (!this.client) {
       // Dynamic import to avoid loading Redis when in-memory backend is used
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Redis = require('ioredis');
-      const client = new Redis({
-        host: process.env.REDIS_HOST ?? 'localhost',
-        port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-        password: process.env.REDIS_PASSWORD || undefined,
-        db: parseInt(process.env.REDIS_DB ?? '0', 10),
-        maxRetriesPerRequest: 3,
-        lazyConnect: false,
-        enableReadyCheck: false,
-        commandTimeout: 5000,
-      }) as import('ioredis').Redis;
+      const { createRedisClient } = require('../../../config/redis');
+      const client = createRedisClient('cache', 'oauth-state') as import('ioredis').Redis;
 
       client.on('error', (err: Error) => {
         logger.error('[OAuthStateService] Redis error', { message: err.message });
@@ -174,9 +165,16 @@ class RedisStateBackend implements IOAuthStateBackend {
   }
 
   async size(): Promise<number> {
-    // Approximate — DBSIZE includes all keys, not just oauth:state:*
-    const keys = await this.getClient().keys(`${REDIS_KEY_PREFIX}*`);
-    return keys.length;
+    // Use SCAN instead of KEYS to avoid blocking the Redis instance in production
+    let count = 0;
+    let cursor = '0';
+    const pattern = `${REDIS_KEY_PREFIX}*`;
+    do {
+      const [nextCursor, keys] = await this.getClient().scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = nextCursor;
+      count += keys.length;
+    } while (cursor !== '0');
+    return count;
   }
 
   destroy(): void {
@@ -217,24 +215,30 @@ export class OAuthStateService {
    * This is stronger than UUID v4 (122 bits) and resistant to prediction
    * even if the process PRNG is partially observed.
    *
+   * IMPORTANT: State storage is awaited before returning. If persistence fails,
+   * the OAuth flow fails rather than issuing an unpersisted state that may vanish.
+   *
    * @param userId - The user ID to associate with this state
    * @returns A 64-character hex state string to include in the OAuth URL
    */
-  generateState(userId: string): string {
+  async generateState(userId: string): Promise<string> {
     const state = randomBytes(32).toString('hex');
     const entry: OAuthStateEntry = {
       userId,
       createdAt: Date.now(),
     };
 
-    // Fire-and-forget — state storage is best-effort; if it fails the OAuth
-    // flow will fail at callback time with "invalid state" which is correct.
-    void this.backend.set(state, entry).catch((err: Error) => {
-      logger.error('[OAuthStateService] Failed to store state', {
-        error: err.message,
-        // Never log the state token itself
+    try {
+      await this.backend.set(state, entry);
+    } catch (err: unknown) {
+      logger.error('[OAuthStateService] Failed to persist state — failing OAuth initiation', {
+        error: err instanceof Error ? err.message : String(err),
       });
-    });
+      throw new OAuthError(
+        'OAuth state could not be stored. Please try again.',
+        'OAUTH_STATE_STORAGE_FAILED',
+      );
+    }
 
     return state;
   }
