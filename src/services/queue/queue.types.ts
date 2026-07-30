@@ -14,6 +14,7 @@ export const QUEUE_NAMES = {
   RESUME_PARSING: 'resume-parsing',
   APPLICATION_TRACKING: 'application-tracking',
   MALWARE_SCAN: 'malware-scan',
+  INTELLIGENCE: 'intelligence',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -99,3 +100,22 @@ export const ApplicationTrackingJobPayloadSchema = BaseJobPayloadSchema.extend({
   metadata: z.record(z.unknown()).optional(),
 });
 export type ApplicationTrackingJobPayload = z.infer<typeof ApplicationTrackingJobPayloadSchema>;
+
+export const IntelligenceJobTypeSchema = z.enum([
+  'GENERATE_EMBEDDING',
+  'MATCH_RESUME',
+  'MATCH_SKILLS',
+  'GENERATE_RECOMMENDATION',
+  'GENERATE_PREDICTION',
+]);
+export type IntelligenceJobType = z.infer<typeof IntelligenceJobTypeSchema>;
+
+export const IntelligenceJobPayloadSchema = BaseJobPayloadSchema.extend({
+  type: IntelligenceJobTypeSchema,
+  userId: z.string().min(1),
+  cellId: z.string().min(1).optional(),
+  targetId: z.string().min(1).optional(),
+  targetType: z.string().min(1).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type IntelligenceJobPayload = z.infer<typeof IntelligenceJobPayloadSchema>;

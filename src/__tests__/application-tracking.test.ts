@@ -118,16 +118,16 @@ describe('ApplicationTrackingService', () => {
       });
 
 expect(prisma.jobApplication.findMany).toHaveBeenCalledWith({
-	         where: {
-	           OR: [
-	             { userId: 'user1' },
-	             { legacyUserId: 'user1' },
-	           ],
-	           status: JobApplicationStatus.APPLIED,
-	           companyName: { contains: 'Str', mode: 'insensitive' },
-	         },
-	         orderBy: { appliedDate: 'desc' },
-	       });
+           where: {
+             OR: [
+               { userId: 'user1' },
+               { legacyUserId: 'user1' },
+             ],
+             status: JobApplicationStatus.APPLIED,
+             companyName: { contains: 'Str', mode: 'insensitive' },
+           },
+           orderBy: { appliedDate: 'desc' },
+         });
       expect(result).toHaveLength(1);
       expect(result[0]?.company.name).toBe('Stripe');
     });
