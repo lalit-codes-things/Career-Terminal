@@ -3,6 +3,94 @@ import { FactObservation } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { cellRoutingService } from './routing/cell-routing.service';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt 11 — Data Quality / Confidence / Evidence
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Explicit quality status for a FactObservation.
+ *
+ * Derived from the combination of isCurrent, isUserCorrected, supersededById,
+ * deletedAt, and reviewStatus — no separate DB column required.
+ *
+ * - OBSERVED        direct extraction from a source document (machine)
+ * - INFERRED        derived from other facts (not directly observed)
+ * - USER_CONFIRMED  a user-submitted correction; always beats machine facts
+ * - SUPERSEDED      replaced by a newer version; isCurrent=false
+ * - INVALID         soft-deleted or review-rejected; no longer usable
+ */
+export type FactQualityStatus =
+  | 'OBSERVED'
+  | 'INFERRED'
+  | 'USER_CONFIRMED'
+  | 'SUPERSEDED'
+  | 'INVALID';
+
+/** Fact fields required to compute a quality status (subset of FactObservation). */
+export interface FactQualityInput {
+  isCurrent: boolean;
+  isUserCorrected: boolean;
+  supersededById: string | null;
+  deletedAt: Date | null;
+  reviewStatus: string | null;
+  extractionMethod: string;
+}
+
+/**
+ * Derive the explicit quality status for a fact.
+ *
+ * Precedence (highest → lowest):
+ *   1. INVALID   — deleted or review-rejected; cannot be used
+ *   2. SUPERSEDED — replaced by a newer version (isCurrent=false, supersededById set)
+ *   3. USER_CONFIRMED — user correction (isUserCorrected=true, isCurrent=true)
+ *   4. INFERRED  — extractionMethod contains 'INFER'
+ *   5. OBSERVED  — direct machine observation (default)
+ */
+export function getFactQualityStatus(fact: FactQualityInput): FactQualityStatus {
+  if (fact.deletedAt !== null || fact.reviewStatus === 'rejected') return 'INVALID';
+  if (!fact.isCurrent && fact.supersededById !== null) return 'SUPERSEDED';
+  if (fact.isUserCorrected && fact.isCurrent) return 'USER_CONFIRMED';
+  if (fact.extractionMethod?.toUpperCase().includes('INFER')) return 'INFERRED';
+  return 'OBSERVED';
+}
+
+/**
+ * Compare two candidate facts and return the one that should win as canonical.
+ *
+ * Precedence rules (mirrors CanonicalIntelligenceService MATERIALISATION_RULES):
+ *   1. USER_CONFIRMED always beats machine facts.
+ *   2. Higher confidence wins.
+ *   3. Tie → more recent observedAt wins.
+ *   4. INVALID / SUPERSEDED facts are never returned as winners.
+ *
+ * Returns 'a' | 'b' | 'tie'.
+ */
+export function resolveFactPrecedence(
+  a: { confidence: number; observedAt: Date; isUserCorrected: boolean; isCurrent: boolean; deletedAt: Date | null },
+  b: { confidence: number; observedAt: Date; isUserCorrected: boolean; isCurrent: boolean; deletedAt: Date | null },
+): 'a' | 'b' | 'tie' {
+  const aInvalid = !a.isCurrent || a.deletedAt !== null;
+  const bInvalid = !b.isCurrent || b.deletedAt !== null;
+  if (aInvalid && bInvalid) return 'tie';
+  if (aInvalid) return 'b';
+  if (bInvalid) return 'a';
+
+  // Rule 1: user correction always wins
+  if (a.isUserCorrected && !b.isUserCorrected) return 'a';
+  if (!a.isUserCorrected && b.isUserCorrected) return 'b';
+
+  // Rule 2: confidence
+  const EPSILON = 0.001;
+  const delta = a.confidence - b.confidence;
+  if (delta > EPSILON) return 'a';
+  if (delta < -EPSILON) return 'b';
+
+  // Rule 3: recency tiebreak
+  if (a.observedAt > b.observedAt) return 'a';
+  if (a.observedAt < b.observedAt) return 'b';
+  return 'tie';
+}
+
 /**
  * Input for recording a single observed fact.
  *

@@ -16,9 +16,32 @@ export interface RecordOutcomeInput {
   occurredAt: Date;
 }
 
-// Outcome type taxonomy
+/**
+ * Outcome type taxonomy — Epic 4 Prompt 12
+ *
+ * Every outcome event must be representable as one of these explicit types.
+ * Outcome events are historical records and must never be deleted or mutated.
+ * Success is never derived solely from a mutable application status field.
+ *
+ * Types and their semantics:
+ *   APPLICATION_SUBMITTED — candidate submitted the application (canonical name for APPLICATION_SENT)
+ *   APPLICATION_SENT      — alias kept for backward compatibility
+ *   SCREENING             — initial screening / phone screen stage
+ *   RECRUITER_CONTACT     — general recruiter outreach (may precede screening)
+ *   ASSESSMENT            — take-home assessment or coding challenge
+ *   INTERVIEW_SCHEDULED   — interview confirmed
+ *   INTERVIEW_COMPLETED   — interview round completed
+ *   OFFER_RECEIVED        — written or verbal offer extended
+ *   OFFER_ACCEPTED        — candidate formally accepted the offer
+ *   OFFER_DECLINED        — candidate declined the offer
+ *   REJECTION_RECEIVED    — candidate rejected at any stage
+ *   WITHDRAWN             — candidate withdrew their application
+ *   NO_RESPONSE           — no response within expected window
+ */
 export const OUTCOME_TYPES = {
-  APPLICATION_SENT: 'APPLICATION_SENT',
+  APPLICATION_SUBMITTED: 'APPLICATION_SUBMITTED',
+  APPLICATION_SENT: 'APPLICATION_SENT',        // backward-compat alias
+  SCREENING: 'SCREENING',
   RECRUITER_CONTACT: 'RECRUITER_CONTACT',
   ASSESSMENT: 'ASSESSMENT',
   INTERVIEW_SCHEDULED: 'INTERVIEW_SCHEDULED',
@@ -46,7 +69,9 @@ export const OUTCOME_STATUS = {
 
 // Mapping of outcome types to categories
 const OUTCOME_TYPE_TO_CATEGORY: Record<string, string> = {
+  [OUTCOME_TYPES.APPLICATION_SUBMITTED]: OUTCOME_CATEGORIES.NEUTRAL,
   [OUTCOME_TYPES.APPLICATION_SENT]: OUTCOME_CATEGORIES.NEUTRAL,
+  [OUTCOME_TYPES.SCREENING]: OUTCOME_CATEGORIES.NEUTRAL,
   [OUTCOME_TYPES.RECRUITER_CONTACT]: OUTCOME_CATEGORIES.NEUTRAL,
   [OUTCOME_TYPES.ASSESSMENT]: OUTCOME_CATEGORIES.NEUTRAL,
   [OUTCOME_TYPES.INTERVIEW_SCHEDULED]: OUTCOME_CATEGORIES.NEUTRAL,
@@ -59,7 +84,7 @@ const OUTCOME_TYPE_TO_CATEGORY: Record<string, string> = {
   [OUTCOME_TYPES.NO_RESPONSE]: OUTCOME_CATEGORIES.NEGATIVE,
 };
 
-// Terminal outcomes
+// Terminal outcomes — once reached the application is closed
 const TERMINAL_OUTCOMES = new Set([
   OUTCOME_TYPES.OFFER_ACCEPTED,
   OUTCOME_TYPES.OFFER_DECLINED,
@@ -69,7 +94,9 @@ const TERMINAL_OUTCOMES = new Set([
 
 // Mapping of outcome types to application statuses
 const OUTCOME_TYPE_TO_STATUS: Record<string, string> = {
+  [OUTCOME_TYPES.APPLICATION_SUBMITTED]: 'Applied',
   [OUTCOME_TYPES.APPLICATION_SENT]: 'Applied',
+  [OUTCOME_TYPES.SCREENING]: 'Screening',
   [OUTCOME_TYPES.RECRUITER_CONTACT]: 'Recruiter Contact',
   [OUTCOME_TYPES.ASSESSMENT]: 'Assessment',
   [OUTCOME_TYPES.INTERVIEW_SCHEDULED]: 'Interviewing',

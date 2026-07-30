@@ -26,17 +26,45 @@ export interface GetUserActionsFilters {
   endDate?: Date;
 }
 
+/**
+ * User action taxonomy — Epic 4 Prompt 13
+ *
+ * Tracks meaningful user decisions for recommendation/prediction systems.
+ *
+ * Distinction: STATED_PREFERENCE (explicit user settings) vs OBSERVED_BEHAVIOUR
+ * (inferred from actions).  This distinction is encoded in sourceType:
+ *   USER_ACTION    = direct user gesture (observed behaviour)
+ *   SYSTEM_TRACKED = platform-inferred event (observed behaviour)
+ *   IMPORTED       = external data import
+ *
+ * Stated preferences live in CandidateProfile.preferences and must never be
+ * overwritten by inferred behaviour.
+ */
 export const ACTION_TYPES = {
+  // ── Application actions ────────────────────────────────────────────────────
   APPLY: 'APPLY',
   FOLLOW_UP: 'FOLLOW_UP',
+  WITHDRAW: 'WITHDRAW',
+  OFFER_NEGOTIATION: 'OFFER_NEGOTIATION',
+  // ── Opportunity discovery actions ──────────────────────────────────────────
+  OPPORTUNITY_VIEWED: 'OPPORTUNITY_VIEWED',
+  OPPORTUNITY_SAVED: 'OPPORTUNITY_SAVED',
+  OPPORTUNITY_DISMISSED: 'OPPORTUNITY_DISMISSED',
+  SAVE_JOB: 'SAVE_JOB',                        // backward-compat alias for OPPORTUNITY_SAVED
+  // ── Resume actions ─────────────────────────────────────────────────────────
+  RESUME_SELECTED: 'RESUME_SELECTED',           // user chose a resume version for an application
+  RESUME_UPDATE: 'RESUME_UPDATE',               // user uploaded/edited a resume
+  // ── Recommendation actions ─────────────────────────────────────────────────
+  RECOMMENDATION_ACCEPTED: 'RECOMMENDATION_ACCEPTED',
+  RECOMMENDATION_REJECTED: 'RECOMMENDATION_REJECTED',
+  // ── Preference / goal changes ─────────────────────────────────────────────
+  PREFERENCE_CHANGED: 'PREFERENCE_CHANGED',     // explicit stated preference update
+  CAREER_GOAL_CHANGED: 'CAREER_GOAL_CHANGED',   // explicit career goal update
+  // ── Network & research ────────────────────────────────────────────────────
   REFERRAL: 'REFERRAL',
-  RESUME_UPDATE: 'RESUME_UPDATE',
-  SAVE_JOB: 'SAVE_JOB',
   NETWORKING: 'NETWORKING',
   RESEARCH: 'RESEARCH',
   INTERVIEW_PREP: 'INTERVIEW_PREP',
-  WITHDRAW: 'WITHDRAW',
-  OFFER_NEGOTIATION: 'OFFER_NEGOTIATION',
 } as const;
 
 export const ACTION_SUBTYPES = {
