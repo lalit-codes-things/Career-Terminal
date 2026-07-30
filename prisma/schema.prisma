@@ -803,6 +803,17 @@ model Snapshot {
   referenceId   String?  @map("reference_id") @db.Uuid
   capturedAt    DateTime @default(now()) @map("captured_at") @db.Timestamptz
   description   String?
+  // ── Temporal snapshot fields (Prompt 10) ──────────────────────────────────
+  // The ID of the most recent FactObservation that was current at snapshot time.
+  // Together with capturedAt this lets callers answer "what did the system know at time X?"
+  // without duplicating FactObservation rows.
+  lastFactId     String?  @map("last_fact_id") @db.Uuid
+  // Stable version tag for the snapshot schema.  Increment when the shape of
+  // candidateStateJson changes so consumers can migrate reader code safely.
+  schemaVersion  String   @default("v1") @map("schema_version")
+  // Read-optimised projection of CanonicalCandidateIntelligence at snapshot time.
+  // Stored as JSON so historical queries don't require re-joining live tables.
+  candidateStateJson Json? @map("candidate_state_json")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -813,6 +824,7 @@ model Snapshot {
   @@index([userId, snapshotType])
   @@index([referenceId])
   @@index([capturedAt])
+  @@index([userId, capturedAt]) // chronological reconstruction queries
   @@map("snapshots")
 }
 

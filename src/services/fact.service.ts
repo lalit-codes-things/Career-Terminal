@@ -3,28 +3,63 @@ import { FactObservation } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { cellRoutingService } from './routing/cell-routing.service';
 
+/**
+ * Input for recording a single observed fact.
+ *
+ * Every fact MUST carry:
+ *   - userId          — ownership anchor
+ *   - sourceType      — category of the originating document (RESUME, EMAIL, MANUAL, …)
+ *   - sourceId        — stable ID of the originating document
+ *   - extractionRunId — links back to the ExtractionRun that produced this fact
+ *   - provenanceId    — links to the immutable FactProvenance for the run
+ *   - observedAt      — when the source was observed (not when the record was written)
+ *   - confidence      — machine confidence [0,1]; never fabricated
+ *   - evidenceReference — optional raw text fragment supporting this fact
+ *
+ * Facts are immutable once written.  A new version supersedes the old one via
+ * the supersededById chain — the original machine observation is never destroyed.
+ */
 export interface RecordFactInput {
   userId: string;
   extractionRunId: string;
   provenanceId: string;
   factType: string;
-  factData: any;
+  /** Structured payload for this fact — never `any`; callers must supply typed data. */
+  factData: Record<string, unknown>;
   sourceType: string;
   sourceId: string;
   sourceVersion?: string;
+  /** How the fact was produced: KEYWORD_MATCH, REGEX, LLM, USER_CORRECTION, … */
   extractionMethod: string;
   modelVersion?: string;
-  confidence: number;
+  /** Raw text fragment or reference that supports this fact. */
   evidenceReference?: string;
+  /** Machine confidence in this observation, [0,1]. Never fabricated. */
+  confidence: number;
+  /** When the source document was observed — the logical event time, not wall clock. */
   observedAt: Date;
   validFrom?: Date;
   validTo?: Date;
   snapshotId?: string;
 }
 
+/**
+ * Simplified input for the internal pipeline path that creates an
+ * ExtractionRun + FactProvenance atomically.
+ *
+ * This interface is intentionally a subset of the canonical
+ * `CreateExtractionRunInput` from the domain layer.  It is used by
+ * internal callers (resume parser, correction service) that have already
+ * validated ownership before calling here.
+ *
+ * External / service-level callers that need full cell-boundary and
+ * ownership validation should use `extractionRunService.createRun()` from
+ * `src/services/candidate-intelligence/extraction-run.service.ts` directly.
+ */
 export interface CreateExtractionRunInput {
   userId: string;
   cellId?: string;
+  /** FK to the Model table.  Defaults to the built-in 'manual-correction' model. */
   modelId?: string;
   sourceType: string;
   sourceId: string;
@@ -37,16 +72,39 @@ export interface CreateExtractionRunInput {
   schemaVersion: string;
 }
 
+/**
+ * Returned by `createExtractionRun`.  Both IDs must be threaded through
+ * every `recordFact` call produced by the same extraction run.
+ */
 export interface ExtractionRunContext {
   runId: string;
   provenanceId: string;
 }
 
 export class FactService {
+  /**
+   * Create an ExtractionRun and its paired FactProvenance record atomically.
+   *
+   * Pipeline contract:
+   *   Source → ExtractionRun + FactProvenance (atomic) → FactObservation(s) → CanonicalCandidateIntelligence
+   *
+   * Every fact produced by a pipeline run must carry the returned `runId` and
+   * `provenanceId`.  These two IDs are the authoritative chain of custody for
+   * any machine-derived observation.
+   *
+   * Ownership note: this simplified path trusts that the caller has already
+   * validated that the source document belongs to `userId`.  For callers that
+   * need full cell-boundary + ownership enforcement, use
+   * `extractionRunService.createRun()` instead.
+   *
+   * Multiple runs for the same source are explicitly supported (re-runs after
+   * parser or model upgrades produce a new run each time).
+   */
   async createExtractionRun(input: CreateExtractionRunInput): Promise<ExtractionRunContext> {
     const placement = input.cellId
       ? { cellId: input.cellId }
       : await cellRoutingService.resolveUserRouting(input.userId);
+
     const context = await prisma.$transaction(async (tx) => {
       const run = await tx.extractionRun.create({
         data: {
@@ -54,8 +112,8 @@ export class FactService {
           cellId: placement.cellId,
           sourceType: input.sourceType,
           sourceId: input.sourceId,
-          sourceVersion: input.sourceVersion,
-          sourceIdentity: input.sourceIdentity,
+          sourceVersion: input.sourceVersion ?? null,
+          sourceIdentity: input.sourceIdentity ?? null,
           modelId: input.modelId ?? 'manual-correction',
           parserVersion: input.parserVersion,
           modelProvider: input.modelProvider ?? null,
@@ -67,14 +125,14 @@ export class FactService {
         },
       });
 
-      return tx.factProvenance.create({
+      const provenance = await tx.factProvenance.create({
         data: {
           userId: input.userId,
           cellId: placement.cellId,
           sourceType: input.sourceType,
           sourceId: input.sourceId,
-          sourceVersion: input.sourceVersion,
-          sourceIdentity: input.sourceIdentity,
+          sourceVersion: input.sourceVersion ?? null,
+          sourceIdentity: input.sourceIdentity ?? null,
           extractionRunId: run.id,
           parserVersion: input.parserVersion,
           modelProvider: input.modelProvider ?? null,
@@ -83,6 +141,16 @@ export class FactService {
           schemaVersion: input.schemaVersion,
         },
       });
+
+      logger.info('[FactService] Created extraction run + provenance', {
+        userId: input.userId,
+        runId: run.id,
+        provenanceId: provenance.id,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+      });
+
+      return provenance;
     });
 
     return { runId: context.extractionRunId, provenanceId: context.id };
@@ -117,7 +185,7 @@ export class FactService {
           extractionRunId: input.extractionRunId,
           provenanceId: input.provenanceId,
           factType: input.factType,
-          factData: input.factData,
+          factData: input.factData as Parameters<typeof tx.factObservation.create>[0]['data']['factData'],
           sourceType: input.sourceType,
           sourceId: input.sourceId,
           sourceVersion: input.sourceVersion,

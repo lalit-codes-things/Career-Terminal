@@ -11,7 +11,7 @@ export class FactCorrectionService {
    */
   async proposeCorrection(
     originalFactId: string,
-    correctedData: any,
+    correctedData: Record<string, unknown>,
     userId: string,
     reason: string,
     evidence?: string,
