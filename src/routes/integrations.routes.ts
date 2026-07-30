@@ -14,8 +14,12 @@ import { validateQuery } from '../middleware/validate';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { createRateLimiter } from '../middleware/rate-limiter';
 import { gmailOAuthService } from '../services/gmail';
+import { gmailRouter } from './integrations/gmail.routes';
 
 export const integrationsRouter = Router();
+
+// Use the Gmail router for /integrations/gmail/* routes
+integrationsRouter.use('/gmail', gmailRouter);
 
 // Validation schemas
 const callbackQuerySchema = z.object({
@@ -38,7 +42,7 @@ const callbackLimiter = createRateLimiter(15 * 60 * 1000, 20);
  * account to their own Gmail inbox.
  */
 integrationsRouter.get(
-  '/gmail/connect',
+  '/connect',
   connectLimiter,
   requireAuth,
   (req: Request, res: Response, next: NextFunction) => {
@@ -68,7 +72,7 @@ integrationsRouter.get(
  * parameter.
  */
 integrationsRouter.get(
-  '/gmail/callback',
+  '/callback',
   callbackLimiter,
   validateQuery(callbackQuerySchema),
   async (req: Request, res: Response, next: NextFunction) => {

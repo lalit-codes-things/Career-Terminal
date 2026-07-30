@@ -6,14 +6,38 @@ import { GmailApiError } from '../errors/app-errors';
 
 // Mock dependencies
 jest.mock('../services/gmail/client/gmail-client');
+
+jest.mock('uuid', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const actual = require('uuid');
+  const mockV4 = () => 'mock-correlation-id';
+  return { ...actual, v4: mockV4 };
+});
+
+jest.mock('../services/gmail/durable-checkpoint.service', () => ({
+  durableCheckpointService: {
+    initializeSyncOp: jest.fn(),
+    advanceCheckpoint: jest.fn(),
+    completeSyncOp: jest.fn(),
+    failSyncOp: jest.fn(),
+    determineResumeStrategy: jest.fn(),
+    loadDurableState: jest.fn(),
+    trackEmailJob: jest.fn(),
+    lockCheckpoint: jest.fn(),
+    compareAndSetVersion: jest.fn(),
+    finalizeBatchEmails: jest.fn(),
+  },
+}));
 jest.mock('../config/database', () => ({
   prisma: {
+    $transaction: jest.fn((fn) => fn(prisma)),
     userEmailConnection: { findFirst: jest.fn(), update: jest.fn() },
     emailMessage: { findUnique: jest.fn(), upsert: jest.fn() },
     gmailSyncState: { findUnique: jest.fn(), upsert: jest.fn() },
     userIdMapping: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
-    gmailCheckpoint: { upsert: jest.fn() },
+    gmailCheckpoint: { upsert: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    syncBatch: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
   },
 }));
 jest.mock('../services/gmail/auth/gmail-oauth.service', () => ({
@@ -27,6 +51,7 @@ const mockClient = GmailClient.prototype as unknown as {
   getHistory: jest.Mock;
 };
 const mockPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
   userEmailConnection: {
     findFirst: jest.Mock;
     update: jest.Mock;
@@ -47,6 +72,13 @@ const mockPrisma = prisma as unknown as {
   };
   gmailCheckpoint: {
     upsert: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+  };
+  syncBatch: {
+    findFirst: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
   };
 };
 
@@ -70,6 +102,33 @@ describe('GmailIngestionService', () => {
     mockPrisma.userIdMapping.findUnique.mockResolvedValue(null);
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'user-1', deletionStatus: 'active' });
     mockPrisma.gmailCheckpoint.upsert.mockResolvedValue(null);
+    mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue(null);
+    mockPrisma.gmailCheckpoint.update.mockResolvedValue(null);
+    mockPrisma.syncBatch.findFirst.mockResolvedValue(null);
+    mockPrisma.syncBatch.create.mockResolvedValue({ id: 'batch-1', userId: 'user-1' });
+    mockPrisma.syncBatch.update.mockResolvedValue({ id: 'batch-1', userId: 'user-1' });
+    mockPrisma.$transaction.mockImplementation((fn) => fn(mockPrisma));
+
+    // Mock DurableCheckpointService
+    const mockCheckpoint = jest.requireMock('../services/gmail/durable-checkpoint.service');
+    mockCheckpoint.durableCheckpointService.initializeSyncOp.mockResolvedValue({
+      syncOpId: 'op-1',
+      batchId: 'batch-1',
+    });
+    mockCheckpoint.durableCheckpointService.advanceCheckpoint.mockResolvedValue(undefined);
+    mockCheckpoint.durableCheckpointService.completeSyncOp.mockResolvedValue(undefined);
+    mockCheckpoint.durableCheckpointService.failSyncOp.mockResolvedValue(undefined);
+    mockCheckpoint.durableCheckpointService.determineResumeStrategy.mockResolvedValue({
+      canResume: false,
+      action: 'start_fresh',
+      state: { checkpoint: null, pendingBatch: null, syncOpId: null },
+    });
+    mockCheckpoint.durableCheckpointService.trackEmailJob.mockResolvedValue(undefined);
+    mockCheckpoint.durableCheckpointService.loadDurableState.mockResolvedValue({
+      checkpoint: null,
+      pendingBatch: null,
+      syncOpId: null,
+    });
   });
 
   describe('syncInitialMailbox', () => {

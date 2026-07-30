@@ -242,6 +242,9 @@ model GmailCheckpoint {
   userId           String   @unique @map("user_id") @db.Uuid
   currentHistoryId String?  @map("current_history_id")
   pendingHistoryId String?  @map("pending_history_id")
+  pageToken        String?  @map("page_token")
+  syncMode         String   @default("INCREMENTAL_SYNC") @map("sync_mode")
+  version          Int      @default(1)
   status           String   @default("idle")
   lastSyncAt       DateTime @default(now()) @map("last_sync_at") @db.Timestamptz
   lastError        String?  @map("last_error") @db.Text
@@ -250,6 +253,27 @@ model GmailCheckpoint {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("gmail_checkpoints")
+}
+
+model SyncOperation {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  legacyUserId   String       @map("legacy_user_id")
+  connectionId   String       @map("connection_id") @db.Uuid
+  syncMode       String       @map("sync_mode")
+  correlationId  String?      @map("correlation_id")
+  status         String       @default("running")
+  attempt        Int          @default(1)
+  startedAt      DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz
+  error          String?      @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId, status])
+  @@index([connectionId, status])
+  @@index([correlationId])
+  @@map("sync_operations")
 }
 
 model SyncJob {
@@ -276,6 +300,8 @@ model SyncBatch {
   id             String          @id @default(uuid()) @db.Uuid
   userId         String          @map("user_id") @db.Uuid
   historyId      String          @map("history_id")
+  pageToken      String?         @map("page_token")
+  correlationId  String?         @map("correlation_id")
   status         String          @default("pending")
   totalEmails    Int?            @map("total_emails")
   processedCount Int             @default(0) @map("processed_count")

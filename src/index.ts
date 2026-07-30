@@ -8,6 +8,7 @@ import compression from 'compression';
 import { config } from './config';
 import { queueService } from './services/queue/queue.service';
 import { startAllWorkers, stopAllWorkers } from './services/queue/workers';
+import { gmailSyncWorker } from './workers/gmail-sync.worker';
 import { prisma } from './config/database';
 import { cacheService, RedisCacheService } from './services/cache/cache.service';
 import { healthRouter } from './infrastructure/health/health.router';
@@ -239,6 +240,8 @@ export const server = app.listen(config.port, () => {
   if (config.nodeEnv === 'development' || process.env.START_WORKERS === 'true') {
     try {
       startAllWorkers();
+      // Start Gmail sync worker for polling-based ingestion
+      gmailSyncWorker.start(5000); // Poll every 5 seconds
     } catch (err) {
       logger.error('Failed to start workers', { error: err });
     }
@@ -278,6 +281,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     await Promise.allSettled([
       shutdownTracing(),
       stopAllWorkers(),
+      Promise.resolve(gmailSyncWorker.stop()),
       queueService.close(),
       prisma.$disconnect(),
       cacheService instanceof RedisCacheService ? cacheService.disconnect() : Promise.resolve(),
