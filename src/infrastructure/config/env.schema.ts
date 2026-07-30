@@ -74,7 +74,7 @@ export const envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_ENDPOINT_URL_S3: z.string().optional(), // MinIO endpoint in local dev
-  S3_BUCKET: z.string().optional(),
+  S3_BUCKET: z.string().min(1),
   S3_TIMEOUT: z.coerce.number().int().positive().default(30000),
 
   // MinIO (docker-compose local dev)

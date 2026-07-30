@@ -2,26 +2,29 @@
  * Tests for DurableCheckpointService (Epic 4 Prompt 8)
  *
  * Covers:
- *   1. initial sync checkpoint creation
+ *   1. initial sync checkpoint creation with advisory lock
  *   2. checkpoint advancement after successful processing
- *   3. worker crash before checkpoint commit
- *   4. worker crash after successful batch commit
- *   5. retry/resume from previous checkpoint
- *   6. duplicate processing of a previously completed batch
- *   7. partial batch failure
- *   8. expired Gmail history cursor
- *   9. concurrent checkpoint update protection
- *  10. completion state
- *  11. permanent failure state
+ *   3. concurrent worker claim protection
+ *   4. stale lease recovery
+ *   5. lease refresh
+ *   6. lease release
+ *   7. worker crash before checkpoint commit
+ *   8. worker crash after successful batch commit
+ *   9. retry/resume from previous checkpoint
+ *   10. duplicate processing safety
+ *   11. partial batch failure
+ *   12. expired Gmail history cursor
+ *   13. completion state
+ *   14. permanent failure state
  */
 import { durableCheckpointService } from '../services/gmail/durable-checkpoint.service';
 import { prisma } from '../config/database';
 import { userService } from '../services/user';
 
-// Mock dependencies
 jest.mock('../config/database', () => ({
   prisma: {
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
     gmailCheckpoint: {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
@@ -45,13 +48,6 @@ jest.mock('../config/database', () => ({
       updateMany: jest.fn(),
       count: jest.fn(),
     },
-    userEmailConnection: {
-      update: jest.fn(),
-    },
-    gmailSyncState: {
-      upsert: jest.fn(),
-      findUnique: jest.fn(),
-    },
   },
 }));
 
@@ -62,9 +58,9 @@ jest.mock('../services/user', () => ({
   },
 }));
 
-// Typed mocks
 const mockPrisma = prisma as unknown as {
   $transaction: jest.Mock;
+  $queryRaw: jest.Mock;
   gmailCheckpoint: {
     findUnique: jest.Mock;
     updateMany: jest.Mock;
@@ -88,8 +84,6 @@ const mockPrisma = prisma as unknown as {
     updateMany: jest.Mock;
     count: jest.Mock;
   };
-  userEmailConnection: { update: jest.Mock };
-  gmailSyncState: { upsert: jest.Mock; findUnique: jest.Mock };
 };
 
 describe('DurableCheckpointService', () => {
@@ -105,20 +99,22 @@ describe('DurableCheckpointService', () => {
     });
     (userService.resolveUserId as jest.Mock).mockResolvedValue(userId);
 
-    // Default: transaction passes tx object = same mock prisma
     mockPrisma.$transaction.mockImplementation(
       (fn: (tx: any) => Promise<any>) => fn(mockPrisma),
     );
+    mockPrisma.$queryRaw.mockResolvedValue([]);
   });
 
-  describe('1. initial sync checkpoint creation', () => {
-    it('should create a sync operation, batch, and checkpoint atomically', async () => {
+  describe('1. initial sync checkpoint creation with advisory lock', () => {
+    it('should acquire advisory lock and create sync records', async () => {
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue(null);
       mockPrisma.gmailCheckpoint.upsert = jest.fn().mockResolvedValue({
         id: 'cp-1',
         userId,
         version: 1,
         status: 'syncing',
+        leaseOwner: 'worker-1',
+        leaseExpiresAt: new Date(),
       });
       mockPrisma.syncBatch.create = jest.fn().mockResolvedValue({
         id: 'batch-1',
@@ -140,6 +136,7 @@ describe('DurableCheckpointService', () => {
         'INITIAL_SYNC',
         'corr-1',
         'hist-1',
+        'worker-1',
       );
 
       expect(result).toEqual({
@@ -147,22 +144,12 @@ describe('DurableCheckpointService', () => {
         batchId: 'batch-1',
       });
 
-      expect(mockPrisma.syncOperation.create).toHaveBeenCalledWith(
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+      expect(mockPrisma.gmailCheckpoint.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            userId,
-            connectionId,
-            syncMode: 'INITIAL_SYNC',
-            status: 'running',
-          }),
-        }),
-      );
-
-      expect(mockPrisma.syncBatch.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            userId,
-            historyId: 'hist-1',
+          update: expect.objectContaining({
+            status: 'syncing',
+            leaseOwner: 'worker-1',
           }),
         }),
       );
@@ -227,7 +214,6 @@ describe('DurableCheckpointService', () => {
         status: 'syncing',
       });
 
-      // Another worker already advanced — updateMany returns 0
       mockPrisma.gmailCheckpoint.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
@@ -236,9 +222,129 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('3. worker crash before checkpoint commit', () => {
+  describe('3. concurrent worker claim protection', () => {
+    it('should claim checkpoint when no other worker holds it', async () => {
+      mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue(null);
+
+      const result = await durableCheckpointService.claimCheckpoint(
+        mockPrisma as any,
+        userId,
+        'worker-1',
+      );
+
+      expect(result.claimed).toBe(true);
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+    });
+
+    it('should reject claim when another worker holds active lease', async () => {
+      const now = new Date();
+      mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
+        userId,
+        status: 'syncing',
+        leaseOwner: 'worker-2',
+        leaseExpiresAt: new Date(now.getTime() + 60000),
+      });
+
+      const result = await durableCheckpointService.claimCheckpoint(
+        mockPrisma as any,
+        userId,
+        'worker-1',
+      );
+
+      expect(result.claimed).toBe(false);
+      expect(result.reason).toContain('already locked');
+    });
+
+    it('should allow reclaim of stale lease', async () => {
+      const now = new Date();
+      mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
+        userId,
+        status: 'syncing',
+        leaseOwner: 'worker-dead',
+        leaseExpiresAt: new Date(now.getTime() - 60000),
+      });
+
+      const result = await durableCheckpointService.claimCheckpoint(
+        mockPrisma as any,
+        userId,
+        'worker-1',
+      );
+
+      expect(result.claimed).toBe(true);
+    });
+  });
+
+  describe('4. stale lease recovery', () => {
+    it('should recover stale leases back to idle', async () => {
+      const now = new Date();
+      mockPrisma.gmailCheckpoint.findUnique
+        .mockResolvedValueOnce({
+          userId,
+          status: 'syncing',
+          leaseExpiresAt: new Date(now.getTime() - 60000),
+        })
+        .mockResolvedValueOnce({
+          userId,
+          status: 'idle',
+          leaseExpiresAt: null,
+        });
+
+      mockPrisma.gmailCheckpoint.updateMany.mockResolvedValue({ count: 1 });
+
+      const recovered = await durableCheckpointService.recoverStaleLeases();
+
+      expect(recovered).toBe(1);
+      expect(mockPrisma.gmailCheckpoint.updateMany).toHaveBeenCalledWith({
+        where: {
+          status: 'syncing',
+          leaseExpiresAt: { lt: expect.any(Date) },
+        },
+        data: expect.objectContaining({
+          status: 'idle',
+          lastError: 'Stale lease recovered',
+        }),
+      });
+    });
+  });
+
+  describe('5. lease refresh', () => {
+    it('should extend lease for the owning worker', async () => {
+      mockPrisma.gmailCheckpoint.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await durableCheckpointService.refreshLease(userId, 'worker-1');
+
+      expect(result).toBe(true);
+      expect(mockPrisma.gmailCheckpoint.updateMany).toHaveBeenCalledWith({
+        where: {
+          userId,
+          leaseOwner: 'worker-1',
+          status: 'syncing',
+        },
+        data: expect.objectContaining({
+          leaseExpiresAt: expect.any(Date),
+        }),
+      });
+    });
+  });
+
+  describe('6. lease release', () => {
+    it('should clear lease ownership', async () => {
+      mockPrisma.gmailCheckpoint.updateMany.mockResolvedValue({ count: 1 });
+
+      await durableCheckpointService.releaseLease(userId, 'worker-1');
+
+      expect(mockPrisma.gmailCheckpoint.updateMany).toHaveBeenCalledWith({
+        where: { userId, leaseOwner: 'worker-1' },
+        data: {
+          leaseOwner: null,
+          leaseExpiresAt: null,
+        },
+      });
+    });
+  });
+
+  describe('7. worker crash before checkpoint commit', () => {
     it('should leave checkpoint in syncing state with pending batch', async () => {
-      // Simulate state after worker crash: batch created, emails fetched, but checkpoint not advanced
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
         id: 'cp-1',
         userId,
@@ -260,7 +366,6 @@ describe('DurableCheckpointService', () => {
         failedCount: 2,
       });
 
-      // Durable state should show pending batch
       const state = await durableCheckpointService.loadDurableState(userId);
 
       expect(state.checkpoint).not.toBeNull();
@@ -270,9 +375,8 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('4. worker crash after successful batch commit', () => {
+  describe('8. worker crash after successful batch commit', () => {
     it('should reflect committed state with advanced historyId', async () => {
-      // Simulate state after crash that happened after checkpoint was committed
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
         id: 'cp-1',
         userId,
@@ -287,15 +391,13 @@ describe('DurableCheckpointService', () => {
 
       const resume = await durableCheckpointService.determineResumeStrategy(userId);
 
-      // Should report no resume needed — sync already committed
       expect(resume.canResume).toBe(false);
       expect(resume.action).toBe('start_fresh');
     });
   });
 
-  describe('5. retry/resume from previous checkpoint', () => {
+  describe('9. retry/resume from previous checkpoint', () => {
     it('should continue from last committed pageToken', async () => {
-      // Checkpoint has pageToken and last successful historyId
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
         id: 'cp-1',
         userId,
@@ -325,37 +427,32 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('6. duplicate processing of a previously completed batch', () => {
+  describe('10. duplicate processing safety', () => {
     it('should be safe via idempotent upsert tracking', async () => {
-      // Simulate tracking the same email twice
       mockPrisma.batchEmailJob.findFirst
-        .mockResolvedValueOnce(null) // First time: not found → create
-        .mockResolvedValueOnce({ id: 'job-1', emailId: 'email-1', status: 'processed' }); // Second time: found → update
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'job-1', emailId: 'email-1', status: 'processed' });
 
       mockPrisma.batchEmailJob.create = jest.fn().mockResolvedValue({ id: 'job-1' });
       mockPrisma.batchEmailJob.update = jest.fn().mockResolvedValue({ id: 'job-1', status: 'processed' });
       mockPrisma.syncBatch.update.mockResolvedValue({});
 
-      // First call
       await durableCheckpointService.trackEmailJob(
         'batch-1', 'email-1', 'msg-1', 'processed',
       );
 
       expect(mockPrisma.batchEmailJob.create).toHaveBeenCalled();
 
-      // Second call (duplicate)
       await durableCheckpointService.trackEmailJob(
         'batch-1', 'email-1', 'msg-1', 'processed',
       );
 
-      // Should update existing, not create again
       expect(mockPrisma.batchEmailJob.update).toHaveBeenCalled();
-      // processedCount increments each time (at-least-once is acceptable)
       expect(mockPrisma.syncBatch.update).toHaveBeenCalledTimes(2);
     });
   });
 
-  describe('7. partial batch failure', () => {
+  describe('11. partial batch failure', () => {
     it('should track processed, skipped, failed, retryable, permanently_failed separately', async () => {
       mockPrisma.batchEmailJob.findFirst
         .mockResolvedValueOnce(null)
@@ -366,7 +463,6 @@ describe('DurableCheckpointService', () => {
       mockPrisma.batchEmailJob.create = jest.fn().mockResolvedValue({});
       mockPrisma.syncBatch.update.mockResolvedValue({});
 
-      // Track 5 emails with different statuses
       const statuses: Array<'processed' | 'skipped' | 'failed' | 'retryable' | 'permanently_failed'> = [
         'processed',
         'skipped',
@@ -381,7 +477,6 @@ describe('DurableCheckpointService', () => {
         );
       }
 
-      // Verify each create call has the right status
       const createCalls = mockPrisma.batchEmailJob.create.mock.calls;
       expect(createCalls[0][0].data.status).toBe('processed');
       expect(createCalls[1][0].data.status).toBe('skipped');
@@ -391,7 +486,7 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('8. expired Gmail history cursor', () => {
+  describe('12. expired Gmail history cursor', () => {
     it('should detect and recommend fallback to initial sync', async () => {
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
         id: 'cp-1',
@@ -413,31 +508,7 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('9. concurrent checkpoint update protection', () => {
-    it('should throw when lockCheckpoint detects an active sync', async () => {
-      mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
-        userId,
-        status: 'syncing',
-      });
-
-      await expect(
-        durableCheckpointService.lockCheckpoint(mockPrisma as any, userId),
-      ).rejects.toThrow(/already locked/);
-    });
-
-    it('should allow lock when checkpoint is idle', async () => {
-      mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
-        userId,
-        status: 'idle',
-      });
-
-      await expect(
-        durableCheckpointService.lockCheckpoint(mockPrisma as any, userId),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('10. completion state', () => {
+  describe('13. completion state', () => {
     it('should mark sync operation as completed', async () => {
       mockPrisma.syncOperation.update.mockResolvedValue({
         id: 'op-1',
@@ -459,7 +530,7 @@ describe('DurableCheckpointService', () => {
     });
   });
 
-  describe('11. permanent failure state', () => {
+  describe('14. permanent failure state', () => {
     it('should mark sync operation as failed with error', async () => {
       mockPrisma.syncOperation.update.mockResolvedValue({
         id: 'op-1',
@@ -483,17 +554,15 @@ describe('DurableCheckpointService', () => {
     });
 
     it('should not advance checkpoint after permanent failure', async () => {
-      // Failed sync op: checkpoint should NOT have been advanced
       const checkpoint = {
         id: 'cp-1',
         userId,
-        currentHistoryId: 'hist-1', // stuck at old value
-        pendingHistoryId: 'hist-2', // was never committed
+        currentHistoryId: 'hist-1',
+        pendingHistoryId: 'hist-2',
         status: 'failed',
         version: 2,
       };
 
-      // The checkpoint's currentHistoryId should still be the old value
       expect(checkpoint.currentHistoryId).toBe('hist-1');
       expect(checkpoint.currentHistoryId).not.toBe('hist-2');
     });
@@ -510,7 +579,7 @@ describe('DurableCheckpointService', () => {
       expect(resume.action).toBe('start_fresh');
     });
 
-    it('should recommend continue when checkpoint is idle', async () => {
+    it('should recommend start_fresh when checkpoint is idle', async () => {
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue({
         id: 'cp-1',
         userId,

@@ -286,6 +286,10 @@ export class OutcomeService {
     }
     return counts;
   }
+
+  async getOutcomeCountsByType(userId: string): Promise<Record<string, number>> {
+    return this.countOutcomesByType(userId);
+  }
 }
 
 export const outcomeService = new OutcomeService();

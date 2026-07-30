@@ -29,6 +29,7 @@ import {
   SOURCE_TYPES,
   buildResumeVersionTag,
 } from '../action.service';
+import { config } from '../../config';
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -37,8 +38,23 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-const QUARANTINE_BUCKET = process.env.RESUME_QUARANTINE_BUCKET ?? process.env.S3_BUCKET ?? '';
-const CLEAN_BUCKET = process.env.RESUME_CLEAN_BUCKET ?? process.env.S3_BUCKET ?? '';
+const QUARANTINE_BUCKET = config.s3.bucket;
+const CLEAN_BUCKET = config.s3.bucket;
+
+const FILE_SIGNATURES: Record<string, { bytes: number[]; mimeTypes: string[] }> = {
+  pdf: {
+    bytes: [0x25, 0x50, 0x44, 0x46],
+    mimeTypes: ['application/pdf'],
+  },
+  docx: {
+    bytes: [0x50, 0x4b, 0x03, 0x04],
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  },
+  doc: {
+    bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
+    mimeTypes: ['application/msword'],
+  },
+};
 
 export interface ResumeUploadInput {
   userId: string;
@@ -409,6 +425,16 @@ export class ResumeUploadService {
     const allowedExtensions = new Set(['.pdf', '.docx', '.doc']);
     if (!allowedExtensions.has(ext)) {
       throw new ValidationError(`Invalid file extension: ${ext}. Allowed: .pdf, .docx, .doc`);
+    }
+
+    const signature = FILE_SIGNATURES[ext.replace('.', '')];
+    if (signature) {
+      const matches = signature.bytes.every((byte, index) => buffer[index] === byte);
+      if (!matches) {
+        throw new ValidationError(
+          `File content does not match ${ext} signature. Possible file type spoofing.`,
+        );
+      }
     }
   }
 

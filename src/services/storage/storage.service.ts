@@ -23,48 +23,24 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from '../../lib/logger';
 import { CircuitBreaker } from '../../lib/circuit-breaker';
+import { config } from '../../config';
 
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------
 
 export interface UploadResult {
-  /** Permanent S3 object key (use as the canonical reference in the DB). */
   storageKey: string;
-  /** Pre-signed URL valid for 1 hour — for immediate client download. */
   presignedUrl: string;
 }
 
 export interface IStorageService {
-  /**
-   * Upload a file buffer.
-   * @param key      S3 object key (caller computes this — keeps service dumb).
-   * @param buffer   Raw file bytes.
-   * @param mimeType Content-Type header value.
-   * @returns        The storage key and a short-lived presigned URL.
-   */
   upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
   uploadToBucket(bucket: string, key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
-
-  /**
-   * Generate a fresh pre-signed GET URL for an existing object.
-   * @param key     S3 object key.
-   * @param ttlSec  URL validity in seconds (default: 3600).
-   */
   getPresignedUrl(key: string, ttlSec?: number, bucket?: string): Promise<string>;
-
-  /**
-   * Check whether an object exists in S3 (HEAD request — no data transfer).
-   */
   exists(key: string, bucket?: string): Promise<boolean>;
-
   download(key: string, bucket?: string): Promise<Buffer>;
-
-  /**
-   * Delete an object. Used only for hard-delete flows (GDPR erasure, etc.).
-   */
   delete(key: string, bucket?: string): Promise<void>;
-
   copyToBucket(
     sourceKey: string,
     destinationBucket: string,
@@ -83,21 +59,19 @@ export class S3StorageService implements IStorageService {
   private readonly circuitBreaker: CircuitBreaker;
 
   constructor() {
-    this.bucket = process.env.S3_BUCKET ?? '';
+    this.bucket = config.s3.bucket;
     if (!this.bucket) {
-      logger.warn('[StorageService] S3_BUCKET env var is not set — uploads will fail');
+      logger.warn('[StorageService] S3 bucket is not configured — uploads will fail');
     }
 
     this.client = new S3Client({
-      region: process.env.AWS_REGION ?? 'us-east-1',
-      // Credentials are picked up from env vars (AWS_ACCESS_KEY_ID /
-      // AWS_SECRET_ACCESS_KEY) or the EC2 instance metadata service automatically.
+      region: config.s3.region,
     });
 
     this.circuitBreaker = new CircuitBreaker('S3Storage', {
       failureThreshold: 3,
       resetTimeout: 30000,
-      requestTimeout: 10000, // 10 seconds timeout for S3 calls
+      requestTimeout: config.s3.timeout,
     });
   }
 
@@ -229,6 +203,6 @@ export class NullStorageService implements IStorageService {
 // ---------------------------------------------------------------------------
 
 export const storageService: IStorageService =
-  process.env.NODE_ENV === 'test' || !process.env.S3_BUCKET
+  config.nodeEnv === 'test' || !config.s3.bucket
     ? new NullStorageService()
     : new S3StorageService();

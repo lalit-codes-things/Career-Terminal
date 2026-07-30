@@ -15,6 +15,7 @@ export const QUEUE_NAMES = {
   APPLICATION_TRACKING: 'application-tracking',
   MALWARE_SCAN: 'malware-scan',
   INTELLIGENCE: 'intelligence',
+  GMAIL_SYNC: 'gmail-sync',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -119,3 +120,22 @@ export const IntelligenceJobPayloadSchema = BaseJobPayloadSchema.extend({
   metadata: z.record(z.unknown()).optional(),
 });
 export type IntelligenceJobPayload = z.infer<typeof IntelligenceJobPayloadSchema>;
+
+// ---------------------------------------------------------------------------
+// Gmail sync job (BullMQ-backed authoritative scheduler)
+// ---------------------------------------------------------------------------
+
+export const GmailSyncJobTypeSchema = z.enum(['GMAIL_INITIAL_SYNC', 'GMAIL_INCREMENTAL_SYNC']);
+export type GmailSyncJobType = z.infer<typeof GmailSyncJobTypeSchema>;
+
+export const GmailSyncJobPayloadSchema = BaseJobPayloadSchema.extend({
+  type: GmailSyncJobTypeSchema,
+  userId: z.string().min(1),
+  cellId: z.string().min(1).optional(),
+  legacyUserId: z.string().min(1),
+  connectionId: z.string().min(1),
+  historyId: z.string().min(1).optional(),
+  pageToken: z.string().optional(),
+  priority: z.number().int().min(0).max(10).optional(),
+});
+export type GmailSyncJobPayload = z.infer<typeof GmailSyncJobPayloadSchema>;

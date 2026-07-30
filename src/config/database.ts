@@ -21,6 +21,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { DatabaseRouter } from '../db/database-router';
+import { config } from './index';
 
 // ---------------------------------------------------------------------------
 // Global stash (hot-reload safety)
@@ -36,22 +37,20 @@ const g = globalThis as unknown as {
 // ---------------------------------------------------------------------------
 
 const logLevels: ('query' | 'warn' | 'error')[] =
-  process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'];
+  config.nodeEnv === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'];
 
 function enrichUrl(baseUrl: string | undefined): string | undefined {
   if (!baseUrl) return undefined;
   try {
     const url = new URL(baseUrl);
-    // Keep each process deliberately small behind PgBouncer. API and worker
-    // replicas each get an explicit, independently configurable ceiling.
     if (!url.searchParams.has('connection_limit')) {
-      url.searchParams.set('connection_limit', process.env.DATABASE_CONNECTION_LIMIT ?? '5');
+      url.searchParams.set('connection_limit', String(config.limits.maxQueryParams));
     }
     if (!url.searchParams.has('pool_timeout')) {
-      url.searchParams.set('pool_timeout', process.env.DATABASE_POOL_TIMEOUT ?? '10');
+      url.searchParams.set('pool_timeout', String(config.databasePoolTimeout / 1000));
     }
     if (!url.searchParams.has('connect_timeout')) {
-      url.searchParams.set('connect_timeout', process.env.DATABASE_CONNECT_TIMEOUT ?? '10');
+      url.searchParams.set('connect_timeout', String(config.databaseTimeout / 1000));
     }
     return url.toString();
   } catch {
@@ -62,20 +61,19 @@ function enrichUrl(baseUrl: string | undefined): string | undefined {
 export const prisma: PrismaClient =
   g.prisma ??
   new PrismaClient({
-    datasources: { db: { url: enrichUrl(process.env.DATABASE_URL) } },
+    datasources: { db: { url: enrichUrl(config.databaseUrl) } },
     log: logLevels,
   });
 
-if (process.env.NODE_ENV !== 'production') {
+if (config.nodeEnv !== 'production') {
   g.prisma = prisma;
 }
 
 // ---------------------------------------------------------------------------
 // Replica client (reads)
-// Falls back to master when DATABASE_REPLICA_URL is absent.
 // ---------------------------------------------------------------------------
 
-const replicaUrl = process.env.DATABASE_REPLICA_URL;
+const replicaUrl = config.databaseReplicaUrl;
 
 export const prismaReplica: PrismaClient =
   g.prismaReplica ??
@@ -84,9 +82,9 @@ export const prismaReplica: PrismaClient =
         datasources: { db: { url: enrichUrl(replicaUrl) } },
         log: logLevels,
       })
-    : prisma); // same reference → zero overhead when no replica is configured
+    : prisma);
 
-if (process.env.NODE_ENV !== 'production') {
+if (config.nodeEnv !== 'production') {
   g.prismaReplica = prismaReplica;
 }
 

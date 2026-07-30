@@ -17,7 +17,14 @@ function jaccardScore(tokensA: Set<string>, tokensB: Set<string>): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-export class SemanticMatcher {
+/**
+ * TokenOverlapMatcher — token-set Jaccard similarity.
+ *
+ * This is NOT a semantic embedding model. It computes lexical overlap
+ * between tokenized term sets. It is useful for exact/near-expect term
+ * matching but does not capture semantic meaning.
+ */
+export class TokenOverlapMatcher {
   public async scoreSimilarity(textA: string, textB: string): Promise<number> {
     const cleanA = textA.toLowerCase().trim();
     const cleanB = textB.toLowerCase().trim();

@@ -87,7 +87,7 @@ export class GmailIngestionService implements IngestionService {
     // If no resumeable sync, initialize a new one
     if (!syncOpId || !batchId) {
       const op = await durableCheckpointService.initializeSyncOp(
-        userId, connectionId, 'INITIAL_SYNC', corrId, startingHistoryId, currentPageToken,
+        userId, connectionId, 'INITIAL_SYNC', corrId, startingHistoryId ?? '0', 'server-' + process.pid, currentPageToken,
       );
       syncOpId = op.syncOpId;
       batchId = op.batchId;
@@ -200,7 +200,7 @@ export class GmailIngestionService implements IngestionService {
     // Initialize sync operation + batch for incremental sync
     const { syncOpId, batchId } = await durableCheckpointService.initializeSyncOp(
       userId, connectionId, 'INCREMENTAL_SYNC', corrId, targetHistoryId,
-      syncState.historyId,
+      'server-' + process.pid, syncState.historyId,
     );
 
     let currentHistoryId = syncState.historyId;

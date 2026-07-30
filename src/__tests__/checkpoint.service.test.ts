@@ -1,8 +1,10 @@
 import { gmailCheckpointService } from '../services/gmail/checkpoint.service';
 import { prisma } from '../config/database';
+import { userService } from '../services/user';
 
 jest.mock('../config/database', () => ({
   prisma: {
+    $transaction: jest.fn(),
     syncBatch: {
       create: jest.fn(),
       update: jest.fn(),
@@ -17,9 +19,32 @@ jest.mock('../config/database', () => ({
     batchEmailJob: {
       upsert: jest.fn(),
     },
-    $transaction: jest.fn((callback) => callback(prisma)),
   },
 }));
+
+jest.mock('../services/user', () => ({
+  userService: {
+    userScopeFor: jest.fn(),
+  },
+}));
+
+const mockPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
+  syncBatch: {
+    create: jest.Mock;
+    update: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+  };
+  gmailCheckpoint: {
+    upsert: jest.Mock;
+    update: jest.Mock;
+    findUnique: jest.Mock;
+  };
+  batchEmailJob: {
+    upsert: jest.Mock;
+  };
+};
 
 describe('GmailCheckpointService', () => {
   const userId = 'user-123';
@@ -28,19 +53,28 @@ describe('GmailCheckpointService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (userService.userScopeFor as jest.Mock).mockResolvedValue({
+      userId,
+      legacyUserId: 'user-123',
+    });
+
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => Promise<any>) => fn(mockPrisma),
+    );
   });
 
   it('should start a batch correctly', async () => {
-    (prisma.syncBatch.create as jest.Mock).mockResolvedValue({ id: batchId });
-    (prisma.gmailCheckpoint.upsert as jest.Mock).mockResolvedValue({ id: 'cp-1' });
+    mockPrisma.syncBatch.create = jest.fn().mockResolvedValue({ id: batchId });
+    mockPrisma.gmailCheckpoint.upsert = jest.fn().mockResolvedValue({ id: 'cp-1' });
 
     const result = await gmailCheckpointService.startBatch(userId, historyId);
 
     expect(result.batchId).toBe(batchId);
-    expect(prisma.syncBatch.create).toHaveBeenCalledWith({
+    expect(mockPrisma.syncBatch.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ userId, historyId }),
     });
-    expect(prisma.gmailCheckpoint.upsert).toHaveBeenCalledWith(
+    expect(mockPrisma.gmailCheckpoint.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId },
         update: expect.objectContaining({ pendingHistoryId: historyId, status: 'syncing' }),
@@ -51,8 +85,8 @@ describe('GmailCheckpointService', () => {
   it('should mark email as processed', async () => {
     await gmailCheckpointService.markEmailProcessed(batchId, 'email-1', 'msg-1', 'completed');
 
-    expect(prisma.batchEmailJob.upsert).toHaveBeenCalled();
-    expect(prisma.syncBatch.update).toHaveBeenCalledWith(
+    expect(mockPrisma.batchEmailJob.upsert).toHaveBeenCalled();
+    expect(mockPrisma.syncBatch.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: batchId },
         data: expect.objectContaining({ processedCount: { increment: 1 } }),
@@ -73,11 +107,11 @@ describe('GmailCheckpointService', () => {
         },
       },
     };
-    (prisma.syncBatch.findUnique as jest.Mock).mockResolvedValue(mockBatch);
+    mockPrisma.syncBatch.findUnique = jest.fn().mockResolvedValue(mockBatch);
 
     await gmailCheckpointService.completeBatch(batchId);
 
-    expect(prisma.gmailCheckpoint.update).toHaveBeenCalledWith(
+    expect(mockPrisma.gmailCheckpoint.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId },
         data: expect.objectContaining({
@@ -87,7 +121,7 @@ describe('GmailCheckpointService', () => {
         }),
       })
     );
-    expect(prisma.syncBatch.update).toHaveBeenCalledWith(
+    expect(mockPrisma.syncBatch.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: batchId },
         data: expect.objectContaining({ status: 'completed' }),
@@ -108,11 +142,11 @@ describe('GmailCheckpointService', () => {
         },
       },
     };
-    (prisma.syncBatch.findUnique as jest.Mock).mockResolvedValue(mockBatch);
+    mockPrisma.syncBatch.findUnique = jest.fn().mockResolvedValue(mockBatch);
 
     await gmailCheckpointService.completeBatch(batchId);
 
-    expect(prisma.gmailCheckpoint.update).toHaveBeenCalledWith(
+    expect(mockPrisma.gmailCheckpoint.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId },
         data: expect.objectContaining({
@@ -120,8 +154,7 @@ describe('GmailCheckpointService', () => {
         }),
       })
     );
-    // Ensure currentHistoryId was NOT updated
-    const updateCall = (prisma.gmailCheckpoint.update as jest.Mock).mock.calls[0][0];
+    const updateCall = mockPrisma.gmailCheckpoint.update.mock.calls[0][0];
     expect(updateCall.data.currentHistoryId).toBeUndefined();
   });
 });
