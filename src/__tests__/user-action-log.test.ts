@@ -345,7 +345,7 @@ describe('Ownership and ordering', () => {
 
     expect(prisma.actionEvent.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: { occurredAt: 'desc' },
+        orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
       }),
     );
   });

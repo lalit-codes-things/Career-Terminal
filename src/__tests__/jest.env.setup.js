@@ -37,6 +37,7 @@ jest.mock('bullmq', () => {
 });
 
 jest.mock('ioredis', () => {
+  const store = new Map();
   const mockRedis = {
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
@@ -49,6 +50,33 @@ jest.mock('ioredis', () => {
       quit: jest.fn().mockResolvedValue(undefined),
       on: jest.fn(),
     }),
+    get: jest.fn((key) => Promise.resolve(store.has(key) ? store.get(key).value : null)),
+    set: jest.fn((key, value) => {
+      store.set(key, { value });
+      return Promise.resolve('OK');
+    }),
+    setex: jest.fn((key, _ttl, value) => {
+      store.set(key, { value });
+      return Promise.resolve('OK');
+    }),
+    del: jest.fn((...keys) => {
+      let count = 0;
+      for (const key of keys) {
+        if (store.has(key)) {
+          store.delete(key);
+          count++;
+        }
+      }
+      return Promise.resolve(count);
+    }),
+    keys: jest.fn((pattern) => {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      return Promise.resolve(Array.from(store.keys()).filter((k) => regex.test(k)));
+    }),
+    dbsize: jest.fn(() => Promise.resolve(store.size)),
+    scan: jest.fn((_cursor, _match) => Promise.resolve(['0', Array.from(store.keys())])),
+    exists: jest.fn((...keys) => Promise.resolve(keys.filter((k) => store.has(k)).length)),
+    expire: jest.fn(() => Promise.resolve(1)),
   };
   return jest.fn(() => mockRedis);
 });
