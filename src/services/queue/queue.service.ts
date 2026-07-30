@@ -26,6 +26,7 @@ import {
   type ResumeParsingJobPayload,
   type ApplicationTrackingJobPayload,
   type MalwareScanJobPayload,
+  type IntelligenceJobPayload,
 } from './queue.types';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,7 @@ export interface IQueueService {
     payload: ApplicationTrackingJobPayload,
     opts?: JobsOptions,
   ): Promise<string>;
+  addIntelligenceJob(payload: IntelligenceJobPayload, opts?: JobsOptions): Promise<string>;
   getDepths(): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
@@ -63,6 +65,7 @@ export class QueueService implements IQueueService {
   private readonly resumeQueue: Queue<ResumeParsingJobPayload>;
   private readonly trackingQueue: Queue<ApplicationTrackingJobPayload>;
   private readonly malwareQueue: Queue<MalwareScanJobPayload>;
+  private readonly intelligenceQueue: Queue<IntelligenceJobPayload>;
 
   constructor() {
     const conn = { connection: bullMQConnection };
@@ -74,6 +77,7 @@ export class QueueService implements IQueueService {
       conn,
     );
     this.malwareQueue = new Queue<MalwareScanJobPayload>(QUEUE_NAMES.MALWARE_SCAN, conn);
+    this.intelligenceQueue = new Queue<IntelligenceJobPayload>(QUEUE_NAMES.INTELLIGENCE, conn);
 
     logger.info('[QueueService] Queues initialised', {
       queues: Object.values(QUEUE_NAMES),
@@ -178,18 +182,37 @@ export class QueueService implements IQueueService {
     return job.id!;
   }
 
+  async addIntelligenceJob(
+    payload: IntelligenceJobPayload,
+    opts: JobsOptions = {},
+  ): Promise<string> {
+    const job = await this.intelligenceQueue.add(payload.type, payload, {
+      ...DEFAULT_JOB_OPTIONS,
+      ...opts,
+    });
+    logger.info('[QueueService] Intelligence job enqueued', {
+      jobId: job.id,
+      type: payload.type,
+      userId: payload.userId,
+      targetId: payload.targetId,
+    });
+    return job.id!;
+  }
+
   async getDepths(): Promise<Record<string, number>> {
-    const [email, resume, tracking, malware] = await Promise.all([
+    const [email, resume, tracking, malware, intelligence] = await Promise.all([
       this.emailQueue.getJobCounts(),
       this.resumeQueue.getJobCounts(),
       this.trackingQueue.getJobCounts(),
       this.malwareQueue.getJobCounts(),
+      this.intelligenceQueue.getJobCounts(),
     ]);
     return {
       email: (email.waiting ?? 0) + (email.active ?? 0) + (email.delayed ?? 0),
       resume: (resume.waiting ?? 0) + (resume.active ?? 0) + (resume.delayed ?? 0),
       tracking: (tracking.waiting ?? 0) + (tracking.active ?? 0) + (tracking.delayed ?? 0),
       malware: (malware.waiting ?? 0) + (malware.active ?? 0) + (malware.delayed ?? 0),
+      intelligence: (intelligence.waiting ?? 0) + (intelligence.active ?? 0) + (intelligence.delayed ?? 0),
     };
   }
 
@@ -200,6 +223,7 @@ export class QueueService implements IQueueService {
       this.resumeQueue.close(),
       this.trackingQueue.close(),
       this.malwareQueue.close(),
+      this.intelligenceQueue.close(),
     ]);
     logger.info('[QueueService] All queues closed');
   }

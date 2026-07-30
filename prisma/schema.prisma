@@ -132,6 +132,7 @@ model User {
   actionEvents          ActionEvent[]
   predictions           Prediction[]
   predictionFeedback    PredictionFeedback[]
+  recommendations       Recommendation[]
   correctedFacts        FactObservation[]                @relation("FactCorrectedBy")
   reviewedFacts         FactObservation[]                @relation("FactReviewedBy")
   homeCell              Cell?                            @relation(fields: [cellId], references: [id], onDelete: SetNull)
@@ -345,6 +346,7 @@ model Company {
   recruiters    Recruiter[]
   opportunities Opportunity[]
   applications  JobApplication[]
+  companySignals CompanySignal[]
 
   @@index([name])
   @@map("companies")
@@ -1248,4 +1250,73 @@ model CanonicalCurrency {
   sourceVersion String? @map("source_version")
 
   @@map("canonical_currencies")
+}
+
+model CompanySignal {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  signalType       String   @map("signal_type")
+  category         String
+  headline         String
+  description      String?  @db.Text
+  sourceUrl        String?  @map("source_url")
+  sourceName       String?  @map("source_name")
+  publicationTime  DateTime? @map("publication_time") @db.Timestamptz
+  discoveryTime    DateTime @default(now()) @map("discovery_time") @db.Timestamptz
+  confidence       Float    @default(1.0)
+  affectedAreas    String[] @default([]) @map("affected_areas")
+  estimatedImpact  String?  @map("estimated_impact")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([signalType])
+  @@index([discoveryTime])
+  @@map("company_signals")
+}
+
+model Recommendation {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id") @db.Uuid
+  recommendationType String  @map("recommendation_type")
+  targetType        String   @map("target_type")
+  targetId          String?  @map("target_id") @db.Uuid
+  overallScore      Float?   @map("overall_score")
+  scoreBreakdown    Json?    @map("score_breakdown") @default("{}")
+  explanation       String?  @db.Text
+  confidence        Float?
+  modelVersion      String?  @map("model_version")
+  rankingPosition   Int?     @map("ranking_position")
+  feedback          Json?    @default("{}")
+  eventualOutcome   Json?    @map("eventual_outcome") @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([recommendationType])
+  @@index([userId, createdAt])
+  @@map("recommendations")
+}
+
+model CanonicalRole {
+  id            String   @id @default(uuid()) @db.Uuid
+  canonicalName String   @map("canonical_name")
+  category      String?
+  seniority     String?
+  synonyms      String[] @default([])
+  requiredSkills String[] @default([]) @map("required_skills")
+  preferredSkills String[] @default([]) @map("preferred_skills")
+  salaryInfo    Json?    @map("salary_info") @default("{}")
+  demandTrend   String?  @map("demand_trend") @default("stable")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([canonicalName])
+  @@index([category])
+  @@index([seniority])
+  @@map("canonical_roles")
 }

@@ -3,8 +3,8 @@ import { prisma } from '../../config/database';
 import { queueService } from '../queue/queue.service';
 import { logger } from '../../lib/logger';
 import type { Prisma } from '@prisma/client';
-import { CreateEventInput, EVENT_TYPES } from './event.types';
-import type { MalwareScanJobPayload, ResumeParsingJobPayload } from '../queue/queue.types';
+import { CreateEventInput, EVENT_TYPES, type EventType } from './event.types';
+import type { MalwareScanJobPayload, ResumeParsingJobPayload, IntelligenceJobPayload } from '../queue/queue.types';
 
 export class EventDispatcherService {
   /**
@@ -13,13 +13,6 @@ export class EventDispatcherService {
   async publish(input: CreateEventInput): Promise<string> {
     const correlationId = input.correlationId || crypto.randomUUID();
 
-    // Persist event durably. 
-    // Idempotency constraint: duplicate events shouldn't duplicate intelligence.
-    // By keeping the event history durable, we allow replay and audit.
-    // If we wanted to avoid storing duplicates completely, we could query for existing 
-    // events with the same aggregateId + eventType in a recent timeframe.
-    // However, BullMQ job IDs provide our primary idempotency boundary.
-    
     const event = await prisma.event.create({
       data: {
         eventType: input.eventType,
@@ -34,7 +27,6 @@ export class EventDispatcherService {
     });
 
     try {
-      // Route event to appropriate queue based on type
       switch (input.eventType) {
         case EVENT_TYPES.RESUME_UPLOADED: {
           const payload = input.payload as unknown as MalwareScanJobPayload;
@@ -54,15 +46,39 @@ export class EventDispatcherService {
           });
           break;
         }
+        case EVENT_TYPES.OPPORTUNITY_RESOLVED:
+        case EVENT_TYPES.OPPORTUNITY_OBSERVED:
+        case EVENT_TYPES.SKILL_OBSERVED:
+        case EVENT_TYPES.PREDICTION_GENERATED:
+        case EVENT_TYPES.ACTION_RECORDED:
+        case EVENT_TYPES.OUTCOME_RECORDED:
+        case EVENT_TYPES.APPLICATION_CREATED:
+        case EVENT_TYPES.APPLICATION_SUBMITTED: {
+          const payload = input.payload as unknown as IntelligenceJobPayload;
+          await queueService.addIntelligenceJob({
+            ...payload,
+            type: 'GENERATE_EMBEDDING',
+            eventId: event.id,
+            correlationId,
+          });
+          break;
+        }
         case EVENT_TYPES.RESUME_PARSED: {
-          // Future: Extract & Materialize
+          const payload = input.payload as unknown as IntelligenceJobPayload;
+          await queueService.addIntelligenceJob({
+            ...payload,
+            type: 'MATCH_RESUME',
+            eventId: event.id,
+            correlationId,
+          });
           break;
         }
         default: {
-          logger.warn(`[EventDispatcher] No queue mapping for event type ${String(input.eventType)}`);
+          const eventType = input.eventType as EventType;
+          logger.warn(`[EventDispatcher] No queue mapping for event type ${eventType}`);
         }
       }
-      
+
       logger.info('[EventDispatcher] Published event and dispatched job', {
         eventId: event.id,
         eventType: event.eventType,
