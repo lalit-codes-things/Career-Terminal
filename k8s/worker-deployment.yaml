@@ -20,8 +20,8 @@ spec:
       labels:
         app: career-terminal-worker
     spec:
-      # Use a dedicated workload identity/secret binding in each environment.
-      serviceAccountName: career-terminal-api
+# Use a dedicated workload identity/secret binding in each environment.
+      serviceAccountName: career-terminal-worker
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:

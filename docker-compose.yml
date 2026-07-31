@@ -196,7 +196,7 @@ services:
     environment:
       NODE_ENV:            production
       PORT:                3000
-      DATABASE_URL:        postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
+      DATABASE_URL:        postgresql://${DATABASE_APP_USER:-career_terminal_app}:${DATABASE_APP_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_runtime
       DATABASE_CONNECTION_LIMIT: 5
       # Redis Queue (BullMQ) — no eviction, separate from cache
       REDIS_QUEUE_HOST:     redis-queue
@@ -237,7 +237,7 @@ services:
     command: ["node", "dist/services/queue/workers/index.js"]
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10
+      DATABASE_URL: postgresql://${DATABASE_APP_USER:-career_terminal_app}:${DATABASE_APP_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_worker
       DATABASE_CONNECTION_LIMIT: 5
       REDIS_QUEUE_HOST:     redis-queue
       REDIS_QUEUE_PORT:     6379
