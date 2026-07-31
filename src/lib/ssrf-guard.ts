@@ -81,16 +81,87 @@ function isPrivateIPv4(ip: string): boolean {
 // Private IPv6 checkers
 // ---------------------------------------------------------------------------
 
-const BLOCKED_IPV6_PATTERNS = [
-  /^::1$/, // loopback
-  /^fe80:/i, // link-local
-  /^fc00:/i, // unique-local
-  /^fd[0-9a-f]{2}:/i, // unique-local (fd00::/8)
-  /^0{0,4}:0{0,4}:0{0,4}:0{0,4}:0{0,4}:ffff:7f/i, // ::ffff:127.x.x.x
-];
+/**
+ * Expand an IPv6 address into 8 16-bit groups, handling "::" compression
+ * and an embedded trailing IPv4 dotted-quad (e.g. "::ffff:127.0.0.1").
+ * Returns null if the address is not well-formed.
+ *
+ * A plain regex against the string form is NOT sufficient here: the WHATWG
+ * URL parser (used by `new URL()`) normalizes IPv6 hosts into their
+ * shortest/compressed hex form before this guard ever sees them — e.g.
+ * "::ffff:169.254.169.254" becomes "::ffff:a9fe:a9fe". Matching against
+ * literal decimal octets in a regex misses every one of these.
+ */
+function expandIPv6(ip: string): number[] | null {
+  // Split off an embedded IPv4 tail (e.g. the "127.0.0.1" in "::ffff:127.0.0.1").
+  let head = ip;
+  let v4Tail: number[] | null = null;
+  const lastColon = ip.lastIndexOf(':');
+  if (lastColon !== -1 && ip.includes('.', lastColon)) {
+    const v4 = parseIPv4(ip.slice(lastColon + 1));
+    if (v4 === null) return null;
+    v4Tail = [(v4 >>> 16) & 0xffff, v4 & 0xffff];
+    head = ip.slice(0, lastColon);
+  }
+
+  const halves = head.split('::');
+  if (halves.length > 2) return null; // more than one "::" is invalid
+
+  const parseGroups = (s: string): number[] | null => {
+    if (s === '') return [];
+    const groups = s.split(':');
+    const parsed: number[] = [];
+    for (const g of groups) {
+      if (!/^[0-9a-fA-F]{1,4}$/.test(g)) return null;
+      parsed.push(parseInt(g, 16));
+    }
+    return parsed;
+  };
+
+  if (halves.length === 1) {
+    const groups = parseGroups(halves[0] ?? '');
+    if (!groups) return null;
+    const full = v4Tail ? [...groups, ...v4Tail] : groups;
+    return full.length === 8 ? full : null;
+  }
+
+  const left = parseGroups(halves[0] ?? '');
+  const right = parseGroups(halves[1] ?? '');
+  if (!left || !right) return null;
+
+  const rightFull = v4Tail ? [...right, ...v4Tail] : right;
+  const missing = 8 - left.length - rightFull.length;
+  if (missing < 0) return null;
+
+  return [...left, ...Array(missing).fill(0), ...rightFull];
+}
 
 function isPrivateIPv6(ip: string): boolean {
-  return BLOCKED_IPV6_PATTERNS.some((pattern) => pattern.test(ip));
+  const groups = expandIPv6(ip);
+  if (!groups) return false;
+
+  // ::1 — loopback
+  if (groups.slice(0, 7).every((g) => g === 0) && groups[7] === 1) return true;
+
+  // :: (unspecified) is not routable/useful as a fetch target either
+  if (groups.every((g) => g === 0)) return true;
+
+  // fe80::/10 — link-local (first 10 bits = 1111111010)
+  if ((groups[0]! & 0xffc0) === 0xfe80) return true;
+
+  // fc00::/7 — unique-local (first 7 bits = 1111110)
+  if ((groups[0]! & 0xfe00) === 0xfc00) return true;
+
+  // ::ffff:0:0/96 (IPv4-mapped) and ::0:0/96 (IPv4-compatible) — check the
+  // embedded IPv4 address against the same private-range table used above.
+  const isMapped = groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff;
+  const isCompat = groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0 && groups[6] !== 0;
+  if (isMapped || isCompat) {
+    const embeddedV4 = ((groups[6]! << 16) | groups[7]!) >>> 0;
+    return PRIVATE_RANGES_V4.some(({ network, prefix }) => inRange(embeddedV4, network, prefix));
+  }
+
+  return false;
 }
 
 // ---------------------------------------------------------------------------
