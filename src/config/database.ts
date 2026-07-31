@@ -140,7 +140,7 @@ if (config.nodeEnv !== 'production') {
 }
 
 // ---------------------------------------------------------------------------
-// Replica client (reads) — same role as master
+// Replica client (reads) — uses DATABASE_REPLICA_URL when configured
 // ---------------------------------------------------------------------------
 
 const replicaUrl = config.databaseReplicaUrl;
@@ -148,7 +148,14 @@ const replicaUrl = config.databaseReplicaUrl;
 export const prismaReplica: PrismaClient =
   g.prismaReplica ??
   (replicaUrl
-    ? createPrismaClient(config.databaseRole)
+    ? (() => {
+        const client = new PrismaClient({
+          datasources: { db: { url: replicaUrl } },
+          log: logLevels,
+        });
+        attachRlsMiddleware(client);
+        return client;
+      })()
     : prisma);
 
 if (config.nodeEnv !== 'production') {

@@ -296,6 +296,32 @@ export class KMSCryptoService implements ICryptoService {
     }
   }
 
+  /**
+   * Proactively validate KMS connectivity. Call this at startup when
+   * CRYPTO_BACKEND=kms. Throws if the KMS service is unreachable,
+   * the key does not exist, or IAM permissions are insufficient.
+   */
+  async validateConnectivity(): Promise<void> {
+    if (!this.keyId) {
+      throw new EncryptionError('KMS_KEY_ID is not set.');
+    }
+
+    try {
+      const testCommand = new GenerateDataKeyCommand({
+        KeyId: this.keyId,
+        KeySpec: 'AES_256',
+        EncryptionContext: this.encryptionContext,
+      });
+      await this.client.send(testCommand);
+    } catch (err) {
+      throw new EncryptionError(
+        'KMS connectivity test failed. Verify KMS_KEY_ID, IAM permissions, ' +
+          'network access, and encryption context: ' +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------

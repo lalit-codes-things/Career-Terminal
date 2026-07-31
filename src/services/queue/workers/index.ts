@@ -18,6 +18,7 @@ import { startApplicationTrackingWorker } from './application-tracking.worker';
 import { startGmailSyncWorker } from './gmail-sync.worker';
 import { outboxDispatcher } from '../../event/outbox-dispatcher.service';
 import { logger } from '../../../lib/logger';
+import { config } from '../../../config';
 
 let workers: Worker[] = [];
 
@@ -35,7 +36,7 @@ const workerFactories = {
 
 export type WorkerQueue = keyof typeof workerFactories;
 
-export function startAllWorkers(queueNames = process.env.WORKER_QUEUES): void {
+export function startAllWorkers(queueNames = config.worker.queues): void {
   const requested = (queueNames ?? '')
     .split(',')
     .map((name) => name.trim())
@@ -66,7 +67,7 @@ export async function stopAllWorkers(): Promise<void> {
       logger.error('[Workers] Shutdown timed out, forcing exit');
       process.exit(1);
     },
-    Number.parseInt(process.env.WORKER_SHUTDOWN_TIMEOUT ?? '30000', 10),
+    config.worker.shutdownTimeoutMs,
   );
 
   try {

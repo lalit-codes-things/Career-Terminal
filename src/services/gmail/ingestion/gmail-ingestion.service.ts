@@ -13,6 +13,7 @@
  *   - Concurrent worker protection via SELECT ... FOR UPDATE
  */
 import { prisma } from '../../../config/database';
+import { config } from '../../../config';
 import { ConnectionStatus, EmailProvider } from '@prisma/client';
 import { GmailClient } from '../client/gmail-client';
 import { gmailOAuthService } from '../auth/gmail-oauth.service';
@@ -332,7 +333,7 @@ export class GmailIngestionService implements IngestionService {
   }
 
   private async isBackpressured(): Promise<boolean> {
-    const limit = Number.parseInt(process.env.INGESTION_QUEUE_DEPTH_LIMIT ?? '10000', 10);
+    const limit = config.ingestionQueueDepthLimit;
     const depths = await queueService.getDepths();
     return Object.values(depths).some((depth) => depth >= limit);
   }

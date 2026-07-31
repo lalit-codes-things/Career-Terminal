@@ -34,6 +34,7 @@
 import { randomBytes } from 'crypto';
 import { OAuthError } from '../../../errors/app-errors';
 import { logger } from '../../../lib/logger';
+import { config } from '../../../config';
 import type { OAuthStateEntry } from '../models/gmail.types';
 
 // ---------------------------------------------------------------------------
@@ -197,7 +198,7 @@ export class OAuthStateService {
   constructor(backend?: IOAuthStateBackend) {
     if (backend) {
       this.backend = backend;
-    } else if (process.env.REDIS_HOST) {
+    } else if (config.redisCache.host || config.redis.host) {
       // Production / multi-instance: use Redis backend
       logger.info('[OAuthStateService] Using Redis-backed OAuth state storage');
       this.backend = new RedisStateBackend();

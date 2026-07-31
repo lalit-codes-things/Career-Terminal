@@ -12,6 +12,8 @@
  *   const queue = new Queue('my-queue', { connection: createBullMQConnection() });
  */
 
+import { config } from '../../config';
+
 export interface BullMQConnectionOptions {
   host: string;
   port: number;
@@ -28,11 +30,12 @@ export interface BullMQConnectionOptions {
  * Call this once per Queue or Worker constructor.
  */
 export function createBullMQConnection(): BullMQConnectionOptions {
+  const redisConfig = config.redisQueue;
   return {
-    host: process.env.REDIS_HOST ?? 'localhost',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
-    db: parseInt(process.env.REDIS_DB ?? '0', 10),
+    host: redisConfig.host,
+    port: redisConfig.port,
+    password: redisConfig.password,
+    db: redisConfig.db,
     maxRetriesPerRequest: null,
     retryStrategy: (times: number) => Math.min(times * 200, 10_000),
   };

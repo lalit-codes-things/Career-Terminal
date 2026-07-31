@@ -18,11 +18,13 @@ import { validateBody } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalApiKey } from '../middleware/internal-api';
 import { logger } from '../lib/logger';
-import { createRateLimiter, authFloodLimiter } from '../middleware/rate-limiter';
+import { createRateLimiter, secureAuthLimiter, secureOAuthCallbackLimiter, secureMutationLimiter } from '../middleware/rate-limiter';
 
 // Rate limiters for auth endpoints
-const tokenIssuanceLimiter = createRateLimiter(15 * 60 * 1000, 5);
-const refreshLimiter = createRateLimiter(15 * 60 * 1000, 20);
+const tokenIssuanceLimiter = secureAuthLimiter;
+const refreshLimiter = secureAuthLimiter;
+const logoutLimiter = secureMutationLimiter;
+const logoutAllLimiter = secureMutationLimiter;
 
 export const authRouter = Router();
 
@@ -118,7 +120,7 @@ authRouter.post(
 
 authRouter.post(
   '/logout',
-  authFloodLimiter,
+  logoutLimiter,
   requireAuth,
   validateBody(logoutSchema),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -143,7 +145,7 @@ authRouter.post(
 
 authRouter.post(
   '/logout-all',
-  authFloodLimiter,
+  logoutAllLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {

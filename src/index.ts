@@ -82,10 +82,20 @@ async function runStartupDiagnostics(): Promise<void> {
   try {
     cryptoService.validateConfig();
     logger.info('Crypto configuration valid', { backend: config.cryptoBackend });
+
+    // For KMS backend, also verify actual connectivity.
+    const kmsService = cryptoService as { validateConnectivity?: () => Promise<void> };
+    if (typeof kmsService.validateConnectivity === 'function') {
+      await kmsService.validateConnectivity();
+      logger.info('KMS connectivity verified');
+    }
   } catch (err) {
-    logger.error('Crypto configuration invalid', {
+    logger.error('Crypto configuration invalid — refusing to start', {
       message: err instanceof Error ? err.message : String(err),
     });
+    isAppReady = false;
+    healthService.setReady(false);
+    process.exit(1);
   }
 
   // Test Redis connection
@@ -247,7 +257,7 @@ export const server = app.listen(config.port, () => {
   initObservability();
 
   // Start workers in development or if explicitly requested
-  if (config.nodeEnv === 'development' || process.env.START_WORKERS === 'true') {
+  if (config.worker.startOnDev) {
     try {
       startAllWorkers();
     } catch (err) {

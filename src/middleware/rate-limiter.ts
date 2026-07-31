@@ -54,18 +54,31 @@ let redisClient: Redis | null = null;
 function getRedisClient(): Redis | null {
   if (redisClient) return redisClient;
 
-  const host = process.env.REDIS_CACHE_HOST ?? process.env.REDIS_HOST;
+  const host = config.redisCache.host ?? config.redis.host;
   if (!host) return null;
 
-  redisClient = new Redis({
+  const clientConfig: Redis.RedisOptions = {
     host,
-    port: parseInt(process.env.REDIS_CACHE_PORT ?? process.env.REDIS_PORT ?? '6379', 10),
-    password: (process.env.REDIS_CACHE_PASSWORD ?? process.env.REDIS_PASSWORD) || undefined,
-    db: parseInt(process.env.REDIS_CACHE_DB ?? process.env.REDIS_DB ?? '0', 10),
+    port: config.redisCache.port ?? config.redis.port,
+    password: config.redisCache.password ?? config.redis.password,
+    db: config.redisCache.db ?? config.redis.db,
     lazyConnect: true,
     enableOfflineQueue: false,
     maxRetriesPerRequest: 0,
-  });
+  };
+
+  if (config.redisAcl.username) {
+    clientConfig.username = config.redisAcl.username;
+  }
+
+  if (config.redisAcl.tlsEnabled) {
+    clientConfig.tls = {
+      ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+      rejectUnauthorized: true,
+    };
+  }
+
+  redisClient = new Redis(clientConfig);
 
   redisClient.on('error', () => {
     /* handled per-request */

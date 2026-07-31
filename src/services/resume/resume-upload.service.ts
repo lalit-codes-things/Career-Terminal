@@ -140,16 +140,38 @@ export class ResumeUploadService {
         cleanStorageKey,
       });
     } else {
-      const newHash = await prisma.resumeHash.create({
-        data: {
-          hash,
-          storageKey: cleanStorageKey,
-          storageUrl: cleanStorageKey,
-          mimeType,
-          sizeBytes: fileBuffer.length,
-        },
-      });
-      resumeHashId = newHash.id;
+      try {
+        const newHash = await prisma.resumeHash.create({
+          data: {
+            hash,
+            storageKey: cleanStorageKey,
+            storageUrl: cleanStorageKey,
+            mimeType,
+            sizeBytes: fileBuffer.length,
+          },
+        });
+        resumeHashId = newHash.id;
+      } catch (err: unknown) {
+        if (
+          err instanceof Error &&
+          'code' in err &&
+          (err as { code?: string }).code === 'P2002'
+        ) {
+          const retryHash = await prisma.resumeHash.findUnique({ where: { hash } });
+          if (!retryHash) {
+            throw err;
+          }
+          resumeHashId = retryHash.id;
+          deduplicated = true;
+          logger.info('[ResumeUpload] Dedup hit on race condition', {
+            userId,
+            hash,
+            cleanStorageKey,
+          });
+        } else {
+          throw err;
+        }
+      }
       logger.info('[ResumeUpload] New blob recorded', {
         userId,
         hash,
@@ -214,13 +236,16 @@ export class ResumeUploadService {
           fileHash: hash,
         },
       });
+    }).catch(async (err) => {
+      await this.storage.delete(quarantineKey, quarantineBucket).catch(() => {});
+      throw err;
     });
 
     // Transaction has committed — fast-path dispatch the queue job. If this
     // fails the event stays 'pending' and the OutboxDispatcher retries.
     await eventDispatcher.publishFromEvent(outboxEvent);
 
-    const userResumeId = outboxEvent.id;
+    const userResumeId = outboxEvent.payload.userResumeId;
 
     logger.info('[ResumeUpload] Upload queued for malware scan', {
       userId,

@@ -45,6 +45,8 @@
 // Core interface
 // ---------------------------------------------------------------------------
 
+import { config } from '../config';
+
 export interface ISecretProvider {
   /**
    * Retrieve a secret value by logical name.
@@ -249,12 +251,12 @@ export class CloudSecretProvider implements ISecretProvider {
  *   'vault'            → VaultSecretProvider (implement before enabling)
  *   'aws' | 'gcp' | 'azure' → CloudSecretProvider (implement before enabling)
  *
- * The factory is called once at startup. The resulting singleton is used
- * everywhere secrets are needed (via config/index.ts and the cryptographic
- * key manager).
- */
+  * The factory is called once at startup. The resulting singleton is used
+  * everywhere secrets are needed (via config/index.ts and the cryptographic
+  * key manager).
+  */
 export function createSecretProvider(): ISecretProvider {
-  const backend = process.env.SECRET_PROVIDER_BACKEND ?? 'env';
+  const backend = config.secretProviderBackend;
 
   switch (backend) {
     case 'vault':

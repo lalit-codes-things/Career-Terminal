@@ -1105,12 +1105,15 @@ model Event {
   userId        String    @map("user_id") @db.Uuid
   cellId        String    @map("cell_id")
   payload       Json
-  status        String    @default("pending") // pending, processed, failed, dlq
+  status        String    @default("pending") // pending, processing, processed, failed, dlq
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   processedAt   DateTime? @map("processed_at") @db.Timestamptz
   retryCount    Int       @default(0) @map("retry_count")
   correlationId String    @map("correlation_id")
   error         String?   @db.Text
+  leaseOwner    String?   @map("lease_owner")
+  leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1118,6 +1121,7 @@ model Event {
   @@index([aggregateId, aggregateType])
   @@index([status])
   @@index([correlationId])
+  @@index([leaseOwner, leaseExpiresAt])
   @@map("events")
 }
 

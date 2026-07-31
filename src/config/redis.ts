@@ -26,6 +26,9 @@ export interface RedisConfig {
   maxRetriesPerRequest?: number | null;
   timeout?: number;
   label: string;
+  username?: string;
+  tlsEnabled?: boolean;
+  tlsCaPath?: string;
 }
 
 export function buildRedisConfig(role: 'queue' | 'cache' = 'queue'): RedisConfig {
@@ -52,7 +55,7 @@ export function createRedisClient(role: 'queue' | 'cache' = 'queue', label?: str
   const cfg = buildRedisConfig(role);
   const clientLabel = label ?? cfg.label;
 
-  const client = new Redis({
+  const clientConfig: Redis.RedisOptions = {
     host: cfg.host,
     port: cfg.port,
     password: cfg.password,
@@ -68,7 +71,22 @@ export function createRedisClient(role: 'queue' | 'cache' = 'queue', label?: str
     commandTimeout: cfg.timeout ?? 5000,
     enableReadyCheck: false,
     lazyConnect: false,
-  });
+  };
+
+  // Apply Redis ACL username if configured
+  if (config.redisAcl.username) {
+    clientConfig.username = config.redisAcl.username;
+  }
+
+  // Apply TLS configuration if enabled
+  if (config.redisAcl.tlsEnabled) {
+    clientConfig.tls = {
+      ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+      rejectUnauthorized: true,
+    };
+  }
+
+  const client = new Redis(clientConfig);
 
   client.on('connect', () =>
     logger.info(`[${clientLabel}] Connected to Redis`, { host: cfg.host, port: cfg.port, role }),
