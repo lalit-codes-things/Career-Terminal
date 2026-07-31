@@ -155,7 +155,7 @@ rules:
     verbs: ["get"]
 
 ---
-# Worker: database, redis, encryption (generic worker SA for job processors)
+# Worker: database, redis, storage-credentials (least-privilege for resume worker)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -167,7 +167,7 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     resourceNames:
-      - career-terminal-secrets      # main secret (database, redis, encryption)
+      - career-terminal-resume-secret  # database-url, aws credentials
       - career-terminal-redis-secret
     verbs: ["get"]
 
@@ -231,4 +231,66 @@ subjects:
 roleRef:
   kind: Role
   name: career-terminal-tracking-worker-secrets
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Worker SA binding (for job processors using least-privilege resume-secret)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: career-terminal-worker-secrets-binding
+  namespace: career-terminal
+subjects:
+  - kind: ServiceAccount
+    name: career-terminal-worker
+    namespace: career-terminal
+roleRef:
+  kind: Role
+  name: career-terminal-worker-secrets
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ── Migration ServiceAccount & RBAC ──────────────────────────────────
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: career-terminal-migration
+  namespace: career-terminal
+  labels:
+    app.kubernetes.io/component: migration
+    app.kubernetes.io/name: career-terminal
+  annotations:
+    vault.hashicorp.com/role: "career-terminal-migration"
+
+---
+
+# Migration role: only DDL/secrets needed for migrations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: career-terminal-migration-secrets
+  namespace: career-terminal
+  labels:
+    app.kubernetes.io/component: migration
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - career-terminal-migration-secret  # database-url, migration-specific credentials
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: career-terminal-migration-secrets-binding
+  namespace: career-terminal
+subjects:
+  - kind: ServiceAccount
+    name: career-terminal-migration
+    namespace: career-terminal
+roleRef:
+  kind: Role
+  name: career-terminal-migration-secrets
   apiGroup: rbac.authorization.k8s.io

@@ -98,6 +98,8 @@ interface AppConfig {
     bucket: string;
     region: string;
     endpoint?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
     timeout: number;
   };
 
@@ -416,6 +418,8 @@ function loadConfig(): AppConfig {
       bucket: env.S3_BUCKET || '',
       region: env.AWS_REGION,
       endpoint: env.AWS_ENDPOINT_URL_S3,
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
       timeout: env.S3_TIMEOUT,
     },
 

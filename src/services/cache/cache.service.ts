@@ -28,6 +28,9 @@ export interface ICacheService {
   /** Retrieve a cached value. Returns null on miss or expired key. */
   get<T>(key: string): Promise<T | null>;
 
+  /** Atomically get and delete a key. Returns null on miss or expired key. */
+  getDel<T>(key: string): Promise<T | null>;
+
   /** Store a value with a TTL in milliseconds. */
   set<T>(key: string, value: T, ttlMs: number): Promise<void>;
 
@@ -59,6 +62,20 @@ export class RedisCacheService implements ICacheService {
       return JSON.parse(raw) as T;
     } catch (err) {
       logger.warn('[CacheService] get failed', {
+        key,
+        error: (err as Error).message,
+      });
+      return null;
+    }
+  }
+
+  async getDel<T>(key: string): Promise<T | null> {
+    try {
+      const raw = await this.client.getdel(key);
+      if (raw === null) return null;
+      return JSON.parse(raw) as T;
+    } catch (err) {
+      logger.warn('[CacheService] getDel failed', {
         key,
         error: (err as Error).message,
       });
@@ -137,6 +154,10 @@ export class RedisCacheService implements ICacheService {
 export class NullCacheService implements ICacheService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async get<T>(_key: string): Promise<T | null> {
+    return null;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async getDel<T>(_key: string): Promise<T | null> {
     return null;
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

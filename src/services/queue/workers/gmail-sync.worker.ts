@@ -9,6 +9,7 @@ import { userOwnershipFilter } from '../../../utils/user-ownership';
 import { prisma } from '../../../config/database';
 import { withEventLifecycle } from '../../../services/event/event-worker';
 import { EVENT_TYPES } from '../../../services/event/event.types';
+import { config } from '../../../config';
 import { eventDispatcher } from '../../../services/event/event-dispatcher.service';
 import { classifyFailure } from '../../../services/gmail/gmail-ingestion-coordinator';
 
@@ -162,7 +163,7 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
 export function startGmailSyncWorker(): Worker<GmailSyncJobPayload> {
   const worker = new Worker<GmailSyncJobPayload>(QUEUE_NAMES.GMAIL_SYNC, processGmailSyncJob, {
     connection: bullMQConnection,
-    concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+    concurrency: config.worker.concurrency,
     limiter: {
       max: 10,
       duration: 1000,

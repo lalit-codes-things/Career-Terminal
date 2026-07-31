@@ -12,6 +12,7 @@ import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
 import { QUEUE_NAMES, type EmailJobPayload, EmailJobPayloadSchema } from '../queue.types';
+import { config } from '../../../config';
 
 // ---------------------------------------------------------------------------
 // Processor — pure function, easy to unit-test in isolation
@@ -54,7 +55,7 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
 export function startEmailWorker(): Worker<EmailJobPayload> {
   const worker = new Worker<EmailJobPayload>(QUEUE_NAMES.EMAIL, processEmailJob, {
     connection: bullMQConnection,
-    concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+    concurrency: config.worker.concurrency,
     // BullMQ handles retries per the job's `attempts` + `backoff` options set
     // by the producer — no additional config needed here.
   });
