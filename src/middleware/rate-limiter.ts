@@ -6,6 +6,10 @@
  * This ensures rate limiting works correctly across multiple web-server
  * instances and degrades gracefully if Redis goes down.
  *
+ * IMPORTANT: Security-critical endpoints must not universally fail open.
+ * Use the fail-closed limiters for authentication, OAuth, and highly
+ * sensitive mutations. Ordinary endpoints may use the standard limiters.
+ *
  * Two factory functions are provided:
  *
  *   createRateLimiter(windowMs, maxRequests)
@@ -15,12 +19,13 @@
  *     → Keys by userId when authenticated, falls back to IP for anonymous.
  *       This prevents a single user account from consuming quota by rotating IPs.
  *
- * Named presets:
- *   generalApiLimiter   — standard authenticated routes (300/15 min per user)
- *   writeLimiter        — state-changing routes (60/15 min per user)
- *   expensiveLimiter    — CPU/DB-heavy endpoints (20/15 min per user)
- *   uploadLimiter       — file upload endpoints (10/hour per user)
- *   authFloodLimiter    — auth logout flood protection (20/15 min per IP)
+ *   createSecureRateLimiter(windowMs, maxRequests)
+ *     → Like createRateLimiter but fails closed on Redis errors. Use for
+ *       security-critical unauthenticated endpoints (OAuth callback, etc.).
+ *
+ *   createSecureUserRateLimiter(windowMs, maxRequests)
+ *     → Like createUserAwareRateLimiter but fails closed on Redis errors.
+ *       Use for authentication and sensitive authenticated mutations.
  */
 import { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import { RateLimiterMemory, RateLimiterRedis, type RateLimiterRes } from 'rate-limiter-flexible';
@@ -40,37 +45,46 @@ export class RateLimitError extends AppError {
 
 // ---------------------------------------------------------------------------
 // Shared Redis client for rate limiting.
-// Created at module load time only when REDIS_HOST is configured.
-// lazyConnect + enableOfflineQueue=false ensures Redis downtime never blocks
-// HTTP requests; failures fall back to the in-memory limiter.
+// Uses the cache Redis role (ephemeral cluster) — rate limiting data is
+// disposable and eviction is acceptable.
 // ---------------------------------------------------------------------------
 
 let redisClient: Redis | null = null;
 
-if (process.env.REDIS_HOST) {
+function getRedisClient(): Redis | null {
+  if (redisClient) return redisClient;
+
+  const host = process.env.REDIS_CACHE_HOST ?? process.env.REDIS_HOST;
+  if (!host) return null;
+
   redisClient = new Redis({
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD || undefined,
+    host,
+    port: parseInt(process.env.REDIS_CACHE_PORT ?? process.env.REDIS_PORT ?? '6379', 10),
+    password: (process.env.REDIS_CACHE_PASSWORD ?? process.env.REDIS_PASSWORD) || undefined,
+    db: parseInt(process.env.REDIS_CACHE_DB ?? process.env.REDIS_DB ?? '0', 10),
     lazyConnect: true,
     enableOfflineQueue: false,
     maxRetriesPerRequest: 0,
   });
 
-  // Suppress unhandled error events — failures are caught per-request below.
   redisClient.on('error', () => {
-    /* handled in createRateLimiter */
+    /* handled per-request */
   });
+
+  return redisClient;
 }
 
 // ---------------------------------------------------------------------------
 // Internal helper — build a limiter pair (Redis-backed with memory fallback)
+// Note: localStorage serves as the in-memory fallback. For security-critical
+// limiters, we use a separate tight memory limiter as a tight backstop.
 // ---------------------------------------------------------------------------
 
 function buildLimiterPair(
   windowSec: number,
   maxRequests: number,
   keyPrefix: string,
+  _options: { failClosed?: boolean } = {},
 ): { limiter: RateLimiterMemory | RateLimiterRedis; memory: RateLimiterMemory } {
   const memory = new RateLimiterMemory({
     points: maxRequests,
@@ -78,12 +92,13 @@ function buildLimiterPair(
     keyPrefix,
   });
 
-  if (!redisClient) {
+  const client = getRedisClient();
+  if (!client) {
     return { limiter: memory, memory };
   }
 
   const redis = new RateLimiterRedis({
-    storeClient: redisClient,
+    storeClient: client,
     points: maxRequests,
     duration: windowSec,
     keyPrefix,
@@ -115,63 +130,21 @@ function logRateLimitExceeded(
 }
 
 // ---------------------------------------------------------------------------
-// Factory: IP-keyed rate limiter
+// Core rate-limit handler factory
 // ---------------------------------------------------------------------------
 
-/**
- * Creates a rate limiter middleware keyed by client IP address.
- * Use for unauthenticated endpoints.
- */
-export const createRateLimiter = (windowMs: number, maxRequests: number): RequestHandler => {
-  const windowSec = Math.ceil(windowMs / 1000);
-  const { limiter } = buildLimiterPair(windowSec, maxRequests, 'rl_ip');
-
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const key = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-
-    try {
-      await limiter.consume(key);
-      next();
-    } catch (err: unknown) {
-      const isRateLimitExceeded = err !== null && typeof err === 'object' && 'msBeforeNext' in err;
-
-      if (isRateLimitExceeded) {
-        const rateLimitRes = err as RateLimiterRes;
-        const retryAfterSeconds = Math.ceil(rateLimitRes.msBeforeNext / 1000);
-        res.setHeader('Retry-After', retryAfterSeconds);
-        logRateLimitExceeded(req, retryAfterSeconds, 'ip');
-        next(new RateLimitError());
-        return;
-      }
-
-      // Unexpected error (Redis failure not caught by insuranceLimiter) — fail open.
-      next();
-    }
-  };
-};
-
-// ---------------------------------------------------------------------------
-// Factory: User-aware rate limiter
-// ---------------------------------------------------------------------------
-
-/**
- * Creates a rate limiter middleware that:
- *  - Keys by userId when req.user is populated (authenticated request).
- *  - Falls back to IP address for anonymous requests.
- *
- * This prevents a single account from exhausting quota by rotating IP addresses.
- * Use on all authenticated API routes.
- */
-export const createUserAwareRateLimiter = (
+function createRateLimiterHandler(
+  getKey: (req: Request) => string,
   windowMs: number,
   maxRequests: number,
-): RequestHandler => {
+  keyPrefix: string,
+  opts: { failClosed?: boolean } = {},
+): RequestHandler {
   const windowSec = Math.ceil(windowMs / 1000);
-  const { limiter } = buildLimiterPair(windowSec, maxRequests, 'rl_user');
+  const { limiter } = buildLimiterPair(windowSec, maxRequests, keyPrefix, opts);
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Key by userId if authenticated, otherwise by IP
-    const key = req.user?.id ?? req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const key = getKey(req);
 
     try {
       await limiter.consume(key);
@@ -188,11 +161,78 @@ export const createUserAwareRateLimiter = (
         return;
       }
 
-      // Fail open on unexpected errors
+      if (opts.failClosed) {
+        logger.warn('[RateLimiter] Unexpected error in fail-closed limiter — rejecting', {
+          error: (err as Error).message,
+          key,
+          path: req.path,
+        });
+        next(new RateLimitError('Service temporarily unavailable. Please try again later.'));
+        return;
+      }
+
+      // Fail open for non-security-critical endpoints
       next();
     }
   };
-};
+}
+
+// ---------------------------------------------------------------------------
+// Factory: IP-keyed rate limiter (fail open on errors)
+// ---------------------------------------------------------------------------
+
+export const createRateLimiter = (windowMs: number, maxRequests: number): RequestHandler =>
+  createRateLimiterHandler(
+    (req) => req.ip ?? req.socket.remoteAddress ?? 'unknown',
+    windowMs,
+    maxRequests,
+    'rl_ip',
+    { failClosed: false },
+  );
+
+// ---------------------------------------------------------------------------
+// Factory: User-aware rate limiter (fail open on errors)
+// ---------------------------------------------------------------------------
+
+export const createUserAwareRateLimiter = (windowMs: number, maxRequests: number): RequestHandler =>
+  createRateLimiterHandler(
+    (req) => req.user?.id ?? req.ip ?? req.socket.remoteAddress ?? 'unknown',
+    windowMs,
+    maxRequests,
+    'rl_user',
+    { failClosed: false },
+  );
+
+// ---------------------------------------------------------------------------
+// Factory: Secure (fail-closed) rate limiters for security-critical paths
+// ---------------------------------------------------------------------------
+
+/**
+ * Keys by IP. Rejects requests on unexpected Redis errors.
+ * Use for unauthenticated security-critical endpoints (OAuth callback).
+ */
+export const createSecureRateLimiter = (windowMs: number, maxRequests: number): RequestHandler =>
+  createRateLimiterHandler(
+    (req) => req.ip ?? req.socket.remoteAddress ?? 'unknown',
+    windowMs,
+    maxRequests,
+    'rl_ip_secure',
+    { failClosed: true },
+  );
+
+/**
+ * Keys by userId when authenticated, otherwise by IP.
+ * Rejects requests on unexpected Redis errors.
+ * Use for authentication, password/token operations, sensitive mutations.
+ */
+export const createSecureUserRateLimiter = (windowMs: number, maxRequests: number): RequestHandler =>
+  createRateLimiterHandler(
+    (req) => req.user?.id ?? req.ip ?? req.socket.remoteAddress ?? 'unknown',
+    windowMs,
+    maxRequests,
+    'rl_user_secure',
+    { failClosed: true },
+  );
 
 // ---------------------------------------------------------------------------
 // Named presets — use these directly on routes
@@ -232,3 +272,26 @@ export const uploadLimiter = createUserAwareRateLimiter(60 * 60 * 1000, 10);
  * Suitable for logout endpoints.
  */
 export const authFloodLimiter = createRateLimiter(15 * 60 * 1000, 20);
+
+// ─── Security-critical presets (fail closed) ─────────────────────────────
+
+/**
+ * Secure auth endpoint limiter.
+ * 5 requests per 15 minutes per IP.
+ * Use for /auth/token and similar token-issuance endpoints.
+ */
+export const secureAuthLimiter = createSecureRateLimiter(15 * 60 * 1000, 5);
+
+/**
+ * Secure OAuth callback limiter.
+ * 20 requests per 15 minutes per IP.
+ * Use for OAuth callback endpoints.
+ */
+export const secureOAuthCallbackLimiter = createSecureRateLimiter(15 * 60 * 1000, 20);
+
+/**
+ * Secure sensitive mutation limiter.
+ * 10 requests per 15 minutes per user.
+ * Use for credential mutations, connection management, deletion requests.
+ */
+export const secureMutationLimiter = createSecureUserRateLimiter(15 * 60 * 1000, 10);

@@ -49,7 +49,7 @@ export class RedisCacheService implements ICacheService {
   private readonly client: Redis;
 
   constructor(client?: Redis) {
-    this.client = client ?? createRedisClient('cache');
+    this.client = client ?? createRedisClient('cache', 'cache');
   }
 
   async get<T>(key: string): Promise<T | null> {

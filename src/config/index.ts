@@ -43,12 +43,36 @@ interface AppConfig {
   databaseReplicaUrl?: string;
   databaseTimeout: number;
   databasePoolTimeout: number;
+  databaseRole: 'app_runtime' | 'app_worker' | 'app_migration' | 'app_readonly' | 'app_admin';
+  databaseAppUser?: string;
+  databaseAppPassword?: string;
 
   /** JWT signing secret */
   jwtSecret: string;
   internalApiKey?: string;
 
-  /** Redis connection details */
+  /** Redis Queue Cluster (BullMQ + job state) */
+  redisQueue: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+    timeout: number;
+  };
+
+  /** Redis Ephemeral Cluster (cache + rate-limiting + OAuth state + coordination) */
+  redisCache: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+    timeout: number;
+  };
+
+  /**
+   * Legacy single-Redis connection — used as fallback when separate
+   * REDIS_QUEUE_* / REDIS_CACHE_* env vars are not provided.
+   */
   redis: {
     host: string;
     port: number;
@@ -147,6 +171,23 @@ interface AppConfig {
     host?: string;
     port?: number;
   };
+
+  /** KMS config */
+  kms: {
+    keyId?: string;
+    encryptionContext?: string;
+  };
+
+  /** Redis ACL / TLS */
+  redisAcl: {
+    username?: string;
+    password?: string;
+    tlsEnabled: boolean;
+    tlsCaPath?: string;
+  };
+
+  /** Worker service account */
+  workerServiceAccount?: string;
 }
 
 function validateSecrets(cfg: {
@@ -209,15 +250,35 @@ function loadConfig(): AppConfig {
     databaseReplicaUrl: env.DATABASE_REPLICA_URL,
     databaseTimeout: env.DATABASE_TIMEOUT,
     databasePoolTimeout: env.DATABASE_POOL_TIMEOUT,
+    databaseRole: env.DATABASE_ROLE,
+    databaseAppUser: env.DATABASE_APP_USER,
+    databaseAppPassword: env.DATABASE_APP_PASSWORD,
 
     jwtSecret: env.JWT_SECRET,
     internalApiKey: env.INTERNAL_API_KEY,
 
+    // Legacy Redis (queue + cache fallback)
     redis: {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,
       password: env.REDIS_PASSWORD,
       db: env.REDIS_DB,
+      timeout: env.REDIS_TIMEOUT,
+    },
+
+    // Logical Redis clusters
+    redisQueue: {
+      host: env.REDIS_QUEUE_HOST,
+      port: env.REDIS_QUEUE_PORT,
+      password: env.REDIS_QUEUE_PASSWORD,
+      db: env.REDIS_QUEUE_DB,
+      timeout: env.REDIS_TIMEOUT,
+    },
+    redisCache: {
+      host: env.REDIS_CACHE_HOST ?? env.REDIS_HOST,
+      port: env.REDIS_CACHE_PORT ?? env.REDIS_PORT,
+      password: env.REDIS_CACHE_PASSWORD ?? env.REDIS_PASSWORD,
+      db: env.REDIS_CACHE_DB ?? env.REDIS_DB,
       timeout: env.REDIS_TIMEOUT,
     },
 
@@ -305,6 +366,20 @@ function loadConfig(): AppConfig {
       host: env.PGBOUNCER_HOST,
       port: env.PGBOUNCER_PORT,
     },
+
+    kms: {
+      keyId: env.KMS_KEY_ID,
+      encryptionContext: env.AWS_KMS_ENCRYPTION_CONTEXT,
+    },
+
+    redisAcl: {
+      username: env.REDIS_ACL_USERNAME,
+      password: env.REDIS_ACL_PASSWORD,
+      tlsEnabled: env.REDIS_TLS_ENABLED,
+      tlsCaPath: env.REDIS_TLS_CA_PATH,
+    },
+
+    workerServiceAccount: env.WORKER_SERVICE_ACCOUNT,
   };
 
   validateSecrets(cfg);

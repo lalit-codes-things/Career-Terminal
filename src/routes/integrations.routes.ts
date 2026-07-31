@@ -45,13 +45,13 @@ integrationsRouter.get(
   '/connect',
   connectLimiter,
   requireAuth,
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
         throw new UnauthorizedError('Authentication required');
       }
-      const authorizationUrl = gmailOAuthService.getAuthorizationUrl(userId);
+      const authorizationUrl = await gmailOAuthService.getAuthorizationUrl(userId);
       res.json({
         success: true,
         data: { authorizationUrl },

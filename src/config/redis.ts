@@ -1,15 +1,22 @@
 /**
  * Redis connection factory.
  *
- * Provides a single, reusable ioredis connection configuration consumed by
- * both the BullMQ job queue and the Redis CacheService.
+ * Provides factories for two logical Redis roles:
  *
- * BullMQ requires its own connection instance (it calls .duplicate() internally),
- * so we export a factory function rather than a shared singleton.
+ *   createQueueRedisClient(label)  — BullMQ + queue-side coordination.
+ *                                    Uses noeviction semantics (maxmemory-policy
+ *                                    must never be allkeys-lru / volatile-lru).
+ *
+ *   createCacheRedisClient(label)  — cache + rate-limiting + OAuth state.
+ *                                    Eviction policy is acceptable here.
+ *
+ * Both factories share the same underlying config interface so a single
+ * instance deployment continues to work. In production, deploy two separate
+ * Redis instances and configure REDIS_QUEUE_* / REDIS_CACHE_* accordingly.
  */
 import Redis from 'ioredis';
-import { logger } from '../lib/logger';
 import { config } from './index';
+import { logger } from '../lib/logger';
 
 export interface RedisConfig {
   host: string;
@@ -17,54 +24,87 @@ export interface RedisConfig {
   password?: string;
   db?: number;
   maxRetriesPerRequest?: number | null;
+  timeout?: number;
+  label: string;
 }
 
-export function buildRedisConfig(): RedisConfig {
+export function buildRedisConfig(role: 'queue' | 'cache' = 'queue'): RedisConfig {
+  if (role === 'queue') {
+    return {
+      host: config.redisQueue.host,
+      port: config.redisQueue.port,
+      password: config.redisQueue.password,
+      db: config.redisQueue.db,
+      label: 'redis-queue',
+    };
+  }
+
   return {
-    host: config.redis.host,
-    port: config.redis.port,
-    password: config.redis.password,
-    db: config.redis.db,
-    maxRetriesPerRequest: null,
+    host: config.redisCache.host,
+    port: config.redisCache.port,
+    password: config.redisCache.password,
+    db: config.redisCache.db,
+    label: 'redis-cache',
   };
 }
 
-export function createRedisClient(label = 'redis'): Redis {
-  const cfg = buildRedisConfig();
+export function createRedisClient(role: 'queue' | 'cache' = 'queue', label?: string): Redis {
+  const cfg = buildRedisConfig(role);
+  const clientLabel = label ?? cfg.label;
 
   const client = new Redis({
     host: cfg.host,
     port: cfg.port,
     password: cfg.password,
     db: cfg.db,
-    maxRetriesPerRequest: cfg.maxRetriesPerRequest,
+    maxRetriesPerRequest: cfg.maxRetriesPerRequest ?? null,
     retryStrategy: (times) => {
       if (times > 20) {
-        logger.error(`[${label}] Redis max retries reached. Failing permanently.`);
+        logger.error(`[${clientLabel}] Redis max retries reached. Failing permanently.`);
         return null;
       }
       return Math.min(times * 200, 10_000);
     },
-    commandTimeout: 5000,
+    commandTimeout: cfg.timeout ?? 5000,
     enableReadyCheck: false,
     lazyConnect: false,
   });
 
   client.on('connect', () =>
-    logger.info(`[${label}] Connected to Redis`, { host: cfg.host, port: cfg.port }),
+    logger.info(`[${clientLabel}] Connected to Redis`, { host: cfg.host, port: cfg.port, role }),
   );
   client.on('error', (err: Error) =>
-    logger.error(`[${label}] Redis error`, { message: err.message }),
+    logger.error(`[${clientLabel}] Redis error`, { message: err.message, role }),
   );
-  client.on('reconnecting', () => logger.warn(`[${label}] Reconnecting to Redis...`));
+  client.on('reconnecting', () => logger.warn(`[${clientLabel}] Reconnecting to Redis...`));
 
   return client;
 }
 
-/** Shared BullMQ connection config (host/port only — BullMQ manages the socket). */
-export const bullMQConnection = {
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password,
-  db: config.redis.db,
-};
+/** Shared BullMQ connection config — BullMQ manages its own socket. */
+export function createBullMQConnection(): BullMQConnectionOptions {
+  const cfg = buildRedisConfig('queue');
+  return {
+    host: cfg.host,
+    port: cfg.port,
+    password: cfg.password,
+    db: cfg.db,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times) => Math.min(times * 200, 10_000),
+  };
+}
+
+export interface BullMQConnectionOptions {
+  host: string;
+  port: number;
+  password?: string;
+  db?: number;
+  maxRetriesPerRequest: null;
+  retryStrategy?: (times: number) => number;
+}
+
+/**
+ * Singleton connection config — shared across all queues in the same process.
+ * BullMQ duplicates the connection internally for each Queue/Worker.
+ */
+export const bullMQConnection = createBullMQConnection();

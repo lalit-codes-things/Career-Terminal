@@ -16,12 +16,29 @@
  *                       `dbRouter.read()` / `dbRouter.write()` to route
  *                       automatically.
  *
+ * 4. `createPrismaClient(role)` — creates a new PrismaClient with the
+ *                       specified PostgreSQL role via connection URL options.
+ *                       Use this for workers and migration processes that
+ *                       need different role contexts.
+ *
+ * Role separation:
+ *   In production, the base database user is a member of multiple roles.
+ *   The `options=-c+role%3D<role>` parameter in the connection URL sets
+ *   the PostgreSQL role for the session, enforcing least-privilege access.
+ *
+ *   app_runtime   — normal API query + DML (no DDL)
+ *   app_worker    — same as runtime but for background workers
+ *   app_migration — schema changes, migrations (DDL)
+ *   app_readonly  — read-only reporting
+ *   app_admin     — elevated operations
+ *
  * Prevents connection exhaustion during hot-reloads in development by
  * stashing clients on the global object (standard Prisma pattern).
  */
 import { PrismaClient } from '@prisma/client';
 import { DatabaseRouter } from '../db/database-router';
 import { config } from './index';
+import { attachRlsMiddleware } from '../middleware/rls';
 
 // ---------------------------------------------------------------------------
 // Global stash (hot-reload safety)
@@ -33,13 +50,13 @@ const g = globalThis as unknown as {
 };
 
 // ---------------------------------------------------------------------------
-// Master client (writes)
+// Helpers
 // ---------------------------------------------------------------------------
 
 const logLevels: ('query' | 'warn' | 'error')[] =
   config.nodeEnv === 'development' ? ['query', 'warn', 'error'] : ['warn', 'error'];
 
-function enrichUrl(baseUrl: string | undefined): string | undefined {
+function enrichUrl(baseUrl: string | undefined, role?: string): string | undefined {
   if (!baseUrl) return undefined;
   try {
     const url = new URL(baseUrl);
@@ -52,25 +69,49 @@ function enrichUrl(baseUrl: string | undefined): string | undefined {
     if (!url.searchParams.has('connect_timeout')) {
       url.searchParams.set('connect_timeout', String(config.databaseTimeout / 1000));
     }
+    if (role && !url.searchParams.has('options')) {
+      url.searchParams.set('options', `-c+role%3D${role}`);
+    }
     return url.toString();
   } catch {
     return baseUrl;
   }
 }
 
-export const prisma: PrismaClient =
-  g.prisma ??
-  new PrismaClient({
-    datasources: { db: { url: enrichUrl(config.databaseUrl) } },
+/**
+ * Creates a PrismaClient with the specified PostgreSQL role.
+ * The role is set via the connection URL options parameter, which PostgreSQL
+ * applies on session initialization. This works with direct connections and
+ * PgBouncer transaction pooling.
+ *
+ * In production, the base database user must be a member of the target role.
+ */
+export function createPrismaClient(role?: string): PrismaClient {
+  const url = enrichUrl(config.databaseUrl, role);
+  const client = new PrismaClient({
+    datasources: { db: { url: url ?? config.databaseUrl } },
     log: logLevels,
   });
+
+  attachRlsMiddleware(client);
+
+  return client;
+}
+
+// ---------------------------------------------------------------------------
+// Master client (writes) — default to app_runtime role
+// ---------------------------------------------------------------------------
+
+export const prisma: PrismaClient =
+  g.prisma ??
+  createPrismaClient(config.databaseRole);
 
 if (config.nodeEnv !== 'production') {
   g.prisma = prisma;
 }
 
 // ---------------------------------------------------------------------------
-// Replica client (reads)
+// Replica client (reads) — same role as master
 // ---------------------------------------------------------------------------
 
 const replicaUrl = config.databaseReplicaUrl;
@@ -78,10 +119,7 @@ const replicaUrl = config.databaseReplicaUrl;
 export const prismaReplica: PrismaClient =
   g.prismaReplica ??
   (replicaUrl
-    ? new PrismaClient({
-        datasources: { db: { url: enrichUrl(replicaUrl) } },
-        log: logLevels,
-      })
+    ? createPrismaClient(config.databaseRole)
     : prisma);
 
 if (config.nodeEnv !== 'production') {
