@@ -92,6 +92,69 @@ enum CellRoutingState {
   UNROUTABLE
 }
 
+enum DatasetClassification {
+  REFERENCE_DATA
+  HISTORICAL_DATA
+  RUNTIME_INGESTION
+  API_ONLY_SOURCE
+  DERIVED_DATA
+  USER_OUTCOME_DATA
+}
+
+enum SourceAccessMethod {
+  DOWNLOAD
+  API
+  PUBLIC_WEB
+  MANUAL
+  LICENSED_FEED
+}
+
+enum DatasetVersionStatus {
+  STAGED
+  VALIDATED
+  IMPORTING
+  IMPORTED
+  FAILED
+  VERIFIED
+  SUPERSEDED
+}
+
+enum SourceRecordStatus {
+  ACTIVE
+  SUPERSEDED
+  RETRACTED
+  INVALIDATED
+}
+
+enum ObservationKind {
+  OBSERVED_FACT
+  INFERENCE
+  SIGNAL
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum CompanyRelationshipType {
+  BRAND
+  LEGAL_ENTITY
+  PARENT
+  SUBSIDIARY
+  FORMER_NAME
+  ACQUIRED_ENTITY
+}
+
+enum OpportunityCompanyLinkType {
+  HIRING_COMPANY
+  EMPLOYER_OF_RECORD
+  STAFFING_FIRM
+  RECRUITING_AGENCY
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IDENTITY / TENANCY
 // ─────────────────────────────────────────────────────────────────────────────
@@ -397,23 +460,38 @@ model MalwareScanResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Company {
-  id            String           @id @default(uuid()) @db.Uuid
-  name          String
-  domain        String           @unique
-  careersUrl    String?          @map("careers_url")
-  website       String?
-  logoUrl       String?          @map("logo_url")
-  industry      String?
-  headquarters  String?
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz
-  aliases       CompanyAlias[]
-  recruiters    Recruiter[]
-  opportunities Opportunity[]
-  applications  JobApplication[]
-  companySignals CompanySignal[]
+  id                    String                @id @default(uuid()) @db.Uuid
+  name                  String
+  normalizedName        String?               @map("normalized_name")
+  legalName             String?               @map("legal_name")
+  domain                String                @unique
+  careersUrl            String?               @map("careers_url")
+  website               String?
+  logoUrl               String?               @map("logo_url")
+  industry              String?
+  headquarters          String?
+  countryCode           String?               @map("country_code")
+  jurisdictionCode      String?               @map("jurisdiction_code")
+  companyStatus         String?               @map("company_status")
+  companyType           String?               @map("company_type")
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  aliases               CompanyAlias[]
+  identifiers           CompanyIdentifier[]
+  domains               CompanyDomain[]
+  sourceRecords         CompanySourceRecord[]
+  outgoingRelationships CompanyRelationship[] @relation("CompanyRelationshipFrom")
+  incomingRelationships CompanyRelationship[] @relation("CompanyRelationshipTo")
+  recruiters            Recruiter[]
+  opportunities         Opportunity[]
+  opportunityLinks      OpportunityCompanyLink[]
+  applications          JobApplication[]
+  companySignals        CompanySignal[]
+  observations          EntityObservation[]   @relation("CompanyEntityObservations")
 
   @@index([name])
+  @@index([normalizedName])
+  @@index([countryCode, jurisdictionCode])
   @@map("companies")
 }
 
@@ -428,6 +506,102 @@ model CompanyAlias {
 
   @@index([companyId])
   @@map("company_aliases")
+}
+
+model CompanyIdentifier {
+  id               String           @id @default(uuid()) @db.Uuid
+  companyId        String           @map("company_id") @db.Uuid
+  sourceId         String           @map("source_id") @db.Uuid
+  identifierType   String           @map("identifier_type")
+  value            String
+  normalizedValue  String           @map("normalized_value")
+  countryCode      String?          @map("country_code")
+  jurisdictionCode String?          @map("jurisdiction_code")
+  isPrimary        Boolean          @default(false) @map("is_primary")
+  metadata         Json             @default("{}")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  source           IntelligenceSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, identifierType, normalizedValue], name: "unique_company_identifier_per_source")
+  @@index([companyId])
+  @@index([identifierType, normalizedValue])
+  @@index([countryCode, jurisdictionCode])
+  @@map("company_identifiers")
+}
+
+model CompanyDomain {
+  id               String             @id @default(uuid()) @db.Uuid
+  companyId        String             @map("company_id") @db.Uuid
+  sourceId         String?            @map("source_id") @db.Uuid
+  domain           String
+  normalizedDomain String             @unique @map("normalized_domain")
+  domainType       String             @default("PRIMARY") @map("domain_type")
+  isPrimary        Boolean            @default(false) @map("is_primary")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  source           IntelligenceSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([sourceId])
+  @@index([isPrimary])
+  @@map("company_domains")
+}
+
+model CompanySourceRecord {
+  id                 String              @id @default(uuid()) @db.Uuid
+  companyId          String              @map("company_id") @db.Uuid
+  sourceId           String              @map("source_id") @db.Uuid
+  datasetVersionId   String?             @map("dataset_version_id") @db.Uuid
+  externalRecordId   String              @map("external_record_id")
+  sourceUrl          String?             @map("source_url")
+  sourceVersion      String?             @map("source_version")
+  observedAt         DateTime            @map("observed_at") @db.Timestamptz
+  publishedAt        DateTime?           @map("published_at") @db.Timestamptz
+  retrievedAt        DateTime?           @map("retrieved_at") @db.Timestamptz
+  contentHash        String?             @map("content_hash")
+  rawReference       String?             @map("raw_reference")
+  status             SourceRecordStatus  @default(ACTIVE)
+  metadata           Json                @default("{}")
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  source             IntelligenceSource  @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  datasetVersion     DatasetVersion?     @relation(fields: [datasetVersionId], references: [id], onDelete: SetNull)
+  companyRelationships CompanyRelationship[]
+
+  @@unique([sourceId, externalRecordId], name: "unique_company_source_record")
+  @@index([companyId, observedAt])
+  @@index([sourceId, status])
+  @@index([datasetVersionId])
+  @@map("company_source_records")
+}
+
+model CompanyRelationship {
+  id             String                  @id @default(uuid()) @db.Uuid
+  fromCompanyId  String                  @map("from_company_id") @db.Uuid
+  toCompanyId    String                  @map("to_company_id") @db.Uuid
+  relationshipType CompanyRelationshipType @map("relationship_type")
+  sourceRecordId String?                 @map("source_record_id") @db.Uuid
+  provenanceId   String?                 @map("provenance_id") @db.Uuid
+  validFrom      DateTime?               @map("valid_from") @db.Timestamptz
+  validTo        DateTime?               @map("valid_to") @db.Timestamptz
+  isCurrent      Boolean                 @default(true) @map("is_current")
+  metadata       Json                    @default("{}")
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  fromCompany    Company                 @relation("CompanyRelationshipFrom", fields: [fromCompanyId], references: [id], onDelete: Cascade)
+  toCompany      Company                 @relation("CompanyRelationshipTo", fields: [toCompanyId], references: [id], onDelete: Cascade)
+  sourceRecord   CompanySourceRecord?    @relation(fields: [sourceRecordId], references: [id], onDelete: SetNull)
+  provenance     IntelligenceProvenance? @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
+
+  @@index([fromCompanyId, relationshipType, isCurrent])
+  @@index([toCompanyId, relationshipType, isCurrent])
+  @@index([sourceRecordId])
+  @@index([provenanceId])
+  @@map("company_relationships")
 }
 
 model Recruiter {
@@ -449,41 +623,100 @@ model Recruiter {
 }
 
 model Opportunity {
-  id                String           @id @default(uuid()) @db.Uuid
-  companyId         String           @map("company_id") @db.Uuid
-  externalId        String?          @map("external_id")
-  title             String
-  normalizedTitle   String           @map("normalized_title")
-  description       String?          @db.Text
-  location          String?
-  normalizedLocation String          @map("normalized_location") @default("")
-  salaryRange       String?          @map("salary_range")
-  employmentType    String?          @map("employment_type")
-  workSetting       String?          @map("work_setting")
-  url               String?
-  requirements      Json             @default("[]")
-  sourceMetadata    Json?            @map("source_metadata")
-  postedAt          DateTime?        @map("posted_at") @db.Timestamptz
-  expiresAt         DateTime?        @map("expires_at") @db.Timestamptz
-  firstSeenAt       DateTime?        @map("first_seen_at") @db.Timestamptz
-  lastSeenAt        DateTime?        @map("last_seen_at") @db.Timestamptz
-  isCurrent         Boolean          @default(true) @map("is_current")
-  careersPageUrl    String?          @map("careers_page_url")
-  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz
-  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  applications      JobApplication[]
-  factObservations  FactObservation[]
-  extractionRuns    ExtractionRun[]
-  predictions       Prediction[]
-  actionEvents      ActionEvent[]
-  observations      OpportunityObservation[]
+  id                 String                 @id @default(uuid()) @db.Uuid
+  companyId          String                 @map("company_id") @db.Uuid
+  externalId         String?                @map("external_id")
+  title              String
+  normalizedTitle    String                 @map("normalized_title")
+  description        String?                @db.Text
+  location           String?
+  normalizedLocation String                 @map("normalized_location") @default("")
+  salaryRange        String?                @map("salary_range")
+  employmentType     String?                @map("employment_type")
+  workSetting        String?                @map("work_setting")
+  canonicalStatus    String                 @default("OPEN") @map("canonical_status")
+  countryCode        String?                @map("country_code")
+  languageCode       String?                @map("language_code")
+  url                String?
+  requirements       Json                   @default("[]")
+  sourceMetadata     Json?                  @map("source_metadata")
+  postedAt           DateTime?              @map("posted_at") @db.Timestamptz
+  expiresAt          DateTime?              @map("expires_at") @db.Timestamptz
+  firstSeenAt        DateTime?              @map("first_seen_at") @db.Timestamptz
+  lastSeenAt         DateTime?              @map("last_seen_at") @db.Timestamptz
+  isCurrent          Boolean                @default(true) @map("is_current")
+  careersPageUrl     String?                @map("careers_page_url")
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  company            Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyLinks       OpportunityCompanyLink[]
+  sourceRecords      OpportunitySourceRecord[]
+  applications       JobApplication[]
+  factObservations   FactObservation[]
+  extractionRuns     ExtractionRun[]
+  predictions        Prediction[]
+  actionEvents       ActionEvent[]
+  observations       OpportunityObservation[]
+  entityObservations EntityObservation[]    @relation("OpportunityEntityObservations")
 
   @@index([companyId])
   @@index([title])
   @@index([location])
+  @@index([canonicalStatus, countryCode])
   @@unique([companyId, normalizedTitle, normalizedLocation])
   @@map("opportunities")
+}
+
+model OpportunityCompanyLink {
+  id              String                  @id @default(uuid()) @db.Uuid
+  opportunityId   String                  @map("opportunity_id") @db.Uuid
+  companyId       String                  @map("company_id") @db.Uuid
+  linkType        OpportunityCompanyLinkType @default(HIRING_COMPANY) @map("link_type")
+  isPrimary       Boolean                 @default(true) @map("is_primary")
+  confidenceLevel ConfidenceLevel         @default(HIGH) @map("confidence_level")
+  confidenceBasis String?                 @map("confidence_basis")
+  provenanceId    String?                 @map("provenance_id") @db.Uuid
+  validFrom       DateTime?               @map("valid_from") @db.Timestamptz
+  validTo         DateTime?               @map("valid_to") @db.Timestamptz
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz
+  opportunity     Opportunity             @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  company         Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  provenance      IntelligenceProvenance? @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
+
+  @@unique([opportunityId, companyId, linkType], name: "unique_opportunity_company_link")
+  @@index([companyId])
+  @@index([opportunityId, isPrimary])
+  @@index([provenanceId])
+  @@map("opportunity_company_links")
+}
+
+model OpportunitySourceRecord {
+  id               String              @id @default(uuid()) @db.Uuid
+  opportunityId    String              @map("opportunity_id") @db.Uuid
+  sourceId         String              @map("source_id") @db.Uuid
+  datasetVersionId String?             @map("dataset_version_id") @db.Uuid
+  externalRecordId String              @map("external_record_id")
+  sourceUrl        String?             @map("source_url")
+  sourceVersion    String?             @map("source_version")
+  observedAt       DateTime            @map("observed_at") @db.Timestamptz
+  publishedAt      DateTime?           @map("published_at") @db.Timestamptz
+  retrievedAt      DateTime?           @map("retrieved_at") @db.Timestamptz
+  contentHash      String?             @map("content_hash")
+  rawReference     String?             @map("raw_reference")
+  status           SourceRecordStatus  @default(ACTIVE)
+  metadata         Json                @default("{}")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+  opportunity      Opportunity         @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  source           IntelligenceSource  @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  datasetVersion   DatasetVersion?     @relation(fields: [datasetVersionId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, externalRecordId], name: "unique_opportunity_source_record")
+  @@index([opportunityId, observedAt])
+  @@index([sourceId, status])
+  @@index([datasetVersionId])
+  @@map("opportunity_source_records")
 }
 
 model OpportunityObservation {
@@ -772,6 +1005,209 @@ model Resume {
   @@index([userId])
   @@index([applicationId])
   @@map("resumes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPIC 5 DATASETS / PROVENANCE / OBSERVATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model IntelligenceSource {
+  id                       String                    @id @default(uuid()) @db.Uuid
+  slug                     String                    @unique
+  name                     String
+  owner                    String
+  countryCode              String?                   @map("country_code")
+  region                   String?
+  jurisdictionCode         String?                   @map("jurisdiction_code")
+  dataPurpose              String                    @map("data_purpose")
+  officialUrl              String                    @map("official_url")
+  accessMethod             SourceAccessMethod        @map("access_method")
+  requiresDownload         Boolean                   @default(false) @map("requires_download")
+  refreshCadence           String?                   @map("refresh_cadence")
+  historicalDepth          String?                   @map("historical_depth")
+  licenseReference         String?                   @map("license_reference")
+  termsUrl                 String?                   @map("terms_url")
+  redistributionRestrictions String?                @map("redistribution_restrictions") @db.Text
+  entityIdentifiers        Json                      @default("[]") @map("entity_identifiers")
+  dataQualityNotes         String?                   @map("data_quality_notes") @db.Text
+  knownLimitations         String?                   @map("known_limitations") @db.Text
+  defaultLanguageCode      String?                   @map("default_language_code")
+  isOfficial               Boolean                   @default(true) @map("is_official")
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  datasets                 IntelligenceDataset[]
+  companyIdentifiers       CompanyIdentifier[]
+  companyDomains           CompanyDomain[]
+  companySourceRecords     CompanySourceRecord[]
+  opportunitySourceRecords OpportunitySourceRecord[]
+  provenanceRecords        IntelligenceProvenance[]
+  sourceCredibilityProfiles SourceCredibilityProfile[]
+
+  @@index([countryCode, jurisdictionCode])
+  @@index([accessMethod, requiresDownload])
+  @@map("intelligence_sources")
+}
+
+model IntelligenceDataset {
+  id              String                 @id @default(uuid()) @db.Uuid
+  sourceId        String                 @map("source_id") @db.Uuid
+  slug            String                 @unique
+  datasetName     String                 @map("dataset_name")
+  datasetType     DatasetClassification  @map("dataset_type")
+  entityType      String?                @map("entity_type")
+  purpose         String
+  storageLocation String?                @map("storage_location")
+  importLocation  String?                @map("import_location")
+  status          String                 @default("REGISTERED")
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  source          IntelligenceSource     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  versions        DatasetVersion[]
+
+  @@unique([sourceId, datasetName], name: "unique_dataset_per_source")
+  @@index([datasetType, status])
+  @@map("intelligence_datasets")
+}
+
+model DatasetVersion {
+  id              String                @id @default(uuid()) @db.Uuid
+  datasetId       String                @map("dataset_id") @db.Uuid
+  sourceVersion   String                @map("source_version")
+  schemaVersion   String                @map("schema_version")
+  retrievedAt     DateTime              @map("retrieved_at") @db.Timestamptz
+  publishedAt     DateTime?             @map("published_at") @db.Timestamptz
+  checksum        String
+  checksumAlgorithm String              @default("sha256") @map("checksum_algorithm")
+  licenseReference String?              @map("license_reference")
+  importStatus    DatasetVersionStatus  @map("import_status")
+  recordCount     Int?                  @map("record_count")
+  importedAt      DateTime?             @map("imported_at") @db.Timestamptz
+  activatedAt     DateTime?             @map("activated_at") @db.Timestamptz
+  isActive        Boolean               @default(false) @map("is_active")
+  stagePath       String?               @map("stage_path")
+  rawReference    String?               @map("raw_reference")
+  importMetadata  Json                  @default("{}") @map("import_metadata")
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  dataset         IntelligenceDataset   @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  importRuns      DatasetImportRun[]
+  companySourceRecords CompanySourceRecord[]
+  opportunitySourceRecords OpportunitySourceRecord[]
+  provenanceRecords IntelligenceProvenance[]
+
+  @@unique([datasetId, sourceVersion, checksum], name: "unique_dataset_version_checksum")
+  @@index([datasetId, isActive])
+  @@index([importStatus, retrievedAt])
+  @@index([publishedAt])
+  @@map("dataset_versions")
+}
+
+model DatasetImportRun {
+  id                     String         @id @default(uuid()) @db.Uuid
+  datasetVersionId       String         @map("dataset_version_id") @db.Uuid
+  startedAt              DateTime       @default(now()) @map("started_at") @db.Timestamptz
+  completedAt            DateTime?      @map("completed_at") @db.Timestamptz
+  status                 String
+  recordsRead            Int            @default(0) @map("records_read")
+  recordsAccepted        Int            @default(0) @map("records_accepted")
+  recordsRejected        Int            @default(0) @map("records_rejected")
+  duplicateCount         Int            @default(0) @map("duplicate_count")
+  validationFailureCount Int            @default(0) @map("validation_failure_count")
+  executionTimeMs        Int?           @map("execution_time_ms")
+  errorSummary           String?        @map("error_summary") @db.Text
+  stats                  Json           @default("{}")
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  datasetVersion         DatasetVersion @relation(fields: [datasetVersionId], references: [id], onDelete: Cascade)
+
+  @@index([datasetVersionId])
+  @@index([status, startedAt])
+  @@map("dataset_import_runs")
+}
+
+model IntelligenceProvenance {
+  id               String                 @id @default(uuid()) @db.Uuid
+  sourceId         String                 @map("source_id") @db.Uuid
+  datasetVersionId String?                @map("dataset_version_id") @db.Uuid
+  sourceRecordType String?                @map("source_record_type")
+  sourceRecordId   String?                @map("source_record_id")
+  observedAt       DateTime               @map("observed_at") @db.Timestamptz
+  publishedAt      DateTime?              @map("published_at") @db.Timestamptz
+  retrievedAt      DateTime?              @map("retrieved_at") @db.Timestamptz
+  processingVersion String?               @map("processing_version")
+  confidenceLevel  ConfidenceLevel        @default(UNKNOWN) @map("confidence_level")
+  confidenceBasis  String?                @map("confidence_basis")
+  metadata         Json                   @default("{}")
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  source           IntelligenceSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  datasetVersion   DatasetVersion?        @relation(fields: [datasetVersionId], references: [id], onDelete: SetNull)
+  observations     EntityObservation[]
+  companyRelationships CompanyRelationship[]
+  opportunityCompanyLinks OpportunityCompanyLink[]
+
+  @@index([sourceId, observedAt])
+  @@index([datasetVersionId])
+  @@index([sourceRecordType, sourceRecordId])
+  @@map("intelligence_provenance")
+}
+
+model EntityObservation {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  entityType             String                 @map("entity_type")
+  entityId               String                 @map("entity_id")
+  companyId              String?                @map("company_id") @db.Uuid
+  opportunityId          String?                @map("opportunity_id") @db.Uuid
+  sourceId               String                 @map("source_id") @db.Uuid
+  provenanceId           String?                @map("provenance_id") @db.Uuid
+  sourceRecordType       String?                @map("source_record_type")
+  sourceRecordId         String?                @map("source_record_id")
+  observedAt             DateTime               @map("observed_at") @db.Timestamptz
+  effectiveAt            DateTime?              @map("effective_at") @db.Timestamptz
+  observationType        String                 @map("observation_type")
+  observationKind        ObservationKind        @default(OBSERVED_FACT) @map("observation_kind")
+  observationValue       Json?                  @map("observation_value")
+  referenceUrl           String?                @map("reference_url")
+  confidenceLevel        ConfidenceLevel        @default(UNKNOWN) @map("confidence_level")
+  confidenceBasis        String?                @map("confidence_basis")
+  supersedesObservationId String?               @map("supersedes_observation_id") @db.Uuid
+  correctsObservationId  String?                @map("corrects_observation_id") @db.Uuid
+  retractedAt            DateTime?              @map("retracted_at") @db.Timestamptz
+  invalidatedAt          DateTime?              @map("invalidated_at") @db.Timestamptz
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime               @updatedAt @map("updated_at") @db.Timestamptz
+  company                Company?               @relation("CompanyEntityObservations", fields: [companyId], references: [id], onDelete: Cascade)
+  opportunity            Opportunity?           @relation("OpportunityEntityObservations", fields: [opportunityId], references: [id], onDelete: Cascade)
+  source                 IntelligenceSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  provenance             IntelligenceProvenance? @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, observedAt])
+  @@index([companyId, observedAt])
+  @@index([opportunityId, observedAt])
+  @@index([sourceId, observedAt])
+  @@index([provenanceId])
+  @@index([supersedesObservationId])
+  @@index([correctsObservationId])
+  @@map("entity_observations")
+}
+
+model SourceCredibilityProfile {
+  id                   String            @id @default(uuid()) @db.Uuid
+  sourceId             String            @map("source_id") @db.Uuid
+  countryCode          String?           @map("country_code")
+  dataCategory         String            @map("data_category")
+  evidenceType         String            @map("evidence_type")
+  historicalReliability String?         @map("historical_reliability")
+  freshnessExpectation String?          @map("freshness_expectation")
+  confidenceLevel      ConfidenceLevel   @default(UNKNOWN) @map("confidence_level")
+  notes                String?           @db.Text
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+  source               IntelligenceSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, countryCode, dataCategory, evidenceType], name: "unique_source_credibility_profile")
+  @@index([countryCode, dataCategory])
+  @@map("source_credibility_profiles")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
