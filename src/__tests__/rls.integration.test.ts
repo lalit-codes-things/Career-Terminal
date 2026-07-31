@@ -89,7 +89,7 @@ describeRlsIntegration('PostgreSQL RLS Integration Tests', () => {
   // Helper: run a query as a specific role
   // -------------------------------------------------------------------------
 
-  async function queryAs(role: 'runtime' | 'worker' | 'admin', sql: string, params: unknown[] = []) {
+  async function queryAs(_role: 'runtime' | 'worker' | 'admin', sql: string, params: unknown[] = []) {
     let pool: Pool;
     switch (role) {
       case 'runtime':
@@ -154,7 +154,7 @@ describeRlsIntegration('PostgreSQL RLS Integration Tests', () => {
         await runtimePoolA.query('UPDATE "user_resumes" SET filename = $1 WHERE id = $2', ['hacked.pdf', targetId]);
         // Should have thrown or affected 0 rows
         const check = await adminPool.query('SELECT filename FROM user_resumes WHERE id = $1', [targetId]);
-        expect(check.rows[0]?.filename).nottoBe('hacked.pdf');
+        expect(check.rows[0]?.filename).not.toBe('hacked.pdf');
       } catch {
         // Expected: RLS blocks the update
       }

@@ -273,7 +273,7 @@ export class OutboxDispatcher {
     });
   }
 
-  private async markFailed(eventId: string, errorMsg: string, userId: string): Promise<void> {
+  private async markFailed(eventId: string, errorMsg: string): Promise<void> {
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: { retryCount: true, userId: true },
@@ -281,7 +281,7 @@ export class OutboxDispatcher {
 
     const newRetryCount = (event?.retryCount ?? 0) + 1;
     const shouldDlq = newRetryCount >= this.options.maxRetries;
-    const userId = event?.userId ?? '';
+    const ownerUserId = event?.userId ?? '';
 
     // Bounded exponential backoff: min(base * 2^retry, max)
     const backoffMs = Math.min(
@@ -290,7 +290,7 @@ export class OutboxDispatcher {
     );
     const nextAttempt = new Date(Date.now() + backoffMs);
 
-    await withRlsTransaction(prisma, userId, async (tx) => {
+    await withRlsTransaction(prisma, ownerUserId ?? '', async (tx) => {
       await tx.event.update({
         where: { id: eventId },
         data: {

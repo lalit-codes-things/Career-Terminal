@@ -18,7 +18,7 @@ import { validateBody } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalApiKey } from '../middleware/internal-api';
 import { logger } from '../lib/logger';
-import { createRateLimiter, secureAuthLimiter, secureOAuthCallbackLimiter, secureMutationLimiter } from '../middleware/rate-limiter';
+import { secureAuthLimiter, secureOAuthCallbackLimiter, secureMutationLimiter } from '../middleware/rate-limiter';
 
 // Rate limiters for auth endpoints
 const tokenIssuanceLimiter = secureAuthLimiter;

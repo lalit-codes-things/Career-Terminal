@@ -29,7 +29,9 @@
  */
 import { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import { RateLimiterMemory, RateLimiterRedis, type RateLimiterRes } from 'rate-limiter-flexible';
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
+import { readFileSync } from 'fs';
+import { config } from '../config';
 import { AppError } from '../errors/app-errors';
 import { logger } from '../lib/logger';
 
@@ -57,7 +59,7 @@ function getRedisClient(): Redis | null {
   const host = config.redisCache.host ?? config.redis.host;
   if (!host) return null;
 
-  const clientConfig: Redis.RedisOptions = {
+  const clientConfig: RedisOptions = {
     host,
     port: config.redisCache.port ?? config.redis.port,
     password: config.redisCache.password ?? config.redis.password,
@@ -73,7 +75,7 @@ function getRedisClient(): Redis | null {
 
   if (config.redisAcl.tlsEnabled) {
     clientConfig.tls = {
-      ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+      ca: config.redisAcl.tlsCaPath ? readFileSync(config.redisAcl.tlsCaPath) : undefined,
       rejectUnauthorized: true,
     };
   }

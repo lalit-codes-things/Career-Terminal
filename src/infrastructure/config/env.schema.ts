@@ -120,11 +120,8 @@ export const envSchema = z.object({
   // Gmail ingestion
   INGESTION_QUEUE_DEPTH_LIMIT: z.coerce.number().int().positive().default(10000),
 
-  // MinIO (docker-compose local dev)
-  MINIO_ROOT_USER: z.string().default('minioadmin'),
-  MINIO_ROOT_PASSWORD: z.string().optional(),
-  MINIO_BUCKET: z.string().default('career-terminal-resumes'),
-  MINIO_ENDPOINT: z.string().optional(),
+  // Secret provider backend
+  SECRET_PROVIDER_BACKEND: z.enum(['env', 'vault', 'aws', 'gcp', 'azure']).default('env'),
 
   // CORS
   ALLOWED_ORIGINS: z.string().optional(),

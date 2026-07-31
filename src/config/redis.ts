@@ -14,7 +14,8 @@
  * instance deployment continues to work. In production, deploy two separate
  * Redis instances and configure REDIS_QUEUE_* / REDIS_CACHE_* accordingly.
  */
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
+import { readFileSync } from 'fs';
 import { config } from './index';
 import { logger } from '../lib/logger';
 
@@ -55,7 +56,7 @@ export function createRedisClient(role: 'queue' | 'cache' = 'queue', label?: str
   const cfg = buildRedisConfig(role);
   const clientLabel = label ?? cfg.label;
 
-  const clientConfig: Redis.RedisOptions = {
+  const clientConfig: RedisOptions = {
     host: cfg.host,
     port: cfg.port,
     password: cfg.password,
@@ -81,7 +82,7 @@ export function createRedisClient(role: 'queue' | 'cache' = 'queue', label?: str
   // Apply TLS configuration if enabled
   if (config.redisAcl.tlsEnabled) {
     clientConfig.tls = {
-      ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+      ca: config.redisAcl.tlsCaPath ? readFileSync(config.redisAcl.tlsCaPath) : undefined,
       rejectUnauthorized: true,
     };
   }

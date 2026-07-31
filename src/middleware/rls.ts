@@ -336,6 +336,7 @@ export const RLS_ROLES = {
   app_admin: 'app_admin',
   app_worker: 'app_worker',
   app_runtime: 'app_runtime',
+  app_readonly: 'app_readonly',
 } as const;
 
 /** Explicit operation roles for documentation and validation */

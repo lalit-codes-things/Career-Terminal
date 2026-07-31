@@ -45,7 +45,7 @@ export const WORKLOAD_IDENTITIES = {
 
 export type WorkloadIdentity = (typeof WORKLOAD_IDENTITIES)[keyof typeof WORKLOAD_IDENTITIES];
 
-import { config } from '../config';
+import { config } from '../../config';
 
 // ---------------------------------------------------------------------------
 // Secret access policy matrix — Phase 3
