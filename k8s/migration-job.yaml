@@ -25,6 +25,9 @@ spec:
       containers:
         - name: migrate
           # Publish Dockerfile target `migrator` under this distinct tag.
+          # Production image pinning: replace the tag with an immutable digest at
+          # deploy time using: scripts/ci/pin-k8s-images.sh <migrator-digest>
+          # Example: image: ghcr.io/career-terminal/backend@sha256:<digest>
           image: career-terminal-migrator:0.1.0
           imagePullPolicy: Always
           envFrom:

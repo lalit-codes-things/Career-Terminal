@@ -108,7 +108,8 @@ export const envSchema = z.object({
   AWS_REGION: z.string().default('us-east-1'),
   AWS_ENDPOINT_URL_S3: z.string().optional(), // MinIO endpoint in local dev
   S3_BUCKET: z.string().min(1),
-  S3_TIMEOUT: z.coerce.number().int().positive().default(30000),
+   S3_TIMEOUT: z.coerce.number().int().positive().default(30000),
+   S3_KMS_KEY_ID: z.string().optional(), // AWS KMS key ARN for SSE-KMS (production)
 
   // MinIO (docker-compose local dev)
   MINIO_ROOT_USER: z.string().default('minioadmin'),
