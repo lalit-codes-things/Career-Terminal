@@ -15,7 +15,10 @@ export class GmailCheckpointService {
   /**
    * Start a new sync batch: sets pendingHistoryId and status to 'syncing'.
    */
-  async startBatch(userId: string, newHistoryId: string): Promise<{ batchId: string; checkpoint: GmailCheckpoint }> {
+  async startBatch(
+    userId: string,
+    newHistoryId: string,
+  ): Promise<{ batchId: string; checkpoint: GmailCheckpoint }> {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create the SyncBatch record
       const batch = await tx.syncBatch.create({
@@ -41,7 +44,11 @@ export class GmailCheckpointService {
         },
       });
 
-      logger.info('[Checkpoint] Started new sync batch', { userId, batchId: batch.id, historyId: newHistoryId });
+      logger.info('[Checkpoint] Started new sync batch', {
+        userId,
+        batchId: batch.id,
+        historyId: newHistoryId,
+      });
 
       return { batchId: batch.id, checkpoint };
     });
@@ -55,7 +62,7 @@ export class GmailCheckpointService {
     emailId: string,
     providerMessageId: string,
     status: 'completed' | 'failed',
-    error?: string
+    error?: string,
   ): Promise<void> {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Upsert the BatchEmailJob record

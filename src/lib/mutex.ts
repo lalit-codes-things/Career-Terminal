@@ -1,4 +1,5 @@
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
+import { readFileSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from './logger';
 import { config } from '../config';
@@ -9,7 +10,7 @@ let _redis: Redis | null = null;
 
 function getRedis(): Redis {
   if (!_redis) {
-    const clientConfig: Redis.RedisOptions = {
+    const clientConfig: RedisOptions = {
       host: config.redisCache.host ?? config.redis.host,
       port: config.redisCache.port ?? config.redis.port,
       password: config.redisCache.password ?? config.redis.password,
@@ -32,7 +33,7 @@ function getRedis(): Redis {
 
     if (config.redisAcl.tlsEnabled) {
       clientConfig.tls = {
-        ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+        ca: config.redisAcl.tlsCaPath ? readFileSync(config.redisAcl.tlsCaPath) : undefined,
         rejectUnauthorized: true,
       };
     }

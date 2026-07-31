@@ -40,7 +40,7 @@ export interface RecordOutcomeInput {
  */
 export const OUTCOME_TYPES = {
   APPLICATION_SUBMITTED: 'APPLICATION_SUBMITTED',
-  APPLICATION_SENT: 'APPLICATION_SENT',        // backward-compat alias
+  APPLICATION_SENT: 'APPLICATION_SENT', // backward-compat alias
   SCREENING: 'SCREENING',
   RECRUITER_CONTACT: 'RECRUITER_CONTACT',
   ASSESSMENT: 'ASSESSMENT',
@@ -116,7 +116,8 @@ export class OutcomeService {
   async recordOutcome(input: RecordOutcomeInput): Promise<OutcomeEvent> {
     return prisma.$transaction(async (tx) => {
       // 1. Determine the outcomeCategory based on outcomeType
-      const outcomeCategory = OUTCOME_TYPE_TO_CATEGORY[input.outcomeType] || OUTCOME_CATEGORIES.NEUTRAL;
+      const outcomeCategory =
+        OUTCOME_TYPE_TO_CATEGORY[input.outcomeType] || OUTCOME_CATEGORIES.NEUTRAL;
 
       // 2. Determine if explicit or inferred
       const outcomeStatus =
@@ -126,8 +127,7 @@ export class OutcomeService {
             ? OUTCOME_STATUS.USER_REPORTED
             : OUTCOME_STATUS.INFERRED;
 
-      const explicit =
-        input.sourceType === 'EMAIL' || input.sourceType === 'MANUAL';
+      const explicit = input.sourceType === 'EMAIL' || input.sourceType === 'MANUAL';
 
       // 3. Determine the resultingStatus based on outcomeType
       const resultingStatus = OUTCOME_TYPE_TO_STATUS[input.outcomeType] || 'Unknown';

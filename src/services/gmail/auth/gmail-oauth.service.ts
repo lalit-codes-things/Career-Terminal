@@ -134,8 +134,8 @@ export class GmailOAuthService {
       throw new NotFoundError('UserEmailConnection', connectionId);
     }
 
-      // Decrypt the stored refresh token
-      const refreshToken = await cryptoService.decrypt(connection.refreshTokenEncrypted);
+    // Decrypt the stored refresh token
+    const refreshToken = await cryptoService.decrypt(connection.refreshTokenEncrypted);
 
     try {
       // Set the refresh token and request a new access token
@@ -147,7 +147,8 @@ export class GmailOAuthService {
       }
 
       // Encrypt and update the new access token
-      const encryptedAccessToken = (await cryptoService.encrypt(credentials.access_token)).ciphertext;
+      const encryptedAccessToken = (await cryptoService.encrypt(credentials.access_token))
+        .ciphertext;
       const expiryDate = new Date(credentials.expiry_date);
 
       await prisma.userEmailConnection.update({

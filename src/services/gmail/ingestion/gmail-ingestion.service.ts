@@ -88,7 +88,13 @@ export class GmailIngestionService implements IngestionService {
     // If no resumeable sync, initialize a new one
     if (!syncOpId || !batchId) {
       const op = await durableCheckpointService.initializeSyncOp(
-        userId, connectionId, 'INITIAL_SYNC', corrId, startingHistoryId ?? '0', 'server-' + process.pid, currentPageToken,
+        userId,
+        connectionId,
+        'INITIAL_SYNC',
+        corrId,
+        startingHistoryId ?? '0',
+        'server-' + process.pid,
+        currentPageToken,
       );
       syncOpId = op.syncOpId;
       batchId = op.batchId;
@@ -129,7 +135,9 @@ export class GmailIngestionService implements IngestionService {
       await this.updateBackwardCompatState(userId, connectionId, startingHistoryId);
 
       logger.info('[Sync] Initial sync completed', {
-        userId, savedMessages: totalSynced, syncOpId,
+        userId,
+        savedMessages: totalSynced,
+        syncOpId,
       });
     } catch (error) {
       await durableCheckpointService.failSyncOp(
@@ -200,8 +208,13 @@ export class GmailIngestionService implements IngestionService {
 
     // Initialize sync operation + batch for incremental sync
     const { syncOpId, batchId } = await durableCheckpointService.initializeSyncOp(
-      userId, connectionId, 'INCREMENTAL_SYNC', corrId, targetHistoryId,
-      'server-' + process.pid, syncState.historyId,
+      userId,
+      connectionId,
+      'INCREMENTAL_SYNC',
+      corrId,
+      targetHistoryId,
+      'server-' + process.pid,
+      syncState.historyId,
     );
 
     let currentHistoryId = syncState.historyId;
@@ -227,9 +240,7 @@ export class GmailIngestionService implements IngestionService {
       } while (pageToken);
 
       // Atomically advance checkpoint — only after ALL processing succeeded
-      await durableCheckpointService.advanceCheckpoint(
-        userId, batchId, currentHistoryId,
-      );
+      await durableCheckpointService.advanceCheckpoint(userId, batchId, currentHistoryId);
 
       // Update backward-compatible sync state
       await this.updateBackwardCompatState(userId, connectionId, currentHistoryId);
@@ -237,7 +248,9 @@ export class GmailIngestionService implements IngestionService {
       await durableCheckpointService.completeSyncOp(syncOpId);
 
       logger.info('[Sync] Incremental sync completed', {
-        userId, newMessages: totalNewMessages, batchId,
+        userId,
+        newMessages: totalNewMessages,
+        batchId,
       });
     } catch (error) {
       await durableCheckpointService.failSyncOp(
@@ -280,9 +293,7 @@ export class GmailIngestionService implements IngestionService {
       await this.processAndSaveBatch(userId, connectionId, messagesToFetch, fetcher, batch.id);
 
       // Advance checkpoint after successful reprocessing
-      await durableCheckpointService.advanceCheckpoint(
-        userId, batch.id, historyResult.historyId,
-      );
+      await durableCheckpointService.advanceCheckpoint(userId, batch.id, historyResult.historyId);
 
       await this.updateBackwardCompatState(userId, connectionId, historyResult.historyId);
     }

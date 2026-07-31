@@ -55,4 +55,5 @@ export const RECOMMENDATION_TARGET_TYPES = {
   ACTION: 'ACTION',
 } as const;
 
-export type RecommendationTargetType = (typeof RECOMMENDATION_TARGET_TYPES)[keyof typeof RECOMMENDATION_TARGET_TYPES];
+export type RecommendationTargetType =
+  (typeof RECOMMENDATION_TARGET_TYPES)[keyof typeof RECOMMENDATION_TARGET_TYPES];

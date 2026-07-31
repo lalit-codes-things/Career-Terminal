@@ -238,14 +238,8 @@ export class OwnershipGuard {
    *
    * Throws ImmutabilityViolationError if the run is in a terminal state.
    */
-  public assertExtractionRunMutable(run: {
-    id: string;
-    status: string;
-  }): void {
-    const TERMINAL = new Set<string>([
-      ExtractionRunStatus.COMPLETED,
-      ExtractionRunStatus.FAILED,
-    ]);
+  public assertExtractionRunMutable(run: { id: string; status: string }): void {
+    const TERMINAL = new Set<string>([ExtractionRunStatus.COMPLETED, ExtractionRunStatus.FAILED]);
 
     if (TERMINAL.has(run.status)) {
       throw new ImmutabilityViolationError('ExtractionRun', run.id);

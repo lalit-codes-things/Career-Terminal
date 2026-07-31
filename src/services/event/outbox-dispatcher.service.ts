@@ -227,9 +227,9 @@ export class OutboxDispatcher {
             eventId: event.id,
             eventType: event.eventType,
           });
-      await this.markProcessed(event.id, event.userId);
-      clearWorkerRlsContext();
-      return;
+          await this.markProcessed(event.id, event.userId);
+          clearWorkerRlsContext();
+          return;
       }
 
       // Mark dispatched only after successful queue submission
@@ -243,7 +243,7 @@ export class OutboxDispatcher {
       });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      await this.markFailed(event.id, errorMsg, event.userId);
+      await this.markFailed(event.id, errorMsg);
 
       logger.error('[OutboxDispatcher] Dispatch failed', {
         eventId: event.id,
@@ -273,7 +273,7 @@ export class OutboxDispatcher {
     });
   }
 
-  private async markFailed(eventId: string, errorMsg: string, userId: string): Promise<void> {
+  private async markFailed(eventId: string, errorMsg: string): Promise<void> {
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: { retryCount: true, userId: true },
@@ -281,7 +281,7 @@ export class OutboxDispatcher {
 
     const newRetryCount = (event?.retryCount ?? 0) + 1;
     const shouldDlq = newRetryCount >= this.options.maxRetries;
-    const userId = event?.userId ?? '';
+    const ownerUserId = event?.userId ?? '';
 
     // Bounded exponential backoff: min(base * 2^retry, max)
     const backoffMs = Math.min(
@@ -290,7 +290,7 @@ export class OutboxDispatcher {
     );
     const nextAttempt = new Date(Date.now() + backoffMs);
 
-    await withRlsTransaction(prisma, userId, async (tx) => {
+    await withRlsTransaction(prisma, ownerUserId ?? '', async (tx) => {
       await tx.event.update({
         where: { id: eventId },
         data: {

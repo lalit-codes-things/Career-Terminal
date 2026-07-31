@@ -101,8 +101,7 @@ export interface ActiveResumeRow {
 }
 
 export type ApplicationResumeLinkContext =
-  | { strategy: 'generic' }
-  | { strategy: 'tailored'; tailoredForOpportunityId?: string };
+  { strategy: 'generic' } | { strategy: 'tailored'; tailoredForOpportunityId?: string };
 
 export class ResumeUploadService {
   constructor(private readonly storage: IStorageService = defaultStorageService) {}
@@ -152,11 +151,7 @@ export class ResumeUploadService {
         });
         resumeHashId = newHash.id;
       } catch (err: unknown) {
-        if (
-          err instanceof Error &&
-          'code' in err &&
-          (err as { code?: string }).code === 'P2002'
-        ) {
+        if (err instanceof Error && 'code' in err && (err as { code?: string }).code === 'P2002') {
           const retryHash = await prisma.resumeHash.findUnique({ where: { hash } });
           if (!retryHash) {
             throw err;
@@ -193,59 +188,61 @@ export class ResumeUploadService {
     // Transactional outbox: the userResume write and the RESUME_UPLOADED event
     // insert commit (or roll back) atomically. RLS is set transaction-scoped so
     // the RLS policies apply even under PgBouncer transaction pooling.
-    const outboxEvent = await prisma.$transaction(async (tx) => {
-      await setRlsUserIdInTransaction(tx, userScope.userId);
+    const outboxEvent = await prisma
+      .$transaction(async (tx) => {
+        await setRlsUserIdInTransaction(tx, userScope.userId);
 
-      await tx.userResume.updateMany({
-        where: { ...ownershipFilter, isActive: true },
-        data: { isActive: false, supersededAt: now },
-      });
+        await tx.userResume.updateMany({
+          where: { ...ownershipFilter, isActive: true },
+          data: { isActive: false, supersededAt: now },
+        });
 
-      const newUserResume = await tx.userResume.create({
-        data: {
-          userId: userScope.userId,
-          legacyUserId: userScope.legacyUserId,
-          filename: safeFilename,
-          s3Key: cleanStorageKey,
-          contentType: mimeType,
-          originalName: safeFilename,
-          resumeHashId,
-          isActive: true,
-          scanningStatus: 'pending',
-          status: 'pending',
-          version: nextVersion,
-        },
-      });
+        const newUserResume = await tx.userResume.create({
+          data: {
+            userId: userScope.userId,
+            legacyUserId: userScope.legacyUserId,
+            filename: safeFilename,
+            s3Key: cleanStorageKey,
+            contentType: mimeType,
+            originalName: safeFilename,
+            resumeHashId,
+            isActive: true,
+            scanningStatus: 'pending',
+            status: 'pending',
+            version: nextVersion,
+          },
+        });
 
-      return eventDispatcher.publishInTransaction(tx, {
-        eventType: EVENT_TYPES.RESUME_UPLOADED,
-        aggregateId: newUserResume.id,
-        aggregateType: 'UserResume',
-        userId,
-        cellId: placement.cellId,
-        payload: {
+        return eventDispatcher.publishInTransaction(tx, {
+          eventType: EVENT_TYPES.RESUME_UPLOADED,
+          aggregateId: newUserResume.id,
+          aggregateType: 'UserResume',
           userId,
           cellId: placement.cellId,
-          userResumeId: newUserResume.id,
-          quarantineBucket,
-          quarantineKey,
-          cleanBucket,
-          cleanKey: cleanStorageKey,
-          originalFilename: safeFilename,
-          mimeType,
-          fileHash: hash,
-        },
+          payload: {
+            userId,
+            cellId: placement.cellId,
+            userResumeId: newUserResume.id,
+            quarantineBucket,
+            quarantineKey,
+            cleanBucket,
+            cleanKey: cleanStorageKey,
+            originalFilename: safeFilename,
+            mimeType,
+            fileHash: hash,
+          },
+        });
+      })
+      .catch(async (err) => {
+        await this.storage.delete(quarantineKey, quarantineBucket).catch(() => {});
+        throw err;
       });
-    }).catch(async (err) => {
-      await this.storage.delete(quarantineKey, quarantineBucket).catch(() => {});
-      throw err;
-    });
 
     // Transaction has committed — fast-path dispatch the queue job. If this
     // fails the event stays 'pending' and the OutboxDispatcher retries.
     await eventDispatcher.publishFromEvent(outboxEvent);
 
-    const userResumeId = outboxEvent.payload.userResumeId;
+    const userResumeId = outboxEvent.payload.userResumeId as string;
 
     logger.info('[ResumeUpload] Upload queued for malware scan', {
       userId,

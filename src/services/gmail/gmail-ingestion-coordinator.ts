@@ -83,14 +83,14 @@ export async function enqueueGmailIngestion(command: GmailIngestionCommand): Pro
         },
       });
 
-      throw new ValidationError('Ingestion temporarily unavailable due to high load. Please retry.');
+      throw new ValidationError(
+        'Ingestion temporarily unavailable due to high load. Please retry.',
+      );
     }
 
     // Step 4: Enqueue the job via QueueService (BullMQ)
     const jobType =
-      command.mode === 'INITIAL_SYNC'
-        ? 'GMAIL_INITIAL_SYNC'
-        : 'GMAIL_INCREMENTAL_SYNC';
+      command.mode === 'INITIAL_SYNC' ? 'GMAIL_INITIAL_SYNC' : 'GMAIL_INCREMENTAL_SYNC';
 
     await queueService.addGmailSyncJob({
       type: jobType,
@@ -236,7 +236,11 @@ export function classifyFailure(error: unknown): FailureClassification {
   }
 
   // Network errors
-  if (errorMessage.includes('network') || errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+  if (
+    errorMessage.includes('network') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('ETIMEDOUT')
+  ) {
     return {
       retryable: true,
       backoffMs: 10_000,

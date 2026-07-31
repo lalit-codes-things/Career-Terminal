@@ -1,4 +1,9 @@
-import { outcomeService, OUTCOME_TYPES, OUTCOME_CATEGORIES, OUTCOME_STATUS } from '../services/outcome.service';
+import {
+  outcomeService,
+  OUTCOME_TYPES,
+  OUTCOME_CATEGORIES,
+  OUTCOME_STATUS,
+} from '../services/outcome.service';
 import { prisma } from '../config/database';
 
 jest.mock('../config/database', () => ({
@@ -281,7 +286,11 @@ describe('OutcomeService', () => {
 
   describe('getCurrentStatus', () => {
     it('should return the most recent event (occurredAt desc) or null', async () => {
-      const latest = { id: 'e-latest', outcomeType: OUTCOME_TYPES.OFFER_RECEIVED, occurredAt: new Date('2026-07-20') };
+      const latest = {
+        id: 'e-latest',
+        outcomeType: OUTCOME_TYPES.OFFER_RECEIVED,
+        occurredAt: new Date('2026-07-20'),
+      };
       (prisma.outcomeEvent.findFirst as jest.Mock).mockResolvedValue(latest);
 
       const result = await outcomeService.getCurrentStatus(applicationId);

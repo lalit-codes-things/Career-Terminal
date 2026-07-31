@@ -46,7 +46,11 @@ jest.mock('../services/routing/cell-routing.service', () => ({
 }));
 
 import { prisma } from '../config/database';
-import { factService, type RecordFactInput, type CreateExtractionRunInput } from '../services/fact.service';
+import {
+  factService,
+  type RecordFactInput,
+  type CreateExtractionRunInput,
+} from '../services/fact.service';
 import { factCorrectionService } from '../services/fact-correction.service';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -145,8 +149,8 @@ beforeEach(() => {
   jest.clearAllMocks();
 
   // Default: $transaction executes its callback synchronously with prisma
-  (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: typeof prisma) => Promise<unknown>) =>
-    cb(prisma),
+  (prisma.$transaction as jest.Mock).mockImplementation(
+    (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
   );
 });
 
@@ -170,7 +174,11 @@ describe('Provenance linkage', () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.extractionRun.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ userId: USER_A, sourceType: 'RESUME', sourceId: SOURCE_ID }),
+        data: expect.objectContaining({
+          userId: USER_A,
+          sourceType: 'RESUME',
+          sourceId: SOURCE_ID,
+        }),
       }),
     );
     expect(prisma.factProvenance.create).toHaveBeenCalledWith(

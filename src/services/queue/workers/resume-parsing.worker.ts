@@ -24,45 +24,45 @@ export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>)
     const { userId, storageKey, originalFilename, mimeType, fileHash } =
       ResumeParsingJobPayloadSchema.parse(job.data);
 
-  logger.info('[ResumeParsingWorker] Processing job', {
-    jobId: job.id,
-    attempt: job.attemptsMade + 1,
-    userId,
-    storageKey,
-    mimeType,
-    originalFilename,
-  });
-
-  const placement = await placementService.resolvePlacementContext(userId);
-  await cellService.ensureRoutable(placement.cellId);
-  if (job.data.cellId && job.data.cellId !== placement.cellId) {
-    throw new Error(`Resume parsing job routed to wrong cell: ${job.data.cellId}`);
-  }
-
-  const fileBuffer = await storageService.download(storageKey);
-  const matchingResume = await prisma.userResume.findFirst({
-    where: {
-      legacyUserId: userId,
-      resumeHash: { hash: fileHash },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!matchingResume) {
-    logger.warn('[ResumeParsingWorker] No resume row found for parsing job', {
+    logger.info('[ResumeParsingWorker] Processing job', {
+      jobId: job.id,
+      attempt: job.attemptsMade + 1,
       userId,
       storageKey,
-      fileHash,
+      mimeType,
+      originalFilename,
     });
-    return;
-  }
 
-  await resumeMatcherService.parseAndStoreResumeFacts({
-    userId,
-    resumeVersionId: matchingResume.id,
-    fileBuffer,
-    mimeType,
-  });
+    const placement = await placementService.resolvePlacementContext(userId);
+    await cellService.ensureRoutable(placement.cellId);
+    if (job.data.cellId && job.data.cellId !== placement.cellId) {
+      throw new Error(`Resume parsing job routed to wrong cell: ${job.data.cellId}`);
+    }
+
+    const fileBuffer = await storageService.download(storageKey);
+    const matchingResume = await prisma.userResume.findFirst({
+      where: {
+        legacyUserId: userId,
+        resumeHash: { hash: fileHash },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!matchingResume) {
+      logger.warn('[ResumeParsingWorker] No resume row found for parsing job', {
+        userId,
+        storageKey,
+        fileHash,
+      });
+      return;
+    }
+
+    await resumeMatcherService.parseAndStoreResumeFacts({
+      userId,
+      resumeVersionId: matchingResume.id,
+      fileBuffer,
+      mimeType,
+    });
 
     await prisma.userResume.update({
       where: { id: matchingResume.id },

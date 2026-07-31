@@ -63,7 +63,10 @@ export class AnalyticsService {
         },
       });
 
-      const grouped = new Map<string, { applications: number; interviews: number; offers: number }>();
+      const grouped = new Map<
+        string,
+        { applications: number; interviews: number; offers: number }
+      >();
       for (const application of applications) {
         const resumeVersionKey = application.applicationResumes[0]?.resumeVersionId ?? 'unlinked';
         const row = grouped.get(resumeVersionKey) ?? {
@@ -105,7 +108,10 @@ export class AnalyticsService {
         },
       });
 
-      const grouped = new Map<string, { applications: Set<string>; interviews: number; offers: number }>();
+      const grouped = new Map<
+        string,
+        { applications: Set<string>; interviews: number; offers: number }
+      >();
 
       for (const action of actions) {
         const key = action.actionType;
@@ -150,7 +156,10 @@ export class AnalyticsService {
         },
       });
 
-      const grouped = new Map<string, { applications: Set<string>; interviews: number; offers: number }>();
+      const grouped = new Map<
+        string,
+        { applications: Set<string>; interviews: number; offers: number }
+      >();
 
       for (const action of actions) {
         for (const tag of action.strategyTags ?? []) {
@@ -159,11 +168,11 @@ export class AnalyticsService {
             interviews: 0,
             offers: 0,
           };
-        if (action.applicationId && action.application) {
-          row.applications.add(action.applicationId);
-          if (this.isInterviewStatus(action.application.status)) row.interviews += 1;
-          if (this.isOfferStatus(action.application.status)) row.offers += 1;
-        }
+          if (action.applicationId && action.application) {
+            row.applications.add(action.applicationId);
+            if (this.isInterviewStatus(action.application.status)) row.interviews += 1;
+            if (this.isOfferStatus(action.application.status)) row.offers += 1;
+          }
           grouped.set(tag, row);
         }
       }
@@ -203,18 +212,21 @@ export class AnalyticsService {
         },
       });
 
-      const buckets = new Map<string, { applications: number; interviews: number; offers: number }>([
-        ['within_24h', { applications: 0, interviews: 0, offers: 0 }],
-        ['1_to_7d', { applications: 0, interviews: 0, offers: 0 }],
-        ['over_7d', { applications: 0, interviews: 0, offers: 0 }],
-      ]);
+      const buckets = new Map<string, { applications: number; interviews: number; offers: number }>(
+        [
+          ['within_24h', { applications: 0, interviews: 0, offers: 0 }],
+          ['1_to_7d', { applications: 0, interviews: 0, offers: 0 }],
+          ['over_7d', { applications: 0, interviews: 0, offers: 0 }],
+        ],
+      );
 
       for (const application of applications) {
         const firstOutcome = application.outcomeEvents[0]?.occurredAt;
-        const diffMs = firstOutcome ? firstOutcome.getTime() - (application.appliedDate?.getTime() ?? 0) : 0;
+        const diffMs = firstOutcome
+          ? firstOutcome.getTime() - (application.appliedDate?.getTime() ?? 0)
+          : 0;
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
-        const bucket =
-          diffDays <= 1 ? 'within_24h' : diffDays <= 7 ? '1_to_7d' : 'over_7d';
+        const bucket = diffDays <= 1 ? 'within_24h' : diffDays <= 7 ? '1_to_7d' : 'over_7d';
         const row = buckets.get(bucket)!;
         row.applications += 1;
         if (this.isInterviewStatus(application.status)) row.interviews += 1;
@@ -242,7 +254,16 @@ export class AnalyticsService {
     return this.cached(`funnel:${userId}`, async () => {
       const totalApplications = await db.jobApplication.count({ where: { userId } });
       const interviews = await db.jobApplication.count({
-        where: { userId, status: { in: [ApplicationStatus.INTERVIEW, ApplicationStatus.ASSESSMENT, ApplicationStatus.OFFER] } },
+        where: {
+          userId,
+          status: {
+            in: [
+              ApplicationStatus.INTERVIEW,
+              ApplicationStatus.ASSESSMENT,
+              ApplicationStatus.OFFER,
+            ],
+          },
+        },
       });
       const offers = await db.jobApplication.count({
         where: { userId, status: ApplicationStatus.OFFER },
@@ -273,7 +294,15 @@ export class AnalyticsService {
       }
 
       const populationInterviewApplications = await db.jobApplication.count({
-        where: { status: { in: [ApplicationStatus.INTERVIEW, ApplicationStatus.ASSESSMENT, ApplicationStatus.OFFER] } },
+        where: {
+          status: {
+            in: [
+              ApplicationStatus.INTERVIEW,
+              ApplicationStatus.ASSESSMENT,
+              ApplicationStatus.OFFER,
+            ],
+          },
+        },
       });
       const populationOfferApplications = await db.jobApplication.count({
         where: { status: ApplicationStatus.OFFER },
@@ -282,7 +311,13 @@ export class AnalyticsService {
       const userInterviewApplications = await db.jobApplication.count({
         where: {
           userId,
-          status: { in: [ApplicationStatus.INTERVIEW, ApplicationStatus.ASSESSMENT, ApplicationStatus.OFFER] },
+          status: {
+            in: [
+              ApplicationStatus.INTERVIEW,
+              ApplicationStatus.ASSESSMENT,
+              ApplicationStatus.OFFER,
+            ],
+          },
         },
       });
       const userOfferApplications = await db.jobApplication.count({
@@ -291,7 +326,10 @@ export class AnalyticsService {
 
       return {
         populationApplications,
-        populationInterviewRate: this.buildRate(populationInterviewApplications, populationApplications),
+        populationInterviewRate: this.buildRate(
+          populationInterviewApplications,
+          populationApplications,
+        ),
         populationOfferRate: this.buildRate(populationOfferApplications, populationApplications),
         userInterviewRate: this.buildRate(userInterviewApplications, userApplications),
         userOfferRate: this.buildRate(userOfferApplications, userApplications),
@@ -325,7 +363,8 @@ export class AnalyticsService {
     const phat = successes / total;
     const denom = 1 + (z * z) / total;
     const center = (phat + (z * z) / (2 * total)) / denom;
-    const margin = (z * Math.sqrt((phat * (1 - phat)) / total + (z * z) / (4 * total * total))) / denom;
+    const margin =
+      (z * Math.sqrt((phat * (1 - phat)) / total + (z * z) / (4 * total * total))) / denom;
     return [Math.max(0, center - margin), Math.min(1, center + margin)];
   }
 

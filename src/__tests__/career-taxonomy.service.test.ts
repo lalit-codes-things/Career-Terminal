@@ -149,8 +149,19 @@ describe('CareerTaxonomyService', () => {
   it('does not contain any hardcoded compat aliases (javascript, react, node.js, etc.)', async () => {
     const terms = await svc.getSkillTerms();
 
-    const compatTerms = ['javascript', 'typescript', 'react', 'node.js', 'aws',
-      'docker', 'kubernetes', 'git', 'python', 'graphql', 'ci/cd'];
+    const compatTerms = [
+      'javascript',
+      'typescript',
+      'react',
+      'node.js',
+      'aws',
+      'docker',
+      'kubernetes',
+      'git',
+      'python',
+      'graphql',
+      'ci/cd',
+    ];
     for (const t of compatTerms) {
       expect(terms).not.toContain(t);
     }
@@ -183,7 +194,7 @@ describe('CareerTaxonomyService', () => {
   it('getRecords contains both skill and occupation entries', async () => {
     const records = await svc.getRecords();
 
-    const skills      = records.filter((r) => r.kind === 'skill');
+    const skills = records.filter((r) => r.kind === 'skill');
     const occupations = records.filter((r) => r.kind === 'occupation');
     expect(skills.length).toBe(DB_SKILLS.length);
     expect(occupations.length).toBe(DB_OCCUPATIONS.length);
@@ -243,9 +254,9 @@ describe('CareerTaxonomyService', () => {
     (prisma.canonicalSkill.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.canonicalOccupation.findMany as jest.Mock).mockResolvedValue([]);
 
-    const skills      = await svc.getSkillTerms();
+    const skills = await svc.getSkillTerms();
     const occupations = await svc.getOccupationTerms();
-    const records     = await svc.getRecords();
+    const records = await svc.getRecords();
 
     expect(skills).toHaveLength(0);
     expect(occupations).toHaveLength(0);

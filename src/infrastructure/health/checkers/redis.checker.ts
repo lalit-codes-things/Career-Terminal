@@ -2,7 +2,8 @@
  * Redis health checker.
  * Issues a PING command and measures round-trip latency.
  */
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
+import { readFileSync } from 'fs';
 import { type IHealthChecker, type HealthCheckResult } from '../health.types';
 import { config } from '../../../config';
 
@@ -12,7 +13,7 @@ export class RedisChecker implements IHealthChecker {
   private readonly client: Redis;
 
   constructor() {
-    const clientConfig: Redis.RedisOptions = {
+    const clientConfig: RedisOptions = {
       host: config.redisCache.host ?? config.redis.host,
       port: config.redisCache.port ?? config.redis.port,
       password: config.redisCache.password ?? config.redis.password,
@@ -30,7 +31,7 @@ export class RedisChecker implements IHealthChecker {
 
     if (config.redisAcl.tlsEnabled) {
       clientConfig.tls = {
-        ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+        ca: config.redisAcl.tlsCaPath ? readFileSync(config.redisAcl.tlsCaPath) : undefined,
         rejectUnauthorized: true,
       };
     }

@@ -204,6 +204,7 @@ export class KMSCryptoService implements ICryptoService {
   }
 
   async encrypt(plaintext: string): Promise<EncryptResult> {
+    this.validateConfig();
     const dek = await this.getActiveDek();
 
     const iv = randomBytes(12);
@@ -290,7 +291,7 @@ export class KMSCryptoService implements ICryptoService {
   validateConfig(): void {
     if (!this.keyId) {
       throw new EncryptionError(
-        'KMS_KEY_ID is not set. Set the KMS customer master key id to enable ' +
+        'KMSCryptoService is not yet configured. Set KMS_KEY_ID to enable ' +
           'the KMS crypto backend (CRYPTO_BACKEND=kms).',
       );
     }
@@ -303,7 +304,7 @@ export class KMSCryptoService implements ICryptoService {
    */
   async validateConnectivity(): Promise<void> {
     if (!this.keyId) {
-      throw new EncryptionError('KMS_KEY_ID is not set.');
+      throw new EncryptionError('KMSCryptoService is not yet configured. Set KMS_KEY_ID.');
     }
 
     try {

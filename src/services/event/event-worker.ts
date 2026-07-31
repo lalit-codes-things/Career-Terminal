@@ -27,7 +27,7 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
 
   try {
     await processor(job);
-    
+
     // Mark event as processed
     await prisma.event.update({
       where: { id: eventId },
@@ -36,7 +36,7 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
         processedAt: new Date(),
       },
     });
-    
+
     logger.info('[EventWorker] Event processed successfully', {
       eventId,
       correlationId,
@@ -54,13 +54,16 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
       },
     });
 
-    logger.error(`[EventWorker] Event processing failed. Status: ${isPermanent ? 'dlq' : 'failed'}`, {
-      eventId,
-      correlationId,
-      jobId: job.id,
-      attempt: job.attemptsMade + 1,
-      error: errorMsg,
-    });
+    logger.error(
+      `[EventWorker] Event processing failed. Status: ${isPermanent ? 'dlq' : 'failed'}`,
+      {
+        eventId,
+        correlationId,
+        jobId: job.id,
+        attempt: job.attemptsMade + 1,
+        error: errorMsg,
+      },
+    );
 
     throw err; // Let BullMQ handle retries and move to failed set
   }

@@ -36,7 +36,12 @@ export interface UploadResult {
 
 export interface IStorageService {
   upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
-  uploadToBucket(bucket: string, key: string, buffer: Buffer, mimeType: string): Promise<UploadResult>;
+  uploadToBucket(
+    bucket: string,
+    key: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<UploadResult>;
   getPresignedUrl(key: string, ttlSec?: number, bucket?: string): Promise<string>;
   exists(key: string, bucket?: string): Promise<boolean>;
   download(key: string, bucket?: string): Promise<Buffer>;
@@ -79,7 +84,12 @@ export class S3StorageService implements IStorageService {
     return this.uploadToBucket(this.bucket, key, buffer, mimeType);
   }
 
-  async uploadToBucket(bucket: string, key: string, buffer: Buffer, mimeType: string): Promise<UploadResult> {
+  async uploadToBucket(
+    bucket: string,
+    key: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<UploadResult> {
     await this.circuitBreaker.fire(() =>
       this.client.send(
         new PutObjectCommand({
@@ -125,11 +135,17 @@ export class S3StorageService implements IStorageService {
     );
 
     const body = result.Body;
-    if (!body || typeof (body as { transformToByteArray?: () => Promise<Uint8Array> }).transformToByteArray !== 'function') {
+    if (
+      !body ||
+      typeof (body as { transformToByteArray?: () => Promise<Uint8Array> }).transformToByteArray !==
+        'function'
+    ) {
       throw new Error('S3 object body is not readable');
     }
 
-    const bytes = await (body as { transformToByteArray: () => Promise<Uint8Array> }).transformToByteArray();
+    const bytes = await (
+      body as { transformToByteArray: () => Promise<Uint8Array> }
+    ).transformToByteArray();
     return Buffer.from(bytes);
   }
 
@@ -173,7 +189,12 @@ export class NullStorageService implements IStorageService {
     };
   }
 
-  async uploadToBucket(_bucket: string, key: string, _buffer: Buffer, _mimeType: string): Promise<UploadResult> {
+  async uploadToBucket(
+    _bucket: string,
+    key: string,
+    _buffer: Buffer,
+    _mimeType: string,
+  ): Promise<UploadResult> {
     return this.upload(key, Buffer.from(''), 'application/octet-stream');
   }
 
@@ -193,7 +214,11 @@ export class NullStorageService implements IStorageService {
     logger.info('[NullStorageService] delete (no-op)', { key });
   }
 
-  async copyToBucket(_sourceKey: string, _destinationBucket: string, _destinationKey?: string): Promise<void> {
+  async copyToBucket(
+    _sourceKey: string,
+    _destinationBucket: string,
+    _destinationKey?: string,
+  ): Promise<void> {
     logger.info('[NullStorageService] copyToBucket (no-op)');
   }
 }

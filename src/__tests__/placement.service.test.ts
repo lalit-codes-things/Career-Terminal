@@ -85,8 +85,7 @@ describe('computeShardKey — determinism & distribution', () => {
     const N = 25_600;
     const counts = new Array<number>(SHARD_COUNT).fill(0);
     for (let i = 0; i < N; i++) {
-      const id = `${String(i).padStart(8, '0')}-0000-0000-0000-${String(i * 7)
-        .padStart(12, '0')}`;
+      const id = `${String(i).padStart(8, '0')}-0000-0000-0000-${String(i * 7).padStart(12, '0')}`;
       counts[computeShardKey(id)]!++;
     }
     const mean = N / SHARD_COUNT;
@@ -154,26 +153,16 @@ describe('resolveRegionFromHints', () => {
   });
 
   it('uses Accept-Language when country is absent', () => {
-    expect(resolveRegionFromHints({ acceptLanguage: 'en-GB,en;q=0.9' })).toBe(
-      'eu-west-1',
-    );
-    expect(resolveRegionFromHints({ acceptLanguage: 'de-DE,en;q=0.8' })).toBe(
-      'eu-central-1',
-    );
-    expect(resolveRegionFromHints({ acceptLanguage: 'ja' })).toBe(
-      'ap-northeast-1',
-    );
-    expect(resolveRegionFromHints({ acceptLanguage: 'en-SG,id;q=0.7' })).toBe(
-      'ap-southeast-1',
-    );
+    expect(resolveRegionFromHints({ acceptLanguage: 'en-GB,en;q=0.9' })).toBe('eu-west-1');
+    expect(resolveRegionFromHints({ acceptLanguage: 'de-DE,en;q=0.8' })).toBe('eu-central-1');
+    expect(resolveRegionFromHints({ acceptLanguage: 'ja' })).toBe('ap-northeast-1');
+    expect(resolveRegionFromHints({ acceptLanguage: 'en-SG,id;q=0.7' })).toBe('ap-southeast-1');
   });
 
   it('falls back to DEFAULT_REGION when no hints match', () => {
     expect(resolveRegionFromHints({})).toBe(DEFAULT_REGION);
     expect(resolveRegionFromHints({ country: 'ZZ' })).toBe(DEFAULT_REGION);
-    expect(resolveRegionFromHints({ acceptLanguage: 'xx-YY' })).toBe(
-      DEFAULT_REGION,
-    );
+    expect(resolveRegionFromHints({ acceptLanguage: 'xx-YY' })).toBe(DEFAULT_REGION);
   });
 
   it('priority order: suggestedRegion > country > acceptLanguage', () => {
@@ -223,9 +212,7 @@ describe('PlacementService', () => {
 
   describe('resolvePlacementContext', () => {
     it('throws ValidationError without a userId', async () => {
-      await expect(service.resolvePlacementContext('')).rejects.toThrow(
-        ValidationError,
-      );
+      await expect(service.resolvePlacementContext('')).rejects.toThrow(ValidationError);
     });
 
     it('uses the in-process cache on second call (no DB/cache.get hit)', async () => {
@@ -357,9 +344,9 @@ describe('PlacementService', () => {
 
   describe('setUserRegion', () => {
     it('validates the target region', async () => {
-      await expect(
-        service.setUserRegion(USER_ID, 'not-a-real-region'),
-      ).rejects.toThrow(ValidationError);
+      await expect(service.setUserRegion(USER_ID, 'not-a-real-region')).rejects.toThrow(
+        ValidationError,
+      );
       expect(mockPrisma.user.update).not.toHaveBeenCalled();
     });
 

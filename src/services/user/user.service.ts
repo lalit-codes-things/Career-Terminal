@@ -11,10 +11,7 @@ import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { isValidUuid } from '../../utils/user-ownership';
 import { logger } from '../../lib/logger';
-import {
-  computeShardKey,
-  resolveRegionFromHints,
-} from '../placement/placement.service';
+import { computeShardKey, resolveRegionFromHints } from '../placement/placement.service';
 import type { RegionResolutionHints } from '../placement/placement.service';
 import { cellService } from '../cell/cell.service';
 
@@ -94,10 +91,7 @@ export class UserService {
 
       return user;
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const raced = await this.db.user.findUnique({ where: { id: internalId } });
         if (raced) return raced;
       }
@@ -148,8 +142,8 @@ export class UserService {
       phone: data.phone ?? null,
       location: data.location ?? null,
       timezone: data.timezone ?? null,
-      preferences: (data.preferences ?? {}),
-      careerGoals: data.careerGoals != null ? (data.careerGoals) : undefined,
+      preferences: data.preferences ?? {},
+      careerGoals: data.careerGoals != null ? data.careerGoals : undefined,
     };
     const update: Prisma.CandidateProfileUpdateInput = {
       fullName: data.fullName !== undefined ? data.fullName : undefined,

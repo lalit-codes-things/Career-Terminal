@@ -59,8 +59,8 @@ describe('GmailCheckpointService', () => {
       legacyUserId: 'user-123',
     });
 
-    mockPrisma.$transaction.mockImplementation(
-      (fn: (tx: typeof mockPrisma) => Promise<any>) => fn(mockPrisma),
+    mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => Promise<any>) =>
+      fn(mockPrisma),
     );
   });
 
@@ -78,7 +78,7 @@ describe('GmailCheckpointService', () => {
       expect.objectContaining({
         where: { userId },
         update: expect.objectContaining({ pendingHistoryId: historyId, status: 'syncing' }),
-      })
+      }),
     );
   });
 
@@ -90,7 +90,7 @@ describe('GmailCheckpointService', () => {
       expect.objectContaining({
         where: { id: batchId },
         data: expect.objectContaining({ processedCount: { increment: 1 } }),
-      })
+      }),
     );
   });
 
@@ -119,13 +119,13 @@ describe('GmailCheckpointService', () => {
           pendingHistoryId: null,
           status: 'idle',
         }),
-      })
+      }),
     );
     expect(mockPrisma.syncBatch.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: batchId },
         data: expect.objectContaining({ status: 'completed' }),
-      })
+      }),
     );
   });
 
@@ -152,7 +152,7 @@ describe('GmailCheckpointService', () => {
         data: expect.objectContaining({
           status: 'failed',
         }),
-      })
+      }),
     );
     const updateCall = mockPrisma.gmailCheckpoint.update.mock.calls[0][0];
     expect(updateCall.data.currentHistoryId).toBeUndefined();

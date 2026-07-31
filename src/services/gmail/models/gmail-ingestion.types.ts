@@ -56,12 +56,7 @@ export interface GmailIngestionCommand {
  * Must capture all states for observability and recovery.
  */
 export type GmailIngestionState =
-  | 'QUEUED'
-  | 'RUNNING'
-  | 'SUCCEEDED'
-  | 'PARTIALLY_COMPLETED'
-  | 'FAILED'
-  | 'RETRYING';
+  'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'PARTIALLY_COMPLETED' | 'FAILED' | 'RETRYING';
 
 /**
  * TelemetryEvent — structured telemetry for ingestion observability.

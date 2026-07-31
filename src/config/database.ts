@@ -131,9 +131,7 @@ export function createPrismaClient(role?: string): PrismaClient {
 // Master client (writes) — default to app_runtime role
 // ---------------------------------------------------------------------------
 
-export const prisma: PrismaClient =
-  g.prisma ??
-  createPrismaClient(config.databaseRole);
+export const prisma: PrismaClient = g.prisma ?? createPrismaClient(config.databaseRole);
 
 if (config.nodeEnv !== 'production') {
   g.prisma = prisma;

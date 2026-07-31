@@ -275,9 +275,7 @@ export class ExtractionRunService {
   /**
    * Reject mutations to terminal runs.
    */
-  private assertNonTerminal(
-    run: Prisma.ExtractionRunGetPayload<Record<string, never>>,
-  ): void {
+  private assertNonTerminal(run: Prisma.ExtractionRunGetPayload<Record<string, never>>): void {
     if (TERMINAL_STATUSES.has(run.status)) {
       throw new ImmutabilityViolationError('ExtractionRun', run.id);
     }
@@ -337,9 +335,7 @@ export class ExtractionRunService {
   /**
    * Map a raw Prisma record to the read-only ExtractionRunRecord interface.
    */
-  private toRecord(
-    r: Prisma.ExtractionRunGetPayload<Record<string, never>>,
-  ): ExtractionRunRecord {
+  private toRecord(r: Prisma.ExtractionRunGetPayload<Record<string, never>>): ExtractionRunRecord {
     return {
       id: r.id,
       userId: r.userId,

@@ -207,6 +207,12 @@ interface AppConfig {
     dekCacheTtlMs: number;
   };
 
+  /** Encryption key version used for NEW encryptions (rotation support) */
+  activeEncryptionKeyVersion: number;
+
+  /** Secret provider backend ('env' | 'vault' | 'aws' | 'gcp' | 'azure') */
+  secretProviderBackend: 'env' | 'vault' | 'aws' | 'gcp' | 'azure';
+
   /** Active crypto backend ('software' | 'kms') */
   cryptoBackend: string;
 
@@ -499,6 +505,8 @@ function loadConfig(): AppConfig {
       dekCacheTtlMs: env.KMS_DEK_CACHE_TTL_MS,
     },
 
+    activeEncryptionKeyVersion: env.ACTIVE_ENCRYPTION_KEY_VERSION,
+    secretProviderBackend: env.SECRET_PROVIDER_BACKEND,
     cryptoBackend: env.CRYPTO_BACKEND,
 
     redisAcl: {

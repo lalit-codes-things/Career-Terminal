@@ -17,7 +17,7 @@ export type DispatchedEvent = {
   userId: string;
   cellId: string | null;
   correlationId: string;
-  payload: unknown;
+  payload: Record<string, unknown>;
 };
 
 export class EventDispatcherService {
@@ -71,7 +71,7 @@ export class EventDispatcherService {
       userId: event.userId,
       cellId: event.cellId,
       correlationId: event.correlationId,
-      payload: event.payload,
+      payload: event.payload as Record<string, unknown>,
     };
   }
 
@@ -108,7 +108,7 @@ export class EventDispatcherService {
   }
 
   private async dispatchToQueue(event: DispatchedEvent): Promise<void> {
-    const payload = event.payload as Record<string, unknown>;
+    const payload = event.payload;
 
     switch (event.eventType) {
       case EVENT_TYPES.RESUME_UPLOADED: {

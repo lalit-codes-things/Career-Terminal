@@ -47,9 +47,7 @@ describe('Integration Routes', () => {
     });
 
     it('should reject userId supplied as query param (no longer accepted)', async () => {
-      const response = await request(app).get(
-        '/integrations/connect?userId=attacker-supplied-id',
-      );
+      const response = await request(app).get('/integrations/connect?userId=attacker-supplied-id');
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);
@@ -84,9 +82,7 @@ describe('Integration Routes', () => {
     });
 
     it('should return 400 for missing code or state', async () => {
-      const response = await request(app).get(
-        '/integrations/callback?code=abc',
-      );
+      const response = await request(app).get('/integrations/callback?code=abc');
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);

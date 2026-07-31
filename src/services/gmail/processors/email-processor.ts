@@ -1,6 +1,10 @@
 import { prisma } from '../../../config/database';
 import { logger } from '../../../lib/logger';
-import { jobEmailClassifier, JobEmailCategory, type ClassifiableEmail } from '../../job-intelligence';
+import {
+  jobEmailClassifier,
+  JobEmailCategory,
+  type ClassifiableEmail,
+} from '../../job-intelligence';
 import { applicationTrackingService } from '../../application-tracking/application-tracking.service';
 
 export interface EmailProcessor {

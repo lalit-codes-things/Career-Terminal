@@ -46,7 +46,10 @@ function occupationRow(name: string, source = 'ESCO', aliases: string[] = []) {
 }
 
 /** Seed the mock DB and reset the taxonomy cache so the next call reloads. */
-function seedOntology(skills: ReturnType<typeof skillRow>[], occupations: ReturnType<typeof occupationRow>[] = []) {
+function seedOntology(
+  skills: ReturnType<typeof skillRow>[],
+  occupations: ReturnType<typeof occupationRow>[] = [],
+) {
   (prisma.canonicalSkill.findMany as jest.Mock).mockResolvedValue(skills);
   (prisma.canonicalOccupation.findMany as jest.Mock).mockResolvedValue(occupations);
   careerTaxonomyService.invalidateCache();
@@ -74,7 +77,8 @@ describe('ResumeMatcherService', () => {
       skillRow('statistical analysis'),
     ]);
 
-    const text = 'I have strong skills in data analysis, statistical analysis, and project management.';
+    const text =
+      'I have strong skills in data analysis, statistical analysis, and project management.';
     const parsed = await service.parseResume(text);
 
     expect(parsed.skills).toContain('data analysis');
@@ -83,9 +87,7 @@ describe('ResumeMatcherService', () => {
   });
 
   it('detects skills via alias when the canonical name is not in the text', async () => {
-    seedOntology([
-      skillRow('data analysis', 'ESCO', ['analysing data', 'data analytics']),
-    ]);
+    seedOntology([skillRow('data analysis', 'ESCO', ['analysing data', 'data analytics'])]);
 
     const parsed = await service.parseResume('Experienced in data analytics and reporting.');
 
@@ -156,7 +158,8 @@ describe('ResumeMatcherService', () => {
     ]);
 
     const resumeText = 'Finance analyst skilled in financial modelling, excel, and budgeting.';
-    const jobText    = 'Seeking finance analyst with financial modelling, excel, risk assessment skills.';
+    const jobText =
+      'Seeking finance analyst with financial modelling, excel, risk assessment skills.';
 
     const score = await service.scoreMatch(resumeText, jobText);
 
@@ -165,14 +168,10 @@ describe('ResumeMatcherService', () => {
   });
 
   it('identifies missing skills that appear in the job but not the resume', async () => {
-    seedOntology([
-      skillRow('financial modelling'),
-      skillRow('forecasting'),
-      skillRow('sql'),
-    ]);
+    seedOntology([skillRow('financial modelling'), skillRow('forecasting'), skillRow('sql')]);
 
     const resumeText = 'I know financial modelling and some excel work.';
-    const jobText    = 'Need financial modelling, forecasting, and sql skills.';
+    const jobText = 'Need financial modelling, forecasting, and sql skills.';
 
     const score = await service.scoreMatch(resumeText, jobText);
 
@@ -185,7 +184,7 @@ describe('ResumeMatcherService', () => {
     seedOntology([skillRow('accounting'), skillRow('auditing')]);
 
     const resumeText = 'I am an accountant experienced in accounting and auditing.';
-    const jobText    = 'Looking for an accountant who knows accounting, auditing.';
+    const jobText = 'Looking for an accountant who knows accounting, auditing.';
 
     const score = await service.scoreMatch(resumeText, jobText);
 
@@ -196,7 +195,7 @@ describe('ResumeMatcherService', () => {
     seedOntology([skillRow('nursing'), skillRow('patient care')]);
 
     const resumeText = 'Senior nurse with 5 years of nursing and patient care experience.';
-    const jobText    = 'Senior nurse needed who knows nursing and patient care.';
+    const jobText = 'Senior nurse needed who knows nursing and patient care.';
 
     const score = await service.scoreMatch(resumeText, jobText);
 

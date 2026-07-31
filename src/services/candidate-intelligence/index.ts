@@ -14,15 +14,9 @@
  * consumers that prefer a single import path.
  */
 
-export {
-  ExtractionRunService,
-  extractionRunService,
-} from './extraction-run.service';
+export { ExtractionRunService, extractionRunService } from './extraction-run.service';
 
-export {
-  ProvenanceService,
-  provenanceService,
-} from './provenance.service';
+export { ProvenanceService, provenanceService } from './provenance.service';
 
 export {
   CanonicalIntelligenceService,

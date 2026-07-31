@@ -171,12 +171,7 @@ describe('FactCorrectionService', () => {
       (prisma.factObservation.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        factCorrectionService.proposeCorrection(
-          'missing-fact',
-          {},
-          userId,
-          'reason',
-        ),
+        factCorrectionService.proposeCorrection('missing-fact', {}, userId, 'reason'),
       ).rejects.toThrow('Fact not found');
     });
   });
@@ -237,9 +232,27 @@ describe('FactCorrectionService', () => {
   describe('getPendingReviews', () => {
     it('returns only pending reviews ordered by lowest confidence first', async () => {
       const pendingFacts = [
-        { id: 'low', factType: 'SKILL', confidence: 0.3, needsReview: true, reviewStatus: 'pending' },
-        { id: 'mid', factType: 'EXPERIENCE', confidence: 0.5, needsReview: true, reviewStatus: 'pending' },
-        { id: 'high', factType: 'EDUCATION', confidence: 0.7, needsReview: true, reviewStatus: 'pending' },
+        {
+          id: 'low',
+          factType: 'SKILL',
+          confidence: 0.3,
+          needsReview: true,
+          reviewStatus: 'pending',
+        },
+        {
+          id: 'mid',
+          factType: 'EXPERIENCE',
+          confidence: 0.5,
+          needsReview: true,
+          reviewStatus: 'pending',
+        },
+        {
+          id: 'high',
+          factType: 'EDUCATION',
+          confidence: 0.7,
+          needsReview: true,
+          reviewStatus: 'pending',
+        },
       ];
       (prisma.factObservation.findMany as jest.Mock).mockResolvedValue(pendingFacts);
 
@@ -262,7 +275,7 @@ describe('FactCorrectionService', () => {
       await factCorrectionService.getPendingReviews();
 
       expect(prisma.factObservation.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 })
+        expect.objectContaining({ take: 100 }),
       );
     });
   });

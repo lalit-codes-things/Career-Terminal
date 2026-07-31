@@ -16,10 +16,7 @@
 import { Queue, type JobsOptions } from 'bullmq';
 import { bullMQConnection } from '../../config/redis';
 import { logger } from '../../lib/logger';
-import {
-  jobIdForEmailIngestion,
-  jobIdForResumeOperation,
-} from '../idempotency/idempotency.keys';
+import { jobIdForEmailIngestion, jobIdForResumeOperation } from '../idempotency/idempotency.keys';
 import {
   QUEUE_NAMES,
   type EmailJobPayload,
@@ -120,8 +117,7 @@ export class QueueService implements IQueueService {
     // of the same file (e.g. page refresh,  retries of the producer) land on
     // the same BullMQ job id and get deduplicated by Redis before any worker
     // even picks them up.
-    const deterministicId =
-      opts.jobId ?? jobIdForResumeOperation(payload.fileHash, 'parse');
+    const deterministicId = opts.jobId ?? jobIdForResumeOperation(payload.fileHash, 'parse');
 
     const job = await this.resumeQueue.add('PARSE_RESUME', payload, {
       ...DEFAULT_JOB_OPTIONS,
@@ -203,11 +199,9 @@ export class QueueService implements IQueueService {
     return job.id!;
   }
 
-  async addGmailSyncJob(
-    payload: GmailSyncJobPayload,
-    opts: JobsOptions = {},
-  ): Promise<string> {
-    const deterministicId = opts.jobId ?? `${payload.userId}:${payload.type}:${payload.connectionId}`;
+  async addGmailSyncJob(payload: GmailSyncJobPayload, opts: JobsOptions = {}): Promise<string> {
+    const deterministicId =
+      opts.jobId ?? `${payload.userId}:${payload.type}:${payload.connectionId}`;
     const job = await this.gmailSyncQueue.add(payload.type, payload, {
       ...DEFAULT_JOB_OPTIONS,
       jobId: deterministicId,
@@ -236,7 +230,8 @@ export class QueueService implements IQueueService {
       resume: (resume.waiting ?? 0) + (resume.active ?? 0) + (resume.delayed ?? 0),
       tracking: (tracking.waiting ?? 0) + (tracking.active ?? 0) + (tracking.delayed ?? 0),
       malware: (malware.waiting ?? 0) + (malware.active ?? 0) + (malware.delayed ?? 0),
-      intelligence: (intelligence.waiting ?? 0) + (intelligence.active ?? 0) + (intelligence.delayed ?? 0),
+      intelligence:
+        (intelligence.waiting ?? 0) + (intelligence.active ?? 0) + (intelligence.delayed ?? 0),
       gmailSync: (gmailSync.waiting ?? 0) + (gmailSync.active ?? 0) + (gmailSync.delayed ?? 0),
     };
   }

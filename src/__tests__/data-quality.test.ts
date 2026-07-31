@@ -30,13 +30,15 @@ function makeFact(overrides: Partial<FactQualityInput> = {}): FactQualityInput {
   };
 }
 
-function makePrecedence(overrides: Partial<{
-  confidence: number;
-  observedAt: Date;
-  isUserCorrected: boolean;
-  isCurrent: boolean;
-  deletedAt: Date | null;
-}> = {}) {
+function makePrecedence(
+  overrides: Partial<{
+    confidence: number;
+    observedAt: Date;
+    isUserCorrected: boolean;
+    isCurrent: boolean;
+    deletedAt: Date | null;
+  }> = {},
+) {
   return {
     confidence: 0.8,
     observedAt: new Date('2026-01-01'),
@@ -57,35 +59,29 @@ describe('getFactQualityStatus', () => {
   });
 
   it('returns USER_CONFIRMED for a user-corrected current fact', () => {
-    expect(
-      getFactQualityStatus(makeFact({ isUserCorrected: true, isCurrent: true })),
-    ).toBe('USER_CONFIRMED');
+    expect(getFactQualityStatus(makeFact({ isUserCorrected: true, isCurrent: true }))).toBe(
+      'USER_CONFIRMED',
+    );
   });
 
   it('returns SUPERSEDED for a fact with supersededById and isCurrent=false', () => {
-    expect(
-      getFactQualityStatus(
-        makeFact({ isCurrent: false, supersededById: 'fact-newer' }),
-      ),
-    ).toBe('SUPERSEDED');
+    expect(getFactQualityStatus(makeFact({ isCurrent: false, supersededById: 'fact-newer' }))).toBe(
+      'SUPERSEDED',
+    );
   });
 
   it('returns INVALID for a soft-deleted fact (deletedAt set)', () => {
-    expect(
-      getFactQualityStatus(makeFact({ deletedAt: new Date() })),
-    ).toBe('INVALID');
+    expect(getFactQualityStatus(makeFact({ deletedAt: new Date() }))).toBe('INVALID');
   });
 
   it('returns INVALID for a review-rejected fact', () => {
-    expect(
-      getFactQualityStatus(makeFact({ reviewStatus: 'rejected' })),
-    ).toBe('INVALID');
+    expect(getFactQualityStatus(makeFact({ reviewStatus: 'rejected' }))).toBe('INVALID');
   });
 
   it('returns INFERRED for a fact produced by INFER extractionMethod', () => {
-    expect(
-      getFactQualityStatus(makeFact({ extractionMethod: 'INFER_FROM_EXPERIENCE' })),
-    ).toBe('INFERRED');
+    expect(getFactQualityStatus(makeFact({ extractionMethod: 'INFER_FROM_EXPERIENCE' }))).toBe(
+      'INFERRED',
+    );
   });
 
   it('INVALID takes precedence over SUPERSEDED (deleted superseded fact)', () => {
@@ -97,23 +93,17 @@ describe('getFactQualityStatus', () => {
   });
 
   it('INVALID takes precedence over USER_CONFIRMED (deleted correction)', () => {
-    expect(
-      getFactQualityStatus(
-        makeFact({ deletedAt: new Date(), isUserCorrected: true }),
-      ),
-    ).toBe('INVALID');
+    expect(getFactQualityStatus(makeFact({ deletedAt: new Date(), isUserCorrected: true }))).toBe(
+      'INVALID',
+    );
   });
 
   it('returns OBSERVED for LLM extraction method', () => {
-    expect(
-      getFactQualityStatus(makeFact({ extractionMethod: 'LLM' })),
-    ).toBe('OBSERVED');
+    expect(getFactQualityStatus(makeFact({ extractionMethod: 'LLM' }))).toBe('OBSERVED');
   });
 
   it('returns OBSERVED for REGEX extraction method', () => {
-    expect(
-      getFactQualityStatus(makeFact({ extractionMethod: 'REGEX' })),
-    ).toBe('OBSERVED');
+    expect(getFactQualityStatus(makeFact({ extractionMethod: 'REGEX' }))).toBe('OBSERVED');
   });
 });
 
@@ -194,7 +184,7 @@ describe('resolveFactPrecedence — conflicting facts', () => {
     const earlier = new Date('2026-01-01');
     const later = new Date('2026-06-01');
     const a = makePrecedence({ confidence: 0.8005, observedAt: later });
-    const b = makePrecedence({ confidence: 0.8000, observedAt: earlier });
+    const b = makePrecedence({ confidence: 0.8, observedAt: earlier });
     // Within epsilon → recency tiebreak: 'a' has later observedAt
     expect(resolveFactPrecedence(a, b)).toBe('a');
   });

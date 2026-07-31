@@ -64,10 +64,7 @@ export class ProvenanceService {
    *
    * Ownership is always verified.
    */
-  async getByExtractionRunId(
-    extractionRunId: string,
-    userId: string,
-  ): Promise<ProvenanceRecord> {
+  async getByExtractionRunId(extractionRunId: string, userId: string): Promise<ProvenanceRecord> {
     const record = await (this.db as PrismaClient).factProvenance.findUnique({
       where: { extractionRunId },
     });
@@ -144,9 +141,7 @@ export class ProvenanceService {
    * Using a dedicated mapper prevents accidental exposure of mutable Prisma
    * objects through the service boundary.
    */
-  private toRecord(
-    r: Prisma.FactProvenanceGetPayload<Record<string, never>>,
-  ): ProvenanceRecord {
+  private toRecord(r: Prisma.FactProvenanceGetPayload<Record<string, never>>): ProvenanceRecord {
     return {
       id: r.id,
       userId: r.userId,

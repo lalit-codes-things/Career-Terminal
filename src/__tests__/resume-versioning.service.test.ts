@@ -6,8 +6,10 @@ import { queueService } from '../services/queue/queue.service';
 import { userService } from '../services/user';
 import { ValidationError } from '../errors/app-errors';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
+    $transaction: jest.fn(),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
     resumeHash: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -17,7 +19,7 @@ jest.mock('../config/database', () => ({
       findMany: jest.fn(),
       updateMany: jest.fn(),
       create: jest.fn(),
-      delete: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
     },
     user: {
       findUnique: jest.fn(),
@@ -29,11 +31,34 @@ jest.mock('../config/database', () => ({
       upsert: jest.fn(),
     },
     event: {
-      create: jest.fn().mockResolvedValue({ id: 'evt-1' }),
+      create: jest.fn().mockResolvedValue({
+        id: 'evt-1',
+        eventType: 'RESUME_UPLOADED',
+        aggregateId: 'ur-1',
+        aggregateType: 'UserResume',
+        userId: 'user-00000000-0000-0000-0000-000000000001',
+        cellId: 'cell-1',
+        payload: {
+          userId: 'user-00000000-0000-0000-0000-000000000001',
+          cellId: 'cell-1',
+          userResumeId: 'ur-1',
+          quarantineBucket: 'resume-quarantine',
+          quarantineKey: 'uploads/quarantine/resumes/test.pdf',
+          cleanBucket: 'resume-clean',
+          cleanKey: 'uploads/resumes/test.pdf',
+          originalFilename: 'test.pdf',
+          mimeType: 'application/pdf',
+          fileHash: 'abc123',
+        },
+        correlationId: 'corr-1',
+        status: 'pending',
+      }),
       update: jest.fn(),
     },
-  },
-}));
+  };
+  prisma.$transaction.mockImplementation((cb: (tx: any) => unknown) => cb(prisma));
+  return { prisma };
+});
 
 jest.mock('../services/storage/storage.service', () => {
   const mockStorage: jest.Mocked<IStorageService> = {
@@ -77,6 +102,12 @@ jest.mock('../services/action.service', () => ({
   buildResumeVersionTag: jest.fn((version: number) => `resume_version:${version}`),
 }));
 
+jest.mock('../services/placement/placement.service', () => ({
+  placementService: {
+    resolvePlacementContext: jest.fn().mockResolvedValue({ cellId: 'cell-1' }),
+  },
+}));
+
 type MockPrisma = {
   resumeHash: {
     findUnique: jest.Mock;
@@ -89,11 +120,11 @@ type MockPrisma = {
     create: jest.Mock;
     delete: jest.Mock;
   };
-applicationResume: {
-     findFirst: jest.Mock;
-     findUnique: jest.Mock;
-     upsert: jest.Mock;
-   };
+  applicationResume: {
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+    upsert: jest.Mock;
+  };
 };
 
 type MockStorage = jest.Mocked<IStorageService>;
@@ -476,7 +507,12 @@ describe('ResumeUploadService — application linkage', () => {
     });
 
     expect(mockPrisma.applicationResume.upsert).toHaveBeenCalledWith({
-      where: { applicationId_resumeVersionId: { applicationId: APPLICATION_ID, resumeVersionId: USER_RESUME_V1_ID } },
+      where: {
+        applicationId_resumeVersionId: {
+          applicationId: APPLICATION_ID,
+          resumeVersionId: USER_RESUME_V1_ID,
+        },
+      },
       create: expect.objectContaining({
         applicationId: APPLICATION_ID,
         resumeVersionId: USER_RESUME_V1_ID,
@@ -577,9 +613,7 @@ describe('ResumeUploadService — deleteVersion (guarded against linkage)', () =
 
   it('is idempotent — returns without error when the version does not exist', async () => {
     mockPrisma.userResume.findFirst.mockResolvedValue(null);
-    await expect(
-      service.deleteVersion(USER_ID, 'non-existent-id'),
-    ).resolves.not.toThrow();
+    await expect(service.deleteVersion(USER_ID, 'non-existent-id')).resolves.not.toThrow();
     expect(mockPrisma.userResume.delete).not.toHaveBeenCalled();
   });
 
@@ -598,13 +632,13 @@ describe('ResumeUploadService — deleteVersion (guarded against linkage)', () =
       _count: { applicationLinks: 3 },
     });
 
-    await expect(
-      service.deleteVersion(USER_ID, USER_RESUME_V1_ID),
-    ).rejects.toThrow(ValidationError);
+    await expect(service.deleteVersion(USER_ID, USER_RESUME_V1_ID)).rejects.toThrow(
+      ValidationError,
+    );
 
-    await expect(
-      service.deleteVersion(USER_ID, USER_RESUME_V1_ID),
-    ).rejects.toThrow(/it is linked to 3 application\(s\)/);
+    await expect(service.deleteVersion(USER_ID, USER_RESUME_V1_ID)).rejects.toThrow(
+      /it is linked to 3 application\(s\)/,
+    );
 
     expect(mockPrisma.userResume.delete).not.toHaveBeenCalled();
   });

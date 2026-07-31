@@ -61,7 +61,7 @@ export async function recordApplyAction(
       actionType: ACTION_TYPES.APPLY,
       applicationId,
       opportunityId: options.opportunityId,
-      actionSubtype: options.sourceEmailId ? 'EMAIL' : options.applicationChannel ?? 'FORM',
+      actionSubtype: options.sourceEmailId ? 'EMAIL' : (options.applicationChannel ?? 'FORM'),
       strategyTags: tags,
       context: Object.keys(context).length > 0 ? context : undefined,
       sourceType: options.sourceEmailId ? SOURCE_TYPES.SYSTEM_TRACKED : SOURCE_TYPES.USER_ACTION,

@@ -50,16 +50,16 @@ export const ACTION_TYPES = {
   OPPORTUNITY_VIEWED: 'OPPORTUNITY_VIEWED',
   OPPORTUNITY_SAVED: 'OPPORTUNITY_SAVED',
   OPPORTUNITY_DISMISSED: 'OPPORTUNITY_DISMISSED',
-  SAVE_JOB: 'SAVE_JOB',                        // backward-compat alias for OPPORTUNITY_SAVED
+  SAVE_JOB: 'SAVE_JOB', // backward-compat alias for OPPORTUNITY_SAVED
   // ── Resume actions ─────────────────────────────────────────────────────────
-  RESUME_SELECTED: 'RESUME_SELECTED',           // user chose a resume version for an application
-  RESUME_UPDATE: 'RESUME_UPDATE',               // user uploaded/edited a resume
+  RESUME_SELECTED: 'RESUME_SELECTED', // user chose a resume version for an application
+  RESUME_UPDATE: 'RESUME_UPDATE', // user uploaded/edited a resume
   // ── Recommendation actions ─────────────────────────────────────────────────
   RECOMMENDATION_ACCEPTED: 'RECOMMENDATION_ACCEPTED',
   RECOMMENDATION_REJECTED: 'RECOMMENDATION_REJECTED',
   // ── Preference / goal changes ─────────────────────────────────────────────
-  PREFERENCE_CHANGED: 'PREFERENCE_CHANGED',     // explicit stated preference update
-  CAREER_GOAL_CHANGED: 'CAREER_GOAL_CHANGED',   // explicit career goal update
+  PREFERENCE_CHANGED: 'PREFERENCE_CHANGED', // explicit stated preference update
+  CAREER_GOAL_CHANGED: 'CAREER_GOAL_CHANGED', // explicit career goal update
   // ── Network & research ────────────────────────────────────────────────────
   REFERRAL: 'REFERRAL',
   NETWORKING: 'NETWORKING',
@@ -112,10 +112,13 @@ export class ActionService {
 
     const actionType = input.actionType.toUpperCase();
     if (KNOWN_ACTION_TYPES.size > 0 && !KNOWN_ACTION_TYPES.has(actionType)) {
-      logger.warn('[ActionService] Unknown actionType recorded — will still persist for extensibility', {
-        userId: input.userId,
-        actionType,
-      });
+      logger.warn(
+        '[ActionService] Unknown actionType recorded — will still persist for extensibility',
+        {
+          userId: input.userId,
+          actionType,
+        },
+      );
     }
 
     const sourceType = (input.sourceType ?? SOURCE_TYPES.USER_ACTION).toUpperCase();
@@ -248,7 +251,9 @@ export class ActionService {
       throw new Error(`ActionEvent not found: ${actionEventId}`);
     }
     if (existing.strategyTags.includes(tag)) {
-      return prisma.actionEvent.findUnique({ where: { id: actionEventId } }) as Promise<ActionEvent>;
+      return prisma.actionEvent.findUnique({
+        where: { id: actionEventId },
+      }) as Promise<ActionEvent>;
     }
 
     return prisma.actionEvent.update({

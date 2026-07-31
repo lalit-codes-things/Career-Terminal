@@ -46,7 +46,10 @@ export class CellService {
     });
   }
 
-  async resolveUserHomeCell(userId: string, region: string = DEFAULT_REGION): Promise<CellResolution> {
+  async resolveUserHomeCell(
+    userId: string,
+    region: string = DEFAULT_REGION,
+  ): Promise<CellResolution> {
     const cellId = this.getDeterministicCellId(userId, region);
     const cell = await this.getOrCreateCell(cellId, region);
     return {

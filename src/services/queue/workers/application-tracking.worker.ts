@@ -75,7 +75,7 @@ export async function processApplicationTrackingJob(
       // 3. Classify
       const classification = jobEmailClassifier.classify(classifiableEmail);
 
-            // 4. If job-related, process for application tracking
+      // 4. If job-related, process for application tracking
       try {
         if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
           await applicationCommandService.processEmailForJobApplication(
@@ -101,9 +101,9 @@ export async function processApplicationTrackingJob(
             metadata.batchId as string,
             emailMessageId,
             email.providerMessageId,
-            'completed'
+            'completed',
           );
-          
+
           // Check if batch is complete
           await gmailCheckpointService.completeBatch(metadata.batchId as string);
         }
@@ -115,7 +115,7 @@ export async function processApplicationTrackingJob(
             emailMessageId,
             email.providerMessageId,
             'failed',
-            err instanceof Error ? err.message : String(err)
+            err instanceof Error ? err.message : String(err),
           );
         }
         throw err; // Re-throw for BullMQ retry
@@ -180,45 +180,45 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
 
   worker.on('failed', (job, err) => {
     void (async () => {
-    logger.error('[AppTrackingWorker] Job failed', {
-      jobId: job?.id,
-      type: job?.data.type,
-      userId: job?.data.userId,
-      attempt: job?.attemptsMade,
-      error: err.message,
-    });
+      logger.error('[AppTrackingWorker] Job failed', {
+        jobId: job?.id,
+        type: job?.data.type,
+        userId: job?.data.userId,
+        attempt: job?.attemptsMade,
+        error: err.message,
+      });
 
-    // Micro-task 7.7: Move to Dead Letter Table after max attempts
-    if (job && job.data.type === 'PROCESS_EMAIL' && job.data.emailMessageId) {
-      const maxAttempts = job.opts.attempts || 3;
-      if (job.attemptsMade >= maxAttempts) {
-        try {
-          // Fetch providerMessageId for the dead letter record
-          const email = await prisma.emailMessage.findUnique({
-            where: { id: job.data.emailMessageId },
-            select: { providerMessageId: true },
-          });
+      // Micro-task 7.7: Move to Dead Letter Table after max attempts
+      if (job && job.data.type === 'PROCESS_EMAIL' && job.data.emailMessageId) {
+        const maxAttempts = job.opts.attempts || 3;
+        if (job.attemptsMade >= maxAttempts) {
+          try {
+            // Fetch providerMessageId for the dead letter record
+            const email = await prisma.emailMessage.findUnique({
+              where: { id: job.data.emailMessageId },
+              select: { providerMessageId: true },
+            });
 
-          await prisma.deadLetterEmail.create({
-            data: {
+            await prisma.deadLetterEmail.create({
+              data: {
+                emailId: job.data.emailMessageId,
+                userId: job.data.userId,
+                providerMessageId: email?.providerMessageId || 'unknown',
+                error: err.message,
+                attempts: job.attemptsMade,
+              },
+            });
+            logger.info('[AppTrackingWorker] Job moved to Dead Letter Table', {
+              jobId: job.id,
               emailId: job.data.emailMessageId,
-              userId: job.data.userId,
-              providerMessageId: email?.providerMessageId || 'unknown',
-              error: err.message,
-              attempts: job.attemptsMade,
-            },
-          });
-          logger.info('[AppTrackingWorker] Job moved to Dead Letter Table', {
-            jobId: job.id,
-            emailId: job.data.emailMessageId,
-          });
-        } catch (dbErr) {
-          logger.error('[AppTrackingWorker] Failed to create dead letter record', {
-            error: dbErr instanceof Error ? dbErr.message : String(dbErr),
-          });
+            });
+          } catch (dbErr) {
+            logger.error('[AppTrackingWorker] Failed to create dead letter record', {
+              error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+            });
+          }
         }
       }
-    }
     })().catch((e) =>
       logger.error('[AppTrackingWorker] Unhandled error in failed handler', {
         error: e instanceof Error ? e.message : String(e),

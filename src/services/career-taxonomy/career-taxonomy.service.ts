@@ -78,10 +78,7 @@ export class CareerTaxonomyService {
     if (this.loaded) return;
     this.loaded = true;
 
-    await Promise.all([
-      this.loadSkillsFromDb(),
-      this.loadOccupationsFromDb(),
-    ]);
+    await Promise.all([this.loadSkillsFromDb(), this.loadOccupationsFromDb()]);
 
     logger.info('[CareerTaxonomy] Loaded taxonomy terms from database', {
       skills: this.skillTerms.size,

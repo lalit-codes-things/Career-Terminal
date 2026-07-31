@@ -92,10 +92,20 @@ const regionFromAcceptLanguage = (raw: string | undefined): SupportedRegion | nu
 
   if (tag.startsWith('en-us') || tag.startsWith('es-us')) return 'us-east-1';
   if (tag.startsWith('en-gb') || tag.startsWith('en-ie')) return 'eu-west-1';
-  if (tag.startsWith('de') || tag.startsWith('fr') || tag.startsWith('nl') || tag.startsWith('pl')) {
+  if (
+    tag.startsWith('de') ||
+    tag.startsWith('fr') ||
+    tag.startsWith('nl') ||
+    tag.startsWith('pl')
+  ) {
     return 'eu-central-1';
   }
-  if (tag.startsWith('en-au') || tag.startsWith('en-nz') || tag.startsWith('en-sg') || tag.startsWith('id')) {
+  if (
+    tag.startsWith('en-au') ||
+    tag.startsWith('en-nz') ||
+    tag.startsWith('en-sg') ||
+    tag.startsWith('id')
+  ) {
     return 'ap-southeast-1';
   }
   if (tag.startsWith('ja')) return 'ap-northeast-1';
@@ -219,8 +229,7 @@ export class PlacementService {
    */
   resolveDataPlane(userId: string): DataPlaneTarget {
     const region = this.readInProcess(userId)?.region ?? DEFAULT_REGION;
-    const dataResidencyRegion =
-      this.readInProcess(userId)?.dataResidencyRegion ?? region;
+    const dataResidencyRegion = this.readInProcess(userId)?.dataResidencyRegion ?? region;
     const shardKey = computeShardKey(userId);
 
     const cellId = `${region}-shard-${String(shardKey).padStart(3, '0')}`;

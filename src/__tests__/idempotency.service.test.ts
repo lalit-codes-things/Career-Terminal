@@ -48,7 +48,7 @@ function buildMockPrisma() {
           key,
           operationType: String(data.operationType),
           resultId: String(data.resultId),
-          resultData: (data.resultData ?? null),
+          resultData: data.resultData ?? null,
           createdAt: new Date(),
           expiresAt: data.expiresAt instanceof Date ? data.expiresAt : new Date(),
         };
@@ -63,20 +63,22 @@ function buildMockPrisma() {
         return null;
       }),
 
-      update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        const existing = byId.get(where.id);
-        if (!existing) throw new Error('Row not found');
-        const updated: IdemRow = {
-          ...existing,
-          ...(typeof data.resultId === 'string' ? { resultId: data.resultId } : {}),
-          ...(Object.prototype.hasOwnProperty.call(data, 'resultData')
-            ? { resultData: (data as { resultData?: unknown }).resultData ?? null }
-            : {}),
-        };
-        byId.set(where.id, updated);
-        table.set(updated.key, updated);
-        return updated;
-      }),
+      update: jest.fn(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          const existing = byId.get(where.id);
+          if (!existing) throw new Error('Row not found');
+          const updated: IdemRow = {
+            ...existing,
+            ...(typeof data.resultId === 'string' ? { resultId: data.resultId } : {}),
+            ...(Object.prototype.hasOwnProperty.call(data, 'resultData')
+              ? { resultData: (data as { resultData?: unknown }).resultData ?? null }
+              : {}),
+          };
+          byId.set(where.id, updated);
+          table.set(updated.key, updated);
+          return updated;
+        },
+      ),
 
       delete: jest.fn(async ({ where }: { where: { id: string } }) => {
         const existing = byId.get(where.id);
@@ -149,7 +151,11 @@ describe('Idempotency key generators', () => {
     expect(isWellFormedKey(keyForAppFromEmail('x'))).toBe(true);
     expect(isWellFormedKey(keyForOutcomeFromEmail('x'))).toBe(true);
     expect(isWellFormedKey(keyForStatusTransition('a', 'b', 'c'))).toBe(true);
-    expect(isWellFormedKey(keyForUserAction('u', 'a', 'FOLLOW_UP', occurrenceHash(new Date().toISOString())))).toBe(true);
+    expect(
+      isWellFormedKey(
+        keyForUserAction('u', 'a', 'FOLLOW_UP', occurrenceHash(new Date().toISOString())),
+      ),
+    ).toBe(true);
     expect(isWellFormedKey('free-form')).toBe(false);
     expect(isWellFormedKey('')).toBe(false);
   });
@@ -203,12 +209,18 @@ describe('IdempotencyService.recordOrGet', () => {
   });
 
   it('refuses malformed keys when strictKeyValidation is on (default)', async () => {
-    await expect(svc.recordOrGet('not-a-prefix', 'x', 'y')).rejects.toThrow(/does not match any canonical scheme/);
-    await expect(svc.recordOrGet('', 'x', 'y')).rejects.toThrow(/does not match any canonical scheme/);
+    await expect(svc.recordOrGet('not-a-prefix', 'x', 'y')).rejects.toThrow(
+      /does not match any canonical scheme/,
+    );
+    await expect(svc.recordOrGet('', 'x', 'y')).rejects.toThrow(
+      /does not match any canonical scheme/,
+    );
   });
 
   it('allows free-form keys with strictKeyValidation=false for legacy callers', async () => {
-    const res = await svc.recordOrGet('legacy:abc', 'x', 'result-1', { strictKeyValidation: false });
+    const res = await svc.recordOrGet('legacy:abc', 'x', 'result-1', {
+      strictKeyValidation: false,
+    });
     expect(res.alreadyExecuted).toBe(false);
     expect(res.resultId).toBe('result-1');
   });
@@ -251,7 +263,10 @@ describe('IdempotencyService claim → commit / abort', () => {
     const c2 = await svc.claim(key, 'create_application');
     expect(c2.claimed).toBe(false);
     // c1 hasn't committed yet, so c2 sees resultId=null
-    expect((c2 as { claimed: false; existing: { resultId: string | null; resultData: unknown } }).existing.resultId).toBeNull();
+    expect(
+      (c2 as { claimed: false; existing: { resultId: string | null; resultData: unknown } })
+        .existing.resultId,
+    ).toBeNull();
 
     await svc.commit((c1 as { claimed: true; recordId: string }).recordId, 'final-app-42', {
       classification: 'application',
@@ -260,7 +275,9 @@ describe('IdempotencyService claim → commit / abort', () => {
     // A third claim attempt after commit returns the stored resultId
     const c3 = await svc.claim(key, 'create_application');
     expect(c3.claimed).toBe(false);
-    const c3Existing = (c3 as { claimed: false; existing: { resultId: string | null; resultData: unknown } }).existing;
+    const c3Existing = (
+      c3 as { claimed: false; existing: { resultId: string | null; resultData: unknown } }
+    ).existing;
     expect(c3Existing.resultId).toBe('final-app-42');
     expect(c3Existing.resultData).toEqual({ classification: 'application' });
   });

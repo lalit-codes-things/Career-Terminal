@@ -24,7 +24,9 @@ export const envSchema = z.object({
   DATABASE_POOL_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_CONNECTION_LIMIT: z.coerce.number().int().positive().max(100).default(5),
   DATABASE_CONNECT_TIMEOUT: z.coerce.number().int().positive().default(10),
-  DATABASE_ROLE: z.enum(['app_runtime', 'app_worker', 'app_migration', 'app_readonly', 'app_admin']).default('app_runtime'),
+  DATABASE_ROLE: z
+    .enum(['app_runtime', 'app_worker', 'app_migration', 'app_readonly', 'app_admin'])
+    .default('app_runtime'),
   DATABASE_APP_USER: z.string().optional(),
   DATABASE_APP_PASSWORD: z.string().optional(),
   // How long (ms) a read-after-write request routes reads to the primary to
@@ -119,12 +121,6 @@ export const envSchema = z.object({
 
   // Gmail ingestion
   INGESTION_QUEUE_DEPTH_LIMIT: z.coerce.number().int().positive().default(10000),
-
-  // MinIO (docker-compose local dev)
-  MINIO_ROOT_USER: z.string().default('minioadmin'),
-  MINIO_ROOT_PASSWORD: z.string().optional(),
-  MINIO_BUCKET: z.string().default('career-terminal-resumes'),
-  MINIO_ENDPOINT: z.string().optional(),
 
   // CORS
   ALLOWED_ORIGINS: z.string().optional(),

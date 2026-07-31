@@ -72,10 +72,10 @@ userRouter.get(
   '/profile',
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-      const userId = req.user!.id;
-      try {
-        await userService.getOrCreateUser(userId);
-        const [user, profile] = await Promise.all([
+    const userId = req.user!.id;
+    try {
+      await userService.getOrCreateUser(userId);
+      const [user, profile] = await Promise.all([
         prisma.user.findUnique({
           where: { id: await userService.resolveUserId(userId) },
           select: {

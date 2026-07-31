@@ -5,11 +5,7 @@ import { DomainValidationError } from '../../errors/domain-errors';
 import { ApplicationSourceProvider } from '../../domain/application-source';
 import { executeWithTransientRetry } from '../../db/transaction-utils';
 import { acquireLock, releaseLock } from '../../lib/mutex';
-import {
-  IdempotencyService,
-  idempotencyService,
-  keyForAppFromEmail,
-} from '../idempotency';
+import { IdempotencyService, idempotencyService, keyForAppFromEmail } from '../idempotency';
 import { applicationMergeService } from '../application-merge/application-merge.service';
 import { applicationReadModelService } from '../application-read-model/application-read-model.service';
 import { applicationTimelineService } from '../application-timeline';
@@ -158,7 +154,10 @@ export class ApplicationCommandService {
       // (handled), or another worker claimed it and is still running (in
       // which case we short-circuit rather than duplicate the work).
       if (claim.existing.resultId) return;
-      if (claim.existing.resultData && (claim.existing.resultData as { __inProgress?: boolean }).__inProgress) {
+      if (
+        claim.existing.resultData &&
+        (claim.existing.resultData as { __inProgress?: boolean }).__inProgress
+      ) {
         return;
       }
       return;
@@ -421,18 +420,13 @@ export class ApplicationCommandService {
           email.subject,
         );
 
-        await recordApplyAction(
-          userId,
-          finalApplicationId,
-          extractedData.appliedDate,
-          {
-            opportunityId: opportunityResult.opportunityId,
-            sourceEmailId: extractedData.sourceEmailId ?? undefined,
-            applicationChannel: 'gmail',
-            resumeVersionId: activeResumeRow?.userResumeId,
-            resumeVersion: activeResumeRow?.version,
-          },
-        );
+        await recordApplyAction(userId, finalApplicationId, extractedData.appliedDate, {
+          opportunityId: opportunityResult.opportunityId,
+          sourceEmailId: extractedData.sourceEmailId ?? undefined,
+          applicationChannel: 'gmail',
+          resumeVersionId: activeResumeRow?.userResumeId,
+          resumeVersion: activeResumeRow?.version,
+        });
       }
 
       dashboardService.invalidateUser(userId);

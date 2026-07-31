@@ -42,10 +42,7 @@ describe('CellRoutingService', () => {
     const service = new CellRoutingService();
 
     await expect(
-      service.ensureCellMatchesUser(
-        '123e4567-e89b-12d3-a456-426614174000',
-        'eu-west-1-shard-999',
-      ),
+      service.ensureCellMatchesUser('123e4567-e89b-12d3-a456-426614174000', 'eu-west-1-shard-999'),
     ).rejects.toThrow('Cross-cell access denied');
   });
 });

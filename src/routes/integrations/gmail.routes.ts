@@ -117,110 +117,106 @@ gmailRouter.post(
  * Returns the current sync status for the user's Gmail connection.
  * Requires authentication.
  */
-gmailRouter.get(
-  '/status',
-  requireAuth,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        throw new UnauthorizedError('Authentication required');
-      }
-
-      // Get user's Gmail connection
-      const scopeFilter = userOwnershipFilter(userId);
-      const connection = await prisma.userEmailConnection.findFirst({
-        where: {
-          ...scopeFilter,
-          provider: 'GMAIL',
-        },
-        select: {
-          id: true,
-          emailAddress: true,
-          status: true,
-          lastSyncAt: true,
-        },
-      });
-
-      if (!connection) {
-        return res.status(404).json({
-          success: false,
-          error: {
-            code: 'NO_CONNECTION',
-            message: 'No Gmail connection found',
-          },
-        });
-      }
-
-      // Get sync state
-      const syncState = await prisma.gmailSyncState.findUnique({
-        where: { userId },
-        select: { historyId: true, lastSyncedAt: true },
-      });
-
-      // Get checkpoint state
-      const checkpoint = await prisma.gmailCheckpoint.findUnique({
-        where: { userId },
-        select: {
-          status: true,
-          currentHistoryId: true,
-          lastSyncAt: true,
-          pendingHistoryId: true,
-        },
-      });
-
-      // Get latest sync job
-      const latestJob = await prisma.syncJob.findFirst({
-        where: {
-          userId,
-          type: { in: ['GMAIL_INITIAL_SYNC', 'GMAIL_INCREMENTAL_SYNC'] },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          type: true,
-          status: true,
-          createdAt: true,
-          completedAt: true,
-          error: true,
-        },
-      });
-
-      res.json({
-        success: true,
-        data: {
-          connection: {
-            id: connection.id,
-            emailAddress: connection.emailAddress,
-            status: connection.status,
-            lastSyncAt: connection.lastSyncAt,
-          },
-          syncState: syncState
-            ? {
-                historyId: syncState.historyId,
-                lastSyncedAt: syncState.lastSyncedAt,
-              }
-            : null,
-          checkpoint: checkpoint
-            ? {
-                status: checkpoint.status,
-                currentHistoryId: checkpoint.currentHistoryId,
-                pendingHistoryId: checkpoint.pendingHistoryId,
-                lastSyncAt: checkpoint.lastSyncAt,
-              }
-            : null,
-          latestJob: latestJob
-            ? {
-                type: latestJob.type,
-                status: latestJob.status,
-                createdAt: latestJob.createdAt,
-                completedAt: latestJob.completedAt,
-                error: latestJob.error,
-              }
-            : null,
-        },
-      });
-    } catch (error) {
-      return next(error);
+gmailRouter.get('/status', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
     }
-  },
-);
+
+    // Get user's Gmail connection
+    const scopeFilter = userOwnershipFilter(userId);
+    const connection = await prisma.userEmailConnection.findFirst({
+      where: {
+        ...scopeFilter,
+        provider: 'GMAIL',
+      },
+      select: {
+        id: true,
+        emailAddress: true,
+        status: true,
+        lastSyncAt: true,
+      },
+    });
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NO_CONNECTION',
+          message: 'No Gmail connection found',
+        },
+      });
+    }
+
+    // Get sync state
+    const syncState = await prisma.gmailSyncState.findUnique({
+      where: { userId },
+      select: { historyId: true, lastSyncedAt: true },
+    });
+
+    // Get checkpoint state
+    const checkpoint = await prisma.gmailCheckpoint.findUnique({
+      where: { userId },
+      select: {
+        status: true,
+        currentHistoryId: true,
+        lastSyncAt: true,
+        pendingHistoryId: true,
+      },
+    });
+
+    // Get latest sync job
+    const latestJob = await prisma.syncJob.findFirst({
+      where: {
+        userId,
+        type: { in: ['GMAIL_INITIAL_SYNC', 'GMAIL_INCREMENTAL_SYNC'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        type: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+        error: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        connection: {
+          id: connection.id,
+          emailAddress: connection.emailAddress,
+          status: connection.status,
+          lastSyncAt: connection.lastSyncAt,
+        },
+        syncState: syncState
+          ? {
+              historyId: syncState.historyId,
+              lastSyncedAt: syncState.lastSyncedAt,
+            }
+          : null,
+        checkpoint: checkpoint
+          ? {
+              status: checkpoint.status,
+              currentHistoryId: checkpoint.currentHistoryId,
+              pendingHistoryId: checkpoint.pendingHistoryId,
+              lastSyncAt: checkpoint.lastSyncAt,
+            }
+          : null,
+        latestJob: latestJob
+          ? {
+              type: latestJob.type,
+              status: latestJob.status,
+              createdAt: latestJob.createdAt,
+              completedAt: latestJob.completedAt,
+              error: latestJob.error,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+});

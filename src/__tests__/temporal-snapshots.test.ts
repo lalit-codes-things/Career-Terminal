@@ -196,7 +196,10 @@ describe('captureIntelligenceSnapshot — creation', () => {
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.canonicalCandidateIntelligence.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.snapshot.create as jest.Mock).mockResolvedValue(
-      makeSnap({ lastFactId: null, candidateStateJson: makeStateV1({ lastFactId: null, facts: [] }) }),
+      makeSnap({
+        lastFactId: null,
+        candidateStateJson: makeStateV1({ lastFactId: null, facts: [] }),
+      }),
     );
 
     await snapshotService.captureIntelligenceSnapshot(input);
@@ -565,9 +568,7 @@ describe('Legacy createSnapshot — backward compat', () => {
   });
 
   it('getSnapshotFacts still returns the copied fact rows for legacy snapshots', async () => {
-    const snapFacts = [
-      { id: 'copy-f1', snapshotId: SNAP_ID, factType: 'SKILL' },
-    ];
+    const snapFacts = [{ id: 'copy-f1', snapshotId: SNAP_ID, factType: 'SKILL' }];
     (prisma.factObservation.findMany as jest.Mock).mockResolvedValue(snapFacts);
 
     const result = await snapshotService.getSnapshotFacts(SNAP_ID);
