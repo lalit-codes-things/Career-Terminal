@@ -100,10 +100,12 @@ export const envSchema = z.object({
   WORKER_QUEUES: z.string().default('email,resume-parsing,application-tracking,outbox-dispatcher'),
   WORKER_SHUTDOWN_TIMEOUT: z.coerce.number().int().positive().default(30000),
 
-  // AWS / S3
-  AWS_REGION: z.string().default('us-east-1'),
+  // S3 credentials (optional — IAM roles preferred in production)
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // AWS / S3
+  AWS_REGION: z.string().default('us-east-1'),
   AWS_ENDPOINT_URL_S3: z.string().optional(), // MinIO endpoint in local dev
   S3_BUCKET: z.string().min(1),
   S3_TIMEOUT: z.coerce.number().int().positive().default(30000),

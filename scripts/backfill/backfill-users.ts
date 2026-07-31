@@ -119,45 +119,35 @@ async function backfillForeignKeys(legacyIds: readonly string[]): Promise<Record
 
     for (let i = 0; i < legacyIds.length; i += BATCH_SIZE) {
       const batch = legacyIds.slice(i, i + BATCH_SIZE);
-      const inClause = batch.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ');
-      if (!inClause) continue;
+      if (batch.length === 0) continue;
 
-      const cases = batch
-        .map((legacyId) => {
-          const internalId = isValidUuid(legacyId)
-            ? legacyId
-            : null; /* mapping lookup done via subquery */
-          if (internalId) {
-            return `WHEN legacy_user_id = '${legacyId.replace(/'/g, "''")}' THEN '${internalId}'::uuid`;
-          }
-          return null;
-        })
-        .filter(Boolean)
-        .join('\n          ');
+      for (const legacyId of batch) {
+        const internalId = isValidUuid(legacyId)
+          ? legacyId
+          : null; /* mapping lookup done via subquery */
 
-      const sql = `
-        UPDATE ${table}
-        SET user_id = CASE legacy_user_id
-          ${cases}
-          ELSE (SELECT user_id FROM user_id_mapping WHERE external_id = legacy_user_id LIMIT 1)::uuid
-        END
-        WHERE legacy_user_id IN (${inClause})
-          AND user_id IS NULL;
-      `;
+        if (!internalId) continue;
 
-      if (DRY_RUN) {
-        updated += batch.length;
-        continue;
-      }
+        if (DRY_RUN) {
+          updated++;
+          continue;
+        }
 
-      try {
-        const res = (await prisma.$executeRawUnsafe(sql)) as number;
-        updated += res;
-      } catch (err) {
-        logger.warn('[backfill-users] FK update failed for table', {
-          table,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        try {
+          const res = (await prisma.$executeRaw`
+            UPDATE ${table}
+            SET user_id = ${internalId}::uuid
+            WHERE legacy_user_id = ${legacyId}
+              AND user_id IS NULL
+          `) as number;
+          updated += res;
+        } catch (err) {
+          logger.warn('[backfill-users] FK update failed for table', {
+            table,
+            legacyId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
 

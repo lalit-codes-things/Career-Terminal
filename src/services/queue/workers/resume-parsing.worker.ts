@@ -12,6 +12,7 @@ import { resumeMatcherService } from '../../resume-matcher/resume-matcher.servic
 import { prisma } from '../../../config/database';
 import { cellService } from '../../cell/cell.service';
 import { placementService } from '../../placement/placement.service';
+import { config } from '../../../config';
 import { withEventLifecycle } from '../../event/event-worker';
 import {
   QUEUE_NAMES,
@@ -77,7 +78,7 @@ export function startResumeParsingWorker(): Worker<ResumeParsingJobPayload> {
     processResumeParsingJob,
     {
       connection: bullMQConnection,
-      concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+      concurrency: config.worker.concurrency,
     },
   );
 

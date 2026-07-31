@@ -18,6 +18,7 @@ import {
   ApplicationTrackingJobPayloadSchema,
 } from '../queue.types';
 import { prisma } from '../../../config/database';
+import { config } from '../../../config';
 import {
   jobEmailClassifier,
   JobEmailCategory,
@@ -167,7 +168,7 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
     processApplicationTrackingJob,
     {
       connection: bullMQConnection,
-      concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+      concurrency: config.worker.concurrency,
     },
   );
 

@@ -38,7 +38,7 @@ spec:
             - configMapRef:
                 name: career-terminal-config
             - secretRef:
-                name: career-terminal-secrets
+                name: career-terminal-resume-secret
           env:
             - name: WORKLOAD_IDENTITY
               value: career-terminal-worker

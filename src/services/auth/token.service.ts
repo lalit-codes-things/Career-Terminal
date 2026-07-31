@@ -153,16 +153,12 @@ export class TokenService {
    */
   async rotateTokenPair(userId: string, refreshToken: string): Promise<TokenPair> {
     const cacheKey = this.refreshKey(userId, refreshToken);
-    const record = await this.cache.get<RefreshTokenRecord>(cacheKey);
+    const record = await this.cache.getDel<RefreshTokenRecord>(cacheKey);
 
     if (!record || record.userId !== userId) {
       throw new TokenError('Refresh token is invalid or expired', 'REFRESH_TOKEN_INVALID');
     }
 
-    // Revoke old refresh token immediately (rotation)
-    await this.cache.del(cacheKey);
-
-    // Issue a fresh pair
     return this.issueTokenPair(userId);
   }
 

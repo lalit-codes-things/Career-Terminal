@@ -16,7 +16,7 @@ spec:
         app: career-terminal-migrate
     spec:
       restartPolicy: Never
-      serviceAccountName: career-terminal-api
+      serviceAccountName: career-terminal-migration
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -31,7 +31,7 @@ spec:
             - configMapRef:
                 name: career-terminal-config
             - secretRef:
-                name: career-terminal-secrets
+                name: career-terminal-migration-secret
           resources:
             requests:
               cpu: "100m"

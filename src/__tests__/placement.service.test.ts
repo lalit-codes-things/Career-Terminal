@@ -28,6 +28,7 @@ jest.mock('../config/database', () => ({
 function makeMockCache(): jest.Mocked<ICacheService> {
   return {
     get: jest.fn(),
+    getDel: jest.fn(),
     set: jest.fn(),
     del: jest.fn(),
     delByPrefix: jest.fn(),
