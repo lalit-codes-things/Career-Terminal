@@ -165,7 +165,9 @@ export class DurableCheckpointService {
           version: { increment: 1 },
           lastSyncAt: new Date(),
           lastError: null,
-          leaseExpiresAt: nextPageToken ? new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS) : null,
+          leaseExpiresAt: nextPageToken
+            ? new Date(Date.now() + CHECKPOINT_LEASE_DURATION_MS)
+            : null,
           leaseOwner: nextPageToken ? checkpoint.leaseOwner : null,
         },
       });
@@ -173,7 +175,7 @@ export class DurableCheckpointService {
       if (result.count === 0) {
         throw new Error(
           `Concurrent checkpoint modification detected for user ${batch.userId}. ` +
-          `Expected version ${oldVersion}. Retry safe.`,
+            `Expected version ${oldVersion}. Retry safe.`,
         );
       }
 
@@ -303,9 +305,7 @@ export class DurableCheckpointService {
     }
 
     const now = new Date();
-    const isStaleLease = checkpoint.leaseExpiresAt
-      ? checkpoint.leaseExpiresAt < now
-      : false;
+    const isStaleLease = checkpoint.leaseExpiresAt ? checkpoint.leaseExpiresAt < now : false;
 
     if (checkpoint.status === 'syncing' && !isStaleLease) {
       if (checkpoint.leaseOwner === workerId) {
@@ -461,7 +461,7 @@ export class DurableCheckpointService {
       }
 
       const incrementProcessed = status === 'processed' || status === 'skipped' ? 1 : 0;
-      const incrementFailed = (status === 'failed' || status === 'permanently_failed') ? 1 : 0;
+      const incrementFailed = status === 'failed' || status === 'permanently_failed' ? 1 : 0;
 
       if (incrementProcessed > 0 || incrementFailed > 0) {
         await tx.syncBatch.update({
@@ -519,7 +519,7 @@ export class DurableCheckpointService {
     let hash = 0;
     for (let i = 0; i < userId.length; i++) {
       const char = userId.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash) % 2147483647;

@@ -227,9 +227,9 @@ export class OutboxDispatcher {
             eventId: event.id,
             eventType: event.eventType,
           });
-      await this.markProcessed(event.id, event.userId);
-      clearWorkerRlsContext();
-      return;
+          await this.markProcessed(event.id, event.userId);
+          clearWorkerRlsContext();
+          return;
       }
 
       // Mark dispatched only after successful queue submission
@@ -243,7 +243,7 @@ export class OutboxDispatcher {
       });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      await this.markFailed(event.id, errorMsg, event.userId);
+      await this.markFailed(event.id, errorMsg);
 
       logger.error('[OutboxDispatcher] Dispatch failed', {
         eventId: event.id,

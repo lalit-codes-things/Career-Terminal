@@ -11,8 +11,20 @@ export interface ParsedResume {
   skills: string[];
   technologies: string[];
   occupations: string[];
-  experience: Array<{ role: string | null; company: string | null; dates: string | null; years: number; raw: string }>;
-  education: Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }>;
+  experience: Array<{
+    role: string | null;
+    company: string | null;
+    dates: string | null;
+    years: number;
+    raw: string;
+  }>;
+  education: Array<{
+    degree: string | null;
+    field: string | null;
+    institution: string | null;
+    year: string | null;
+    raw: string;
+  }>;
   keywords: string[];
 }
 

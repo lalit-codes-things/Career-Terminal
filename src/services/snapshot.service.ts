@@ -178,9 +178,7 @@ export class SnapshotService {
    * The resulting snapshot can answer "What did the system know at time X?" via
    * `reconstructStateAt()` without re-joining live fact tables.
    */
-  async captureIntelligenceSnapshot(
-    input: CaptureIntelligenceSnapshotInput,
-  ): Promise<Snapshot> {
+  async captureIntelligenceSnapshot(input: CaptureIntelligenceSnapshotInput): Promise<Snapshot> {
     const { userId, snapshotType, referenceId, description } = input;
     const capturedAt = new Date();
 
@@ -196,7 +194,9 @@ export class SnapshotService {
       // 2. Read the current canonical intelligence state.
       //    We select only the fields we need — raw factData is NOT included
       //    because it lives in the immutable FactObservation history.
-      const canonicalFacts = await (tx as unknown as typeof prisma).canonicalCandidateIntelligence.findMany({
+      const canonicalFacts = await (
+        tx as unknown as typeof prisma
+      ).canonicalCandidateIntelligence.findMany({
         where: { userId, isActive: true },
         include: {
           sourceFact: {
@@ -267,10 +267,7 @@ export class SnapshotService {
    *
    * Snapshot isolation is enforced by userId — never returns another user's data.
    */
-  async reconstructStateAt(
-    userId: string,
-    timestamp: Date,
-  ): Promise<TemporalSnapshot | null> {
+  async reconstructStateAt(userId: string, timestamp: Date): Promise<TemporalSnapshot | null> {
     const snapshot = await prisma.snapshot.findFirst({
       where: {
         userId,

@@ -19,11 +19,7 @@
  */
 import { type Request, type Response, type NextFunction } from 'express';
 import { placementService } from '../services/placement/placement.service';
-import {
-  DEFAULT_REGION,
-  computeShardKey,
-  type PlacementContext,
-} from '../services/placement';
+import { DEFAULT_REGION, computeShardKey, type PlacementContext } from '../services/placement';
 import { DataPlaneClient } from '../services/data-plane-client.service';
 import { logger } from '../lib/logger';
 

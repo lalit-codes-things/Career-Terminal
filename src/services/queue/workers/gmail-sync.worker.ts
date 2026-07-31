@@ -48,11 +48,7 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
 
     await gmailOAuthService.getValidAccessToken(payload.userId);
 
-    const claim = await durableCheckpointService.claimCheckpoint(
-      prisma,
-      payload.userId,
-      workerId,
-    );
+    const claim = await durableCheckpointService.claimCheckpoint(prisma, payload.userId, workerId);
 
     if (!claim.claimed) {
       throw new Error(`Checkpoint already locked: ${claim.reason}`);
@@ -110,10 +106,12 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
         await durableCheckpointService.releaseLease(payload.userId, workerId);
         await durableCheckpointService.failSyncOp(
           claim.checkpoint?.id ??
-            (await prisma.syncOperation.findFirst({
-              where: { userId: payload.userId, status: 'running' },
-              orderBy: { createdAt: 'desc' },
-            }))?.id ??
+            (
+              await prisma.syncOperation.findFirst({
+                where: { userId: payload.userId, status: 'running' },
+                orderBy: { createdAt: 'desc' },
+              })
+            )?.id ??
             'unknown',
           errorMessage,
         );
@@ -141,7 +139,8 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
           category: classification.category,
         });
       } else {
-        const backoffMs = classification.backoffMs ?? BASE_BACKOFF_MS * Math.pow(2, currentAttempts - 1);
+        const backoffMs =
+          classification.backoffMs ?? BASE_BACKOFF_MS * Math.pow(2, currentAttempts - 1);
         await durableCheckpointService.releaseLease(payload.userId, workerId);
 
         logger.warn('[GmailSyncWorker] Job retry scheduled', {
@@ -161,18 +160,14 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
 }
 
 export function startGmailSyncWorker(): Worker<GmailSyncJobPayload> {
-  const worker = new Worker<GmailSyncJobPayload>(
-    QUEUE_NAMES.GMAIL_SYNC,
-    processGmailSyncJob,
-    {
-      connection: bullMQConnection,
-      concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
-      limiter: {
-        max: 10,
-        duration: 1000,
-      },
+  const worker = new Worker<GmailSyncJobPayload>(QUEUE_NAMES.GMAIL_SYNC, processGmailSyncJob, {
+    connection: bullMQConnection,
+    concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+    limiter: {
+      max: 10,
+      duration: 1000,
     },
-  );
+  });
 
   worker.on('completed', (job) =>
     logger.info('[GmailSyncWorker] Job completed', {

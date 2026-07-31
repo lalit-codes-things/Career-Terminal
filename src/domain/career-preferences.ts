@@ -90,14 +90,13 @@ function coerceVisaWorkRequirements(raw: unknown): VisaWorkRequirements | null {
 function coerceAvailability(raw: unknown): Availability | null {
   if (!isRecord(raw)) return null;
   const startDate = typeof raw.startDate === 'string' ? raw.startDate : null;
-  const noticePeriodWeeks = typeof raw.noticePeriodWeeks === 'number' ? raw.noticePeriodWeeks : null;
+  const noticePeriodWeeks =
+    typeof raw.noticePeriodWeeks === 'number' ? raw.noticePeriodWeeks : null;
   const immediatelyAvailable = Boolean(raw.immediatelyAvailable);
   return { startDate, noticePeriodWeeks, immediatelyAvailable };
 }
 
-export function coerceCareerPreferences(
-  input: unknown,
-): CareerPreferences {
+export function coerceCareerPreferences(input: unknown): CareerPreferences {
   if (!isRecord(input)) {
     return { ...EMPTY_CAREER_PREFERENCES };
   }
@@ -123,9 +122,18 @@ export function coerceCareerPreferences(
     compensationExpectation: coerceCompensation(input.compensationExpectation),
     visaWorkRequirements: coerceVisaWorkRequirements(input.visaWorkRequirements),
     availability: coerceAvailability(input.availability),
-    careerStage: ['STUDENT', 'ENTRY_LEVEL', 'MID_LEVEL', 'SENIOR_LEVEL', 'LEAD', 'MANAGER', 'DIRECTOR', 'VP', 'C_LEVEL', 'RETIRED'].includes(
-      input.careerStage as string,
-    )
+    careerStage: [
+      'STUDENT',
+      'ENTRY_LEVEL',
+      'MID_LEVEL',
+      'SENIOR_LEVEL',
+      'LEAD',
+      'MANAGER',
+      'DIRECTOR',
+      'VP',
+      'C_LEVEL',
+      'RETIRED',
+    ].includes(input.careerStage as string)
       ? (input.careerStage as CareerPreferences['careerStage'])
       : null,
   };

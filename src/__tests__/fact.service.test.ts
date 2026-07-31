@@ -36,7 +36,11 @@ describe('FactService', () => {
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.factObservation.create as jest.Mock).mockResolvedValue({ id: 'fact-1', ...input, version: 1 });
+    (prisma.factObservation.create as jest.Mock).mockResolvedValue({
+      id: 'fact-1',
+      ...input,
+      version: 1,
+    });
 
     const result = await factService.recordFact(input);
 
@@ -72,7 +76,11 @@ describe('FactService', () => {
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.factObservation.create as jest.Mock).mockResolvedValue({ id: 'fact-temporal-1', ...input, version: 1 });
+    (prisma.factObservation.create as jest.Mock).mockResolvedValue({
+      id: 'fact-temporal-1',
+      ...input,
+      version: 1,
+    });
 
     const result = await factService.recordFact(input);
 
@@ -109,7 +117,11 @@ describe('FactService', () => {
     };
 
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.factObservation.create as jest.Mock).mockResolvedValue({ id: 'fact-snap-1', ...input, version: 1 });
+    (prisma.factObservation.create as jest.Mock).mockResolvedValue({
+      id: 'fact-snap-1',
+      ...input,
+      version: 1,
+    });
 
     const result = await factService.recordFact(input);
 
@@ -139,14 +151,18 @@ describe('FactService', () => {
 
     const existing = { id: 'fact-1', userId, factType: 'SKILL', version: 1 };
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(existing);
-    (prisma.factObservation.create as jest.Mock).mockResolvedValue({ id: 'fact-2', ...input, version: 2 });
+    (prisma.factObservation.create as jest.Mock).mockResolvedValue({
+      id: 'fact-2',
+      ...input,
+      version: 2,
+    });
 
     await factService.recordFact(input);
 
     expect(prisma.factObservation.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ version: 2 }),
-      })
+      }),
     );
     expect(prisma.factObservation.update).toHaveBeenCalledWith({
       where: { id: 'fact-1' },
@@ -170,7 +186,7 @@ describe('FactService', () => {
           factType: 'SKILL',
           isCurrent: true,
         }),
-      })
+      }),
     );
   });
 
@@ -200,7 +216,7 @@ describe('FactService', () => {
             }),
           ]),
         }),
-      })
+      }),
     );
   });
 

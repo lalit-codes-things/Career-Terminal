@@ -248,9 +248,7 @@ describe('Terminal outcomes', () => {
 
   for (const outcomeType of terminalTypes) {
     it(`${outcomeType} updates application status`, async () => {
-      (prisma.outcomeEvent.create as jest.Mock).mockResolvedValue(
-        makeEvent({ outcomeType }),
-      );
+      (prisma.outcomeEvent.create as jest.Mock).mockResolvedValue(makeEvent({ outcomeType }));
 
       await outcomeService.recordOutcome(makeInput({ outcomeType }));
 
@@ -263,9 +261,7 @@ describe('Terminal outcomes', () => {
       makeEvent({ outcomeType: OUTCOME_TYPES.OFFER_ACCEPTED }),
     );
 
-    await outcomeService.recordOutcome(
-      makeInput({ outcomeType: OUTCOME_TYPES.OFFER_ACCEPTED }),
-    );
+    await outcomeService.recordOutcome(makeInput({ outcomeType: OUTCOME_TYPES.OFFER_ACCEPTED }));
 
     const call = (prisma.outcomeEvent.create as jest.Mock).mock.calls[0][0];
     expect(call.data.outcomeCategory).toBe(OUTCOME_CATEGORIES.POSITIVE);

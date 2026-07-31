@@ -48,7 +48,6 @@ jest.mock('../services/routing/cell-routing.service', () => ({
   },
 }));
 
-
 import { prisma } from '../config/database';
 import { cellRoutingService } from '../services/routing/cell-routing.service';
 import { ExtractionRunService } from '../services/candidate-intelligence/extraction-run.service';
@@ -138,13 +137,12 @@ const makeFact = (overrides: Partial<Record<string, unknown>> = {}) => ({
   ...overrides,
 });
 
-
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 /** Wire $transaction to run the callback immediately with prisma as the tx */
 function mockTransaction() {
-  (prisma.$transaction as jest.Mock).mockImplementation(
-    (cb: (tx: typeof prisma) => unknown) => cb(prisma),
+  (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: typeof prisma) => unknown) =>
+    cb(prisma),
   );
 }
 
@@ -186,12 +184,20 @@ describe('1. Multiple extraction runs per source', () => {
       .mockResolvedValueOnce(prov2);
 
     const ctx1 = await svc.createRun({
-      userId: USER_A, sourceType: 'RESUME', sourceId: RESUME_ID,
-      parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+      userId: USER_A,
+      sourceType: 'RESUME',
+      sourceId: RESUME_ID,
+      parserVersion: '1.0.0',
+      schemaVersion: 'v1',
+      modelId: 'test-model-id',
     });
     const ctx2 = await svc.createRun({
-      userId: USER_A, sourceType: 'RESUME', sourceId: RESUME_ID,
-      parserVersion: '2.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+      userId: USER_A,
+      sourceType: 'RESUME',
+      sourceId: RESUME_ID,
+      parserVersion: '2.0.0',
+      schemaVersion: 'v1',
+      modelId: 'test-model-id',
     });
 
     expect(ctx1.runId).toBe('run-0001');
@@ -222,7 +228,6 @@ describe('1. Multiple extraction runs per source', () => {
   });
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Historical extraction runs remain immutable
 // ─────────────────────────────────────────────────────────────────────────────
@@ -238,16 +243,18 @@ describe('2. Historical extraction run immutability', () => {
     (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(
       makeRun({ status: ExtractionRunStatus.COMPLETED }),
     );
-    await expect(svc.startRun({ runId: 'run-0001', userId: USER_A }))
-      .rejects.toThrow(ImmutabilityViolationError);
+    await expect(svc.startRun({ runId: 'run-0001', userId: USER_A })).rejects.toThrow(
+      ImmutabilityViolationError,
+    );
   });
 
   it('rejects completeRun on a FAILED run', async () => {
     (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(
       makeRun({ status: ExtractionRunStatus.FAILED }),
     );
-    await expect(svc.completeRun({ runId: 'run-0001', userId: USER_A }))
-      .rejects.toThrow(ImmutabilityViolationError);
+    await expect(svc.completeRun({ runId: 'run-0001', userId: USER_A })).rejects.toThrow(
+      ImmutabilityViolationError,
+    );
   });
 
   it('rejects failRun on an already FAILED run', async () => {
@@ -265,8 +272,8 @@ describe('2. Historical extraction run immutability', () => {
     const completed = makeRun({ status: ExtractionRunStatus.COMPLETED, completedAt: new Date() });
 
     (prisma.extractionRun.findUnique as jest.Mock)
-      .mockResolvedValueOnce(pending)   // startRun check
-      .mockResolvedValueOnce(running);  // completeRun check
+      .mockResolvedValueOnce(pending) // startRun check
+      .mockResolvedValueOnce(running); // completeRun check
     (prisma.extractionRun.update as jest.Mock)
       .mockResolvedValueOnce(running)
       .mockResolvedValueOnce(completed);
@@ -291,7 +298,6 @@ describe('2. Historical extraction run immutability', () => {
   });
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. Facts trace back to their extraction run
 // ─────────────────────────────────────────────────────────────────────────────
@@ -301,8 +307,8 @@ describe('3. Facts trace back to their extraction run', () => {
   it('recordFact stores extractionRunId on the fact', async () => {
     (prisma.factObservation.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.factObservation.create as jest.Mock).mockResolvedValue(makeFact());
-    (prisma.$transaction as jest.Mock).mockImplementation(
-      (cb: (tx: typeof prisma) => unknown) => cb(prisma),
+    (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: typeof prisma) => unknown) =>
+      cb(prisma),
     );
 
     const result = await factService.recordFact({
@@ -348,7 +354,6 @@ describe('3. Facts trace back to their extraction run', () => {
     expect(supersededFact.extractionRunId).toBe('run-0001');
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Provenance traces back to the original source
@@ -414,8 +419,16 @@ describe('4. Provenance traces back to the original source', () => {
 
   it('getBySource returns all provenance records for a document in creation order', async () => {
     const records = [
-      makeProvenance({ id: 'prov-0001', extractionRunId: 'run-0001', createdAt: new Date('2026-01-01') }),
-      makeProvenance({ id: 'prov-0002', extractionRunId: 'run-0002', createdAt: new Date('2026-02-01') }),
+      makeProvenance({
+        id: 'prov-0001',
+        extractionRunId: 'run-0001',
+        createdAt: new Date('2026-01-01'),
+      }),
+      makeProvenance({
+        id: 'prov-0002',
+        extractionRunId: 'run-0002',
+        createdAt: new Date('2026-02-01'),
+      }),
     ];
     (prisma.factProvenance.findMany as jest.Mock).mockResolvedValue(records);
 
@@ -426,7 +439,6 @@ describe('4. Provenance traces back to the original source', () => {
     expect(result[1]!.id).toBe('prov-0002');
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Cross-user ownership is rejected
@@ -443,27 +455,22 @@ describe('5. Cross-user ownership rejection', () => {
   });
 
   it('getRunById throws CrossUserOwnershipError when run belongs to USER_B', async () => {
-    (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(
-      makeRun({ userId: USER_B }),
-    );
-    await expect(runSvc.getRunById('run-0001', USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(makeRun({ userId: USER_B }));
+    await expect(runSvc.getRunById('run-0001', USER_A)).rejects.toThrow(CrossUserOwnershipError);
   });
 
   it('startRun throws CrossUserOwnershipError when run belongs to USER_B', async () => {
-    (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(
-      makeRun({ userId: USER_B }),
+    (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(makeRun({ userId: USER_B }));
+    await expect(runSvc.startRun({ runId: 'run-0001', userId: USER_A })).rejects.toThrow(
+      CrossUserOwnershipError,
     );
-    await expect(runSvc.startRun({ runId: 'run-0001', userId: USER_A }))
-      .rejects.toThrow(CrossUserOwnershipError);
   });
 
   it('ProvenanceService.getById throws CrossUserOwnershipError for wrong user', async () => {
     (prisma.factProvenance.findUnique as jest.Mock).mockResolvedValue(
       makeProvenance({ userId: USER_B }),
     );
-    await expect(provSvc.getById('prov-0001', USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(provSvc.getById('prov-0001', USER_A)).rejects.toThrow(CrossUserOwnershipError);
   });
 
   it('ensureFactAccess throws CrossUserOwnershipError for wrong user', async () => {
@@ -473,8 +480,9 @@ describe('5. Cross-user ownership rejection', () => {
       extractionRunId: 'run-0001',
       provenanceId: 'prov-0001',
     });
-    await expect(ownershipGuard.ensureFactAccess(USER_A, 'fact-0001'))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(ownershipGuard.ensureFactAccess(USER_A, 'fact-0001')).rejects.toThrow(
+      CrossUserOwnershipError,
+    );
   });
 
   it('ensureProvenanceAccess throws CrossUserOwnershipError for wrong user', async () => {
@@ -484,16 +492,20 @@ describe('5. Cross-user ownership rejection', () => {
       cellId: CELL_B,
       extractionRunId: 'run-0001',
     });
-    await expect(ownershipGuard.ensureProvenanceAccess(USER_A, 'prov-0001'))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(ownershipGuard.ensureProvenanceAccess(USER_A, 'prov-0001')).rejects.toThrow(
+      CrossUserOwnershipError,
+    );
   });
 
   it('createRun for USER_B source rejects when resume is owned by USER_A', async () => {
     mockTransaction();
     // resolveUserRouting is for USER_B in this test
     (cellRoutingService.resolveUserRouting as jest.Mock).mockResolvedValue({
-      userId: USER_B, cellId: CELL_B, region: 'us-east-1',
-      residencyRegion: 'us-east-1', routingState: 'ROUTABLE',
+      userId: USER_B,
+      cellId: CELL_B,
+      region: 'us-east-1',
+      residencyRegion: 'us-east-1',
+      routingState: 'ROUTABLE',
     });
     // Resume doesn't exist for USER_B
     (prisma.resume.findFirst as jest.Mock).mockResolvedValue(null);
@@ -502,7 +514,7 @@ describe('5. Cross-user ownership rejection', () => {
       runSvc.createRun({
         userId: USER_B,
         sourceType: 'RESUME',
-        sourceId: RESUME_ID,  // owned by USER_A
+        sourceId: RESUME_ID, // owned by USER_A
         parserVersion: '1.0.0',
         schemaVersion: 'v1',
         modelId: 'test-model-id',
@@ -510,7 +522,6 @@ describe('5. Cross-user ownership rejection', () => {
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. Cell ownership is enforced using Prompt 2's routing contract
@@ -533,7 +544,7 @@ describe('6. Cell boundary enforcement', () => {
     await expect(
       runSvc.createRun({
         userId: USER_A,
-        cellId: CELL_B,          // wrong cell
+        cellId: CELL_B, // wrong cell
         sourceType: 'RESUME',
         sourceId: RESUME_ID,
         parserVersion: '1.0.0',
@@ -545,9 +556,9 @@ describe('6. Cell boundary enforcement', () => {
 
   it('ensureExtractionRunCellBoundary throws when run cellId differs from routed cell', async () => {
     (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(
-      makeRun({ userId: USER_A, cellId: CELL_B }),   // run was written to CELL_B
+      makeRun({ userId: USER_A, cellId: CELL_B }), // run was written to CELL_B
     );
-    mockRouting(CELL_A);   // user now routes to CELL_A
+    mockRouting(CELL_A); // user now routes to CELL_A
 
     await expect(
       ownershipGuard.ensureExtractionRunCellBoundary(USER_A, 'run-0001'),
@@ -571,8 +582,9 @@ describe('6. Cell boundary enforcement', () => {
     );
     mockRouting(CELL_A);
 
-    await expect(provSvc.assertCellBoundary('prov-0001', USER_A))
-      .rejects.toThrow(CellBoundaryViolationError);
+    await expect(provSvc.assertCellBoundary('prov-0001', USER_A)).rejects.toThrow(
+      CellBoundaryViolationError,
+    );
   });
 
   it('ProvenanceService.assertCellBoundary passes when cells match', async () => {
@@ -581,20 +593,17 @@ describe('6. Cell boundary enforcement', () => {
     );
     mockRouting(CELL_A);
 
-    await expect(provSvc.assertCellBoundary('prov-0001', USER_A))
-      .resolves.toBeUndefined();
+    await expect(provSvc.assertCellBoundary('prov-0001', USER_A)).resolves.toBeUndefined();
   });
 
   it('ensureCellAccess delegates to the routing layer (existing behaviour preserved)', async () => {
     (cellRoutingService.ensureCellMatchesUser as jest.Mock).mockResolvedValue(undefined);
 
-    await expect(ownershipGuard.ensureCellAccess(USER_A, CELL_A))
-      .resolves.toBeUndefined();
+    await expect(ownershipGuard.ensureCellAccess(USER_A, CELL_A)).resolves.toBeUndefined();
 
     expect(cellRoutingService.ensureCellMatchesUser).toHaveBeenCalledWith(USER_A, CELL_A);
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 7. Invalid source/run relationships are rejected
@@ -614,8 +623,12 @@ describe('7. Invalid source / run relationships', () => {
 
     await expect(
       runSvc.createRun({
-        userId: USER_A, sourceType: 'RESUME', sourceId: 'nonexistent-resume',
-        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+        userId: USER_A,
+        sourceType: 'RESUME',
+        sourceId: 'nonexistent-resume',
+        parserVersion: '1.0.0',
+        schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -625,8 +638,12 @@ describe('7. Invalid source / run relationships', () => {
 
     await expect(
       runSvc.createRun({
-        userId: USER_A, sourceType: 'EMAIL', sourceId: 'nonexistent-email',
-        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+        userId: USER_A,
+        sourceType: 'EMAIL',
+        sourceId: 'nonexistent-email',
+        parserVersion: '1.0.0',
+        schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -634,8 +651,12 @@ describe('7. Invalid source / run relationships', () => {
   it('createRun throws InvalidSourceReferenceError when sourceId is empty', async () => {
     await expect(
       runSvc.createRun({
-        userId: USER_A, sourceType: 'RESUME', sourceId: '',
-        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+        userId: USER_A,
+        sourceType: 'RESUME',
+        sourceId: '',
+        parserVersion: '1.0.0',
+        schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -643,8 +664,12 @@ describe('7. Invalid source / run relationships', () => {
   it('createRun throws InvalidSourceReferenceError when sourceType is empty', async () => {
     await expect(
       runSvc.createRun({
-        userId: USER_A, sourceType: '', sourceId: RESUME_ID,
-        parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+        userId: USER_A,
+        sourceType: '',
+        sourceId: RESUME_ID,
+        parserVersion: '1.0.0',
+        schemaVersion: 'v1',
+        modelId: 'test-model-id',
       }),
     ).rejects.toThrow(InvalidSourceReferenceError);
   });
@@ -652,15 +677,17 @@ describe('7. Invalid source / run relationships', () => {
   it('getRunById throws ExtractionRunNotFoundError for a non-existent run', async () => {
     (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(runSvc.getRunById('no-such-run', USER_A))
-      .rejects.toThrow(ExtractionRunNotFoundError);
+    await expect(runSvc.getRunById('no-such-run', USER_A)).rejects.toThrow(
+      ExtractionRunNotFoundError,
+    );
   });
 
   it('ensureExtractionRunAccess throws ExtractionRunNotFoundError for absent run', async () => {
     (prisma.extractionRun.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(ownershipGuard.ensureExtractionRunAccess(USER_A, 'no-such-run'))
-      .rejects.toThrow(ExtractionRunNotFoundError);
+    await expect(ownershipGuard.ensureExtractionRunAccess(USER_A, 'no-such-run')).rejects.toThrow(
+      ExtractionRunNotFoundError,
+    );
   });
 
   it('MANUAL source type bypasses source ownership check', async () => {
@@ -671,14 +698,17 @@ describe('7. Invalid source / run relationships', () => {
 
     // Should not throw even though resume.findFirst is not mocked
     const ctx = await runSvc.createRun({
-      userId: USER_A, sourceType: 'MANUAL', sourceId: USER_A,
-      parserVersion: '1.0.0', schemaVersion: 'v1', modelId: 'test-model-id',
+      userId: USER_A,
+      sourceType: 'MANUAL',
+      sourceId: USER_A,
+      parserVersion: '1.0.0',
+      schemaVersion: 'v1',
+      modelId: 'test-model-id',
     });
     expect(ctx.runId).toBe('run-0001');
     expect(prisma.resume.findFirst).not.toHaveBeenCalled();
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 8. Existing candidate / user behaviour remains compatible

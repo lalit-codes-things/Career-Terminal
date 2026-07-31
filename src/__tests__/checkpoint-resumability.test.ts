@@ -95,12 +95,14 @@ describe('DurableCheckpointService Resumability', () => {
       expect(strategy.canResume).toBe(true);
       expect(strategy.action).toBe('restart_batch');
       expect(strategy.state.pendingBatch?.id).toBe(batchId);
-      expect(mockPrisma.batchEmailJob.count).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          batchId,
-          status: { in: ['pending', 'processing', 'retryable'] },
+      expect(mockPrisma.batchEmailJob.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            batchId,
+            status: { in: ['pending', 'processing', 'retryable'] },
+          }),
         }),
-      }));
+      );
     });
 
     it('should recommend restart_batch when batch was created but no emails were tracked yet', async () => {
@@ -178,7 +180,7 @@ describe('DurableCheckpointService Resumability', () => {
       mockPrisma.syncBatch.findUnique.mockResolvedValue(null);
 
       await expect(
-        durableCheckpointService.advanceCheckpoint(userId, 'non-existent-batch', 'hist-new')
+        durableCheckpointService.advanceCheckpoint(userId, 'non-existent-batch', 'hist-new'),
       ).rejects.toThrow('Batch non-existent-batch not found');
     });
 
@@ -187,7 +189,7 @@ describe('DurableCheckpointService Resumability', () => {
       mockPrisma.gmailCheckpoint.findUnique.mockResolvedValue(null);
 
       await expect(
-        durableCheckpointService.advanceCheckpoint(userId, 'batch-1', 'hist-new')
+        durableCheckpointService.advanceCheckpoint(userId, 'batch-1', 'hist-new'),
       ).rejects.toThrow(`Checkpoint for user ${userId} not found`);
     });
   });

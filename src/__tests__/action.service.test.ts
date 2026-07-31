@@ -90,17 +90,21 @@ describe('ActionService', () => {
     });
 
     it('should throw if userId is missing', async () => {
-      await expect(actionService.recordAction({
-        userId: '',
-        actionType: ACTION_TYPES.APPLY,
-      })).rejects.toThrow('userId is required');
+      await expect(
+        actionService.recordAction({
+          userId: '',
+          actionType: ACTION_TYPES.APPLY,
+        }),
+      ).rejects.toThrow('userId is required');
     });
 
     it('should throw if actionType is missing', async () => {
-      await expect(actionService.recordAction({
-        userId,
-        actionType: '',
-      })).rejects.toThrow('actionType is required');
+      await expect(
+        actionService.recordAction({
+          userId,
+          actionType: '',
+        }),
+      ).rejects.toThrow('actionType is required');
     });
   });
 

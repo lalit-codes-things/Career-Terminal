@@ -87,12 +87,14 @@ export function getCurrentPrivilege(): RequestContext['privilege'] {
 export const withRlsContext = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     const authenticatedUserId = req.user?.id ?? null;
-    const privilege: RequestContext['privilege'] = authenticatedUserId ? 'authenticated' : 'anonymous';
+    const privilege: RequestContext['privilege'] = authenticatedUserId
+      ? 'authenticated'
+      : 'anonymous';
 
     const context: RequestContext = {
       userId: authenticatedUserId,
-      cellId: (req as unknown as Record<string, unknown>).cellId as string | null ?? null,
-      tenantId: (req as unknown as Record<string, unknown>).tenantId as string | null ?? null,
+      cellId: ((req as unknown as Record<string, unknown>).cellId as string | null) ?? null,
+      tenantId: ((req as unknown as Record<string, unknown>).tenantId as string | null) ?? null,
       privilege,
     };
 
@@ -108,7 +110,11 @@ export const withRlsContext = (req: Request, _res: Response, next: NextFunction)
  * Middleware that establishes a privileged internal request context.
  * Use ONLY for internal service-to-service endpoints (not user-facing).
  */
-export const withPrivilegedInternalContext = (req: Request, _res: Response, next: NextFunction): void => {
+export const withPrivilegedInternalContext = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void => {
   try {
     const context: RequestContext = {
       userId: null,
@@ -197,12 +203,14 @@ export function attachRlsMiddleware(client: PrismaClient): void {
         logger.error('[RLS] Failed to set current_user_id session', {
           error: (err as Error).message,
           userId,
-          query: params && typeof params === 'object' && 'model' in (params as Record<string, unknown>)
-            ? (params as Record<string, unknown>).model
-            : 'unknown',
-          action: params && typeof params === 'object' && 'action' in (params as Record<string, unknown>)
-            ? (params as Record<string, unknown>).action
-            : 'unknown',
+          query:
+            params && typeof params === 'object' && 'model' in (params as Record<string, unknown>)
+              ? (params as Record<string, unknown>).model
+              : 'unknown',
+          action:
+            params && typeof params === 'object' && 'action' in (params as Record<string, unknown>)
+              ? (params as Record<string, unknown>).action
+              : 'unknown',
         });
         throw new Error(`RLS setup failed for user ${userId}: ${(err as Error).message}`);
       }
@@ -230,7 +238,9 @@ export async function setRlsUserIdInTransaction(tx: unknown, userId: string): Pr
     throw new Error(`Invalid user ID for RLS: ${userId}`);
   }
 
-  const executeRaw = (tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }).$executeRawUnsafe;
+  const executeRaw = (
+    tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }
+  ).$executeRawUnsafe;
 
   try {
     await executeRaw.call(tx, 'SELECT set_app_user_id($1)', userId);
@@ -276,7 +286,9 @@ export async function withPrivilegedTransaction<T>(
   callback: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return db.$transaction(async (tx) => {
-    const executeRaw = (tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }).$executeRawUnsafe;
+    const executeRaw = (
+      tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }
+    ).$executeRawUnsafe;
 
     try {
       // Set a sentinel value that matches the app_admin GUC check
@@ -314,7 +326,9 @@ export async function withRequestContextTransaction<T>(
       // No user GUC needed — privileged bypass
     } else {
       // Anonymous or no context: explicitly clear any inherited user ID
-      const executeRaw = (tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }).$executeRawUnsafe;
+      const executeRaw = (
+        tx as { $executeRawUnsafe: (sql: string, ...args: unknown[]) => Promise<unknown> }
+      ).$executeRawUnsafe;
       try {
         await executeRaw.call(tx, 'SELECT set_app_user_id(NULL)');
       } catch {
@@ -340,7 +354,8 @@ export const RLS_ROLES = {
 } as const;
 
 /** Explicit operation roles for documentation and validation */
-export type OperationRole = 'anonymous' | 'app_runtime' | 'app_worker' | 'app_admin' | 'app_readonly';
+export type OperationRole =
+  'anonymous' | 'app_runtime' | 'app_worker' | 'app_admin' | 'app_readonly';
 
 /**
  * Returns the effective RLS role for the current operation.

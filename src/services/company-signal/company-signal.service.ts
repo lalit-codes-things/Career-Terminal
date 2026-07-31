@@ -21,7 +21,10 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 export class CompanySignalService {
   constructor(private readonly db: DbClient = prisma) {}
 
-  async recordSignal(input: CompanySignalInput, db: DbClient = this.db): Promise<CompanySignalRecord> {
+  async recordSignal(
+    input: CompanySignalInput,
+    db: DbClient = this.db,
+  ): Promise<CompanySignalRecord> {
     const record = await db.companySignal.create({
       data: {
         companyId: input.companyId,

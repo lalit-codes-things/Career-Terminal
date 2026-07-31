@@ -99,9 +99,7 @@ describe('DurableCheckpointService', () => {
     });
     (userService.resolveUserId as jest.Mock).mockResolvedValue(userId);
 
-    mockPrisma.$transaction.mockImplementation(
-      (fn: (tx: any) => Promise<any>) => fn(mockPrisma),
-    );
+    mockPrisma.$transaction.mockImplementation((fn: (tx: any) => Promise<any>) => fn(mockPrisma));
     mockPrisma.$queryRaw.mockResolvedValue([]);
   });
 
@@ -176,11 +174,7 @@ describe('DurableCheckpointService', () => {
       mockPrisma.gmailCheckpoint.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.syncBatch.update.mockResolvedValue({ id: 'batch-1', status: 'completed' });
 
-      await durableCheckpointService.advanceCheckpoint(
-        userId,
-        'batch-1',
-        'new-hist-2',
-      );
+      await durableCheckpointService.advanceCheckpoint(userId, 'batch-1', 'new-hist-2');
 
       expect(mockPrisma.gmailCheckpoint.updateMany).toHaveBeenCalledWith({
         where: { userId, version: 3 },
@@ -434,18 +428,16 @@ describe('DurableCheckpointService', () => {
         .mockResolvedValueOnce({ id: 'job-1', emailId: 'email-1', status: 'processed' });
 
       mockPrisma.batchEmailJob.create = jest.fn().mockResolvedValue({ id: 'job-1' });
-      mockPrisma.batchEmailJob.update = jest.fn().mockResolvedValue({ id: 'job-1', status: 'processed' });
+      mockPrisma.batchEmailJob.update = jest
+        .fn()
+        .mockResolvedValue({ id: 'job-1', status: 'processed' });
       mockPrisma.syncBatch.update.mockResolvedValue({});
 
-      await durableCheckpointService.trackEmailJob(
-        'batch-1', 'email-1', 'msg-1', 'processed',
-      );
+      await durableCheckpointService.trackEmailJob('batch-1', 'email-1', 'msg-1', 'processed');
 
       expect(mockPrisma.batchEmailJob.create).toHaveBeenCalled();
 
-      await durableCheckpointService.trackEmailJob(
-        'batch-1', 'email-1', 'msg-1', 'processed',
-      );
+      await durableCheckpointService.trackEmailJob('batch-1', 'email-1', 'msg-1', 'processed');
 
       expect(mockPrisma.batchEmailJob.update).toHaveBeenCalled();
       expect(mockPrisma.syncBatch.update).toHaveBeenCalledTimes(2);
@@ -463,17 +455,16 @@ describe('DurableCheckpointService', () => {
       mockPrisma.batchEmailJob.create = jest.fn().mockResolvedValue({});
       mockPrisma.syncBatch.update.mockResolvedValue({});
 
-      const statuses: Array<'processed' | 'skipped' | 'failed' | 'retryable' | 'permanently_failed'> = [
-        'processed',
-        'skipped',
-        'failed',
-        'retryable',
-        'permanently_failed',
-      ];
+      const statuses: Array<
+        'processed' | 'skipped' | 'failed' | 'retryable' | 'permanently_failed'
+      > = ['processed', 'skipped', 'failed', 'retryable', 'permanently_failed'];
 
       for (const status of statuses) {
         await durableCheckpointService.trackEmailJob(
-          'batch-1', `email-${status}`, `msg-${status}`, status,
+          'batch-1',
+          `email-${status}`,
+          `msg-${status}`,
+          status,
         );
       }
 

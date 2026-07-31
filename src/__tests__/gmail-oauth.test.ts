@@ -58,29 +58,32 @@ describe('GmailOAuthService', () => {
   const mockRefreshAccessToken = jest.fn();
   const mockUserinfoGet = jest.fn();
 
-beforeEach(() => {
-     jest.clearAllMocks();
+  beforeEach(() => {
+    jest.clearAllMocks();
 
-     // Setup googleapis mocks
-     (google.auth.OAuth2 as jest.Mock).mockImplementation(() => ({
-       generateAuthUrl: mockGenerateAuthUrl,
-       getToken: mockGetToken,
-       setCredentials: mockSetCredentials,
-       refreshAccessToken: mockRefreshAccessToken,
-     }));
+    // Setup googleapis mocks
+    (google.auth.OAuth2 as jest.Mock).mockImplementation(() => ({
+      generateAuthUrl: mockGenerateAuthUrl,
+      getToken: mockGetToken,
+      setCredentials: mockSetCredentials,
+      refreshAccessToken: mockRefreshAccessToken,
+    }));
 
-     (google.oauth2 as jest.Mock).mockReturnValue({
-       userinfo: { get: mockUserinfoGet },
-     });
+    (google.oauth2 as jest.Mock).mockReturnValue({
+      userinfo: { get: mockUserinfoGet },
+    });
 
-     (prisma.userIdMapping.findUnique as jest.Mock).mockResolvedValue(null);
-     (prisma.userIdMapping.upsert as jest.Mock).mockResolvedValue({ externalId: 'user_1', userId: 'user_1' });
-     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-     (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'user_1' });
-     (prisma.candidateProfile.create as jest.Mock).mockResolvedValue({ id: 'cp-1' });
-     (prisma.candidateProfile.upsert as jest.Mock).mockResolvedValue({ id: 'cp-1' });
-     (prisma.cell.findUnique as jest.Mock).mockResolvedValue(null);
-     (prisma.cell.create as jest.Mock).mockResolvedValue({ id: 'cell-1', userId: 'user_1' });
+    (prisma.userIdMapping.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.userIdMapping.upsert as jest.Mock).mockResolvedValue({
+      externalId: 'user_1',
+      userId: 'user_1',
+    });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'user_1' });
+    (prisma.candidateProfile.create as jest.Mock).mockResolvedValue({ id: 'cp-1' });
+    (prisma.candidateProfile.upsert as jest.Mock).mockResolvedValue({ id: 'cp-1' });
+    (prisma.cell.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.cell.create as jest.Mock).mockResolvedValue({ id: 'cell-1', userId: 'user_1' });
 
     service = new GmailOAuthService();
   });

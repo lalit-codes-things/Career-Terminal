@@ -91,7 +91,7 @@ export class GmailClient {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: config.accessToken });
 
-      this.gmail = google.gmail({
+    this.gmail = google.gmail({
       version: 'v1',
       auth,
       timeout: config.timeout ?? GMAIL_CLIENT_DEFAULT_TIMEOUT_MS,
@@ -105,29 +105,31 @@ export class GmailClient {
    * @returns Paginated list of message references
    */
   async listMessages(options: ListMessagesOptions = {}): Promise<ListMessagesResult> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.messages.list({
-        userId: this.userId,
-        q: options.query,
-        maxResults: Math.min(options.maxResults ?? GMAIL_LIST_MESSAGES_MAX_RESULTS, 500),
-        pageToken: options.pageToken,
-        labelIds: options.labelIds,
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.messages.list({
+          userId: this.userId,
+          q: options.query,
+          maxResults: Math.min(options.maxResults ?? GMAIL_LIST_MESSAGES_MAX_RESULTS, 500),
+          pageToken: options.pageToken,
+          labelIds: options.labelIds,
+        });
 
-      const data = response.data;
-      const messages: GmailMessageRef[] = (
-        Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
-      ).map((msg: Record<string, unknown>) => ({
-        id: this.readString(msg.id),
-        threadId: this.readString(msg.threadId),
-      }));
+        const data = response.data;
+        const messages: GmailMessageRef[] = (
+          Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
+        ).map((msg: Record<string, unknown>) => ({
+          id: this.readString(msg.id),
+          threadId: this.readString(msg.threadId),
+        }));
 
-      return {
-        messages,
-        nextPageToken: this.readOptionalString(data.nextPageToken),
-        resultSizeEstimate: this.readNumber(data.resultSizeEstimate),
-      };
-    }));
+        return {
+          messages,
+          nextPageToken: this.readOptionalString(data.nextPageToken),
+          resultSizeEstimate: this.readNumber(data.resultSizeEstimate),
+        };
+      }),
+    );
   }
 
   /**
@@ -137,15 +139,17 @@ export class GmailClient {
    * @returns Fully parsed message with headers, body, and metadata
    */
   async getMessage(messageId: string): Promise<GmailMessage> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.messages.get({
-        userId: this.userId,
-        id: messageId,
-        format: 'full',
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.messages.get({
+          userId: this.userId,
+          id: messageId,
+          format: 'full',
+        });
 
-      return this.parseMessage(response.data);
-    }));
+        return this.parseMessage(response.data);
+      }),
+    );
   }
 
   /**
@@ -155,24 +159,26 @@ export class GmailClient {
    * @returns Thread with all parsed messages
    */
   async getThread(threadId: string): Promise<GmailThread> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.threads.get({
-        userId: this.userId,
-        id: threadId,
-        format: 'full',
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.threads.get({
+          userId: this.userId,
+          id: threadId,
+          format: 'full',
+        });
 
-      const data = response.data;
-      const messages = (
-        Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
-      ).map((msg: Record<string, unknown>) => this.parseMessage(msg));
+        const data = response.data;
+        const messages = (
+          Array.isArray(data.messages) ? (data.messages as Array<Record<string, unknown>>) : []
+        ).map((msg: Record<string, unknown>) => this.parseMessage(msg));
 
-      return {
-        id: this.readString(data.id) || threadId,
-        historyId: this.readString(data.historyId),
-        messages,
-      };
-    }));
+        return {
+          id: this.readString(data.id) || threadId,
+          historyId: this.readString(data.historyId),
+          messages,
+        };
+      }),
+    );
   }
 
   /**
@@ -182,39 +188,41 @@ export class GmailClient {
    * @returns Array of attachment metadata and data
    */
   async getAttachments(messageId: string): Promise<GmailAttachment[]> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      // First, get the message to find attachment IDs
-      const message = await this.gmail.users.messages.get({
-        userId: this.userId,
-        id: messageId,
-        format: 'full',
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        // First, get the message to find attachment IDs
+        const message = await this.gmail.users.messages.get({
+          userId: this.userId,
+          id: messageId,
+          format: 'full',
+        });
 
-      const attachments: GmailAttachment[] = [];
-      const parts = this.flattenParts(message.data.payload as GmailMessagePart | undefined);
+        const attachments: GmailAttachment[] = [];
+        const parts = this.flattenParts(message.data.payload as GmailMessagePart | undefined);
 
-      for (const part of parts) {
-        if (part.filename && part.filename.length > 0 && part.body?.attachmentId) {
-          const attachmentResponse = await this.gmail.users.messages.attachments.get({
-            userId: this.userId,
-            messageId,
-            id: part.body.attachmentId,
-          });
-          const attachmentData = attachmentResponse.data;
+        for (const part of parts) {
+          if (part.filename && part.filename.length > 0 && part.body?.attachmentId) {
+            const attachmentResponse = await this.gmail.users.messages.attachments.get({
+              userId: this.userId,
+              messageId,
+              id: part.body.attachmentId,
+            });
+            const attachmentData = attachmentResponse.data;
 
-          attachments.push({
-            attachmentId: part.body.attachmentId,
-            messageId,
-            filename: part.filename,
-            mimeType: part.mimeType ?? 'application/octet-stream',
-            size: part.body.size ?? 0,
-            data: this.readOptionalString(attachmentData.data),
-          });
+            attachments.push({
+              attachmentId: part.body.attachmentId,
+              messageId,
+              filename: part.filename,
+              mimeType: part.mimeType ?? 'application/octet-stream',
+              size: part.body.size ?? 0,
+              data: this.readOptionalString(attachmentData.data),
+            });
+          }
         }
-      }
 
-      return attachments;
-    }));
+        return attachments;
+      }),
+    );
   }
 
   /**
@@ -223,84 +231,90 @@ export class GmailClient {
    * @returns Array of label metadata
    */
   async getLabels(): Promise<GmailLabel[]> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.labels.list({
-        userId: this.userId,
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.labels.list({
+          userId: this.userId,
+        });
 
-      const data = response.data;
-      return (
-        Array.isArray(data.labels) ? (data.labels as Array<Record<string, unknown>>) : []
-      ).map((label: Record<string, unknown>) => ({
-        id: this.readString(label.id),
-        name: this.readString(label.name),
-        type: this.readString(label.type) === 'system' ? ('system' as const) : ('user' as const),
-        messagesTotal: this.readOptionalNumber(label.messagesTotal),
-        messagesUnread: this.readOptionalNumber(label.messagesUnread),
-      }));
-    }));
+        const data = response.data;
+        return (
+          Array.isArray(data.labels) ? (data.labels as Array<Record<string, unknown>>) : []
+        ).map((label: Record<string, unknown>) => ({
+          id: this.readString(label.id),
+          name: this.readString(label.name),
+          type: this.readString(label.type) === 'system' ? ('system' as const) : ('user' as const),
+          messagesTotal: this.readOptionalNumber(label.messagesTotal),
+          messagesUnread: this.readOptionalNumber(label.messagesUnread),
+        }));
+      }),
+    );
   }
 
   /**
    * Fetches the user's Gmail profile, which includes their current historyId.
    */
   async getProfile(): Promise<GmailProfile> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.getProfile({
-        userId: this.userId,
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.getProfile({
+          userId: this.userId,
+        });
 
-      const data = response.data;
-      return {
-        emailAddress: this.readString(data.emailAddress),
-        messagesTotal: this.readNumber(data.messagesTotal),
-        threadsTotal: this.readNumber(data.threadsTotal),
-        historyId: this.readString(data.historyId),
-      };
-    }));
+        const data = response.data;
+        return {
+          emailAddress: this.readString(data.emailAddress),
+          messagesTotal: this.readNumber(data.messagesTotal),
+          threadsTotal: this.readNumber(data.threadsTotal),
+          historyId: this.readString(data.historyId),
+        };
+      }),
+    );
   }
 
   /**
    * Fetches historical changes to the mailbox since the given historyId.
    */
   async getHistory(options: GetHistoryOptions): Promise<GmailHistoryResult> {
-    return this.circuitBreaker.fire(() => this.withRetry(async () => {
-      const response = await this.gmail.users.history.list({
-        userId: this.userId,
-        startHistoryId: options.startHistoryId,
-        maxResults: options.maxResults ?? GMAIL_HISTORY_MAX_RESULTS,
-        pageToken: options.pageToken,
-      });
+    return this.circuitBreaker.fire(() =>
+      this.withRetry(async () => {
+        const response = await this.gmail.users.history.list({
+          userId: this.userId,
+          startHistoryId: options.startHistoryId,
+          maxResults: options.maxResults ?? GMAIL_HISTORY_MAX_RESULTS,
+          pageToken: options.pageToken,
+        });
 
-      const data = response.data;
-      const messagesAdded: { message: GmailMessageRef }[] = [];
-      const historyEntries = Array.isArray(data.history)
-        ? (data.history as Array<Record<string, unknown>>)
-        : [];
-
-      for (const historyRecord of historyEntries) {
-        const addedEntries = Array.isArray(historyRecord.messagesAdded)
-          ? (historyRecord.messagesAdded as Array<Record<string, unknown>>)
+        const data = response.data;
+        const messagesAdded: { message: GmailMessageRef }[] = [];
+        const historyEntries = Array.isArray(data.history)
+          ? (data.history as Array<Record<string, unknown>>)
           : [];
-        for (const added of addedEntries) {
-          const message = added.message as Record<string, unknown> | undefined;
-          if (message && this.readString(message.id) && this.readString(message.threadId)) {
-            messagesAdded.push({
-              message: {
-                id: this.readString(message.id),
-                threadId: this.readString(message.threadId),
-              },
-            });
+
+        for (const historyRecord of historyEntries) {
+          const addedEntries = Array.isArray(historyRecord.messagesAdded)
+            ? (historyRecord.messagesAdded as Array<Record<string, unknown>>)
+            : [];
+          for (const added of addedEntries) {
+            const message = added.message as Record<string, unknown> | undefined;
+            if (message && this.readString(message.id) && this.readString(message.threadId)) {
+              messagesAdded.push({
+                message: {
+                  id: this.readString(message.id),
+                  threadId: this.readString(message.threadId),
+                },
+              });
+            }
           }
         }
-      }
 
-      return {
-        historyId: this.readString(data.historyId) || options.startHistoryId,
-        nextPageToken: this.readOptionalString(data.nextPageToken),
-        messagesAdded,
-      };
-    }));
+        return {
+          historyId: this.readString(data.historyId) || options.startHistoryId,
+          nextPageToken: this.readOptionalString(data.nextPageToken),
+          messagesAdded,
+        };
+      }),
+    );
   }
 
   // ============================================================

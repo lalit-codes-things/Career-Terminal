@@ -115,7 +115,8 @@ export class ResumeParserService implements IResumeParser {
       if (!trimmed) continue;
 
       const hasLexiconHit = observations.some(
-        (o) => o.evidence.includes(trimmed) || trimmed.toLowerCase().includes(o.value.toLowerCase()),
+        (o) =>
+          o.evidence.includes(trimmed) || trimmed.toLowerCase().includes(o.value.toLowerCase()),
       );
 
       if (!hasLexiconHit) {
@@ -178,7 +179,8 @@ export class ResumeParserService implements IResumeParser {
       if (!trimmed) continue;
 
       const hasLexiconHit = observations.some(
-        (o) => o.evidence.includes(trimmed) || trimmed.toLowerCase().includes(o.value.toLowerCase()),
+        (o) =>
+          o.evidence.includes(trimmed) || trimmed.toLowerCase().includes(o.value.toLowerCase()),
       );
 
       if (!hasLexiconHit) {
@@ -194,7 +196,9 @@ export class ResumeParserService implements IResumeParser {
     }
 
     if (observations.length === 0) {
-      warnings.push('No observations extracted — document may be malformed, empty, or image-based PDF without OCR');
+      warnings.push(
+        'No observations extracted — document may be malformed, empty, or image-based PDF without OCR',
+      );
     }
 
     return {
@@ -209,7 +213,9 @@ export class ResumeParserService implements IResumeParser {
     if (mimetype === 'application/pdf') {
       try {
         const pdfParseModule = await import('pdf-parse');
-        const parse = (pdfParseModule.default || pdfParseModule) as unknown as (b: Buffer) => Promise<{ text: string }>;
+        const parse = (pdfParseModule.default || pdfParseModule) as unknown as (
+          b: Buffer,
+        ) => Promise<{ text: string }>;
         const data = await parse(buffer);
         return data.text;
       } catch {
@@ -233,7 +239,10 @@ export class ResumeParserService implements IResumeParser {
     return buffer.toString('utf-8');
   }
 
-  private findMatch(text: string, term: string): { matchedTerm: string; context: string; start: number; end: number; alias?: boolean } | null {
+  private findMatch(
+    text: string,
+    term: string,
+  ): { matchedTerm: string; context: string; start: number; end: number; alias?: boolean } | null {
     if (!term) return null;
     const normalized = term.toLowerCase().trim();
     if (!normalized || normalized.length < 3) return null;

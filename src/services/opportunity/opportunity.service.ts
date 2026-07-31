@@ -31,9 +31,7 @@ import { companyService, type CompanyResolveInput } from '../company';
 import { acquireLock, releaseLock } from '../../lib/mutex';
 import { logger } from '../../lib/logger';
 import { executeWithTransientRetry } from '../../db/transaction-utils';
-import type {
-  OpportunityObservationRecord,
-} from '../../domain/opportunity';
+import type { OpportunityObservationRecord } from '../../domain/opportunity';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -154,10 +152,7 @@ export class OpportunityService {
     const normalizedTitle = normalizeTitle(input.roleTitle);
     const normalizedLocation = normalizeLocation(input.location);
 
-    const lockKey = `lock:opp:${company.id}:${this.hashPair(
-      normalizedTitle,
-      normalizedLocation,
-    )}`;
+    const lockKey = `lock:opp:${company.id}:${this.hashPair(normalizedTitle, normalizedLocation)}`;
     const lockToken = await acquireLock(lockKey, 60);
 
     const run = async (tx: DbClient): Promise<OpportunityResolutionResult> => {
@@ -361,11 +356,16 @@ export class OpportunityService {
         description: input.description ?? undefined,
         location: input.location ?? undefined,
         compensation: input.salaryRange
-          ? { min: input.salaryRange.min, max: input.salaryRange.max, currency: input.salaryRange.currency }
+          ? {
+              min: input.salaryRange.min,
+              max: input.salaryRange.max,
+              currency: input.salaryRange.currency,
+            }
           : undefined,
-        requirements: input.requirements && input.requirements.length > 0
-          ? (input.requirements as Prisma.InputJsonValue)
-          : undefined,
+        requirements:
+          input.requirements && input.requirements.length > 0
+            ? (input.requirements as Prisma.InputJsonValue)
+            : undefined,
         url: input.url ?? undefined,
         hiringInfo: (input.sourceMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
         confidence: 1.0,

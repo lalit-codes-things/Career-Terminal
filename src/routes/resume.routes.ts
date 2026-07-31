@@ -181,9 +181,7 @@ resumeRouter.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.id;
-      const userResumeId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
+      const userResumeId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       if (!userResumeId) {
         throw new ValidationError('Resume version id is required.');
       }

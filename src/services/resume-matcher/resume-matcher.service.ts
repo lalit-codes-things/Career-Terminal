@@ -34,7 +34,9 @@ export class ResumeMatcherService {
   public async extractTextFromBuffer(buffer: Buffer, mimetype: string): Promise<string> {
     if (mimetype === 'application/pdf') {
       const pdfParseModule = await import('pdf-parse');
-      const parse = (pdfParseModule.default || pdfParseModule) as unknown as (buffer: Buffer) => Promise<{ text: string }>;
+      const parse = (pdfParseModule.default || pdfParseModule) as unknown as (
+        buffer: Buffer,
+      ) => Promise<{ text: string }>;
       const data = await parse(buffer);
       return data.text;
     }
@@ -161,14 +163,17 @@ export class ResumeMatcherService {
     let experienceMatch =
       parsedJob.minExperience > 0 ? Math.min(totalExpYears / parsedJob.minExperience, 1.0) : 1.0;
 
-    const overallScore = skillMatch * 0.35 + techMatch * 0.25 + occupationMatch * 0.20 + experienceMatch * 0.20;
+    const overallScore =
+      skillMatch * 0.35 + techMatch * 0.25 + occupationMatch * 0.2 + experienceMatch * 0.2;
 
     const improvementSuggestions = [];
     if (missingSkills.length > 0) {
       improvementSuggestions.push(`Consider adding experience with: ${missingSkills.join(', ')}`);
     }
     if (occupationMatch < 1.0) {
-      improvementSuggestions.push('Resume occupation focus does not fully align with the target role.');
+      improvementSuggestions.push(
+        'Resume occupation focus does not fully align with the target role.',
+      );
     }
     if (experienceMatch < 1.0) {
       improvementSuggestions.push(
@@ -193,8 +198,19 @@ export class ResumeMatcherService {
     mimeType: string;
   }): Promise<{
     skills: string[];
-    experiences: Array<{ role: string | null; company: string | null; dates: string | null; raw: string }>;
-    education: Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }>;
+    experiences: Array<{
+      role: string | null;
+      company: string | null;
+      dates: string | null;
+      raw: string;
+    }>;
+    education: Array<{
+      degree: string | null;
+      field: string | null;
+      institution: string | null;
+      year: string | null;
+      raw: string;
+    }>;
     factIds: string[];
   }> {
     const text = await this.extractTextFromBuffer(input.fileBuffer, input.mimeType);
@@ -260,8 +276,20 @@ export class ResumeMatcherService {
     return pattern.test(text);
   }
 
-  private extractExperienceHints(text: string): Array<{ role: string | null; company: string | null; dates: string | null; years: number; raw: string }> {
-    const hints: Array<{ role: string | null; company: string | null; dates: string | null; years: number; raw: string }> = [];
+  private extractExperienceHints(text: string): Array<{
+    role: string | null;
+    company: string | null;
+    dates: string | null;
+    years: number;
+    raw: string;
+  }> {
+    const hints: Array<{
+      role: string | null;
+      company: string | null;
+      dates: string | null;
+      years: number;
+      raw: string;
+    }> = [];
     for (const line of text.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -283,8 +311,20 @@ export class ResumeMatcherService {
     return hints;
   }
 
-  private extractEducationHints(text: string): Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }> {
-    const education: Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }> = [];
+  private extractEducationHints(text: string): Array<{
+    degree: string | null;
+    field: string | null;
+    institution: string | null;
+    year: string | null;
+    raw: string;
+  }> {
+    const education: Array<{
+      degree: string | null;
+      field: string | null;
+      institution: string | null;
+      year: string | null;
+      raw: string;
+    }> = [];
     for (const line of text.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -312,7 +352,12 @@ export class ResumeMatcherService {
   private extractExperiences(
     text: string,
   ): Array<{ role: string | null; company: string | null; dates: string | null; raw: string }> {
-    const experiences: Array<{ role: string | null; company: string | null; dates: string | null; raw: string }> = [];
+    const experiences: Array<{
+      role: string | null;
+      company: string | null;
+      dates: string | null;
+      raw: string;
+    }> = [];
     for (const line of text.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -332,10 +377,20 @@ export class ResumeMatcherService {
     return experiences;
   }
 
-  private extractEducation(
-    text: string,
-  ): Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }> {
-    const education: Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }> = [];
+  private extractEducation(text: string): Array<{
+    degree: string | null;
+    field: string | null;
+    institution: string | null;
+    year: string | null;
+    raw: string;
+  }> {
+    const education: Array<{
+      degree: string | null;
+      field: string | null;
+      institution: string | null;
+      year: string | null;
+      raw: string;
+    }> = [];
     for (const line of text.split(/\r?\n/)) {
       const trimmed = line.trim();
       if (!trimmed) continue;
@@ -360,8 +415,19 @@ export class ResumeMatcherService {
     userId: string,
     resumeVersionId: string,
     skills: string[],
-    experiences: Array<{ role: string | null; company: string | null; dates: string | null; raw: string }>,
-    education: Array<{ degree: string | null; field: string | null; institution: string | null; year: string | null; raw: string }>,
+    experiences: Array<{
+      role: string | null;
+      company: string | null;
+      dates: string | null;
+      raw: string;
+    }>,
+    education: Array<{
+      degree: string | null;
+      field: string | null;
+      institution: string | null;
+      year: string | null;
+      raw: string;
+    }>,
     rawText: string,
   ): Promise<string[]> {
     const factIds: string[] = [];

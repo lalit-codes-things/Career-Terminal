@@ -82,14 +82,14 @@ describe('SnapshotService', () => {
       });
       (prisma.factObservation.findMany as jest.Mock).mockResolvedValue(currentFacts);
       (prisma.factObservation.create as jest.Mock).mockImplementation(({ data }: any) =>
-        Promise.resolve({ id: `copy-${data.factType}`, ...data })
+        Promise.resolve({ id: `copy-${data.factType}`, ...data }),
       );
 
       const result = await snapshotService.createSnapshot(
         userId,
         snapshotType,
         referenceId,
-        description
+        description,
       );
 
       expect(result.id).toBe(snapshotId);
@@ -174,7 +174,11 @@ describe('SnapshotService', () => {
         },
       ];
 
-      (prisma.snapshot.create as jest.Mock).mockResolvedValue({ id: snapshotId, userId, snapshotType: 'APPLICATION' });
+      (prisma.snapshot.create as jest.Mock).mockResolvedValue({
+        id: snapshotId,
+        userId,
+        snapshotType: 'APPLICATION',
+      });
       (prisma.factObservation.findMany as jest.Mock).mockResolvedValue(currentFacts);
       (prisma.factObservation.create as jest.Mock).mockResolvedValue({ id: 'copied-fact' });
 

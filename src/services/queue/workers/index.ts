@@ -62,13 +62,10 @@ export async function stopAllWorkers(): Promise<void> {
   isShuttingDown = true;
   logger.info('[Workers] Shutting down workers…');
 
-  const timeoutId = setTimeout(
-    () => {
-      logger.error('[Workers] Shutdown timed out, forcing exit');
-      process.exit(1);
-    },
-    config.worker.shutdownTimeoutMs,
-  );
+  const timeoutId = setTimeout(() => {
+    logger.error('[Workers] Shutdown timed out, forcing exit');
+    process.exit(1);
+  }, config.worker.shutdownTimeoutMs);
 
   try {
     await Promise.allSettled(workers.map((w) => w.close()));

@@ -10,7 +10,10 @@ export type RoutingDecision = {
 };
 
 export class CellRoutingService {
-  async resolveUserRouting(userId: string, _hints: RegionResolutionHints = {}): Promise<RoutingDecision> {
+  async resolveUserRouting(
+    userId: string,
+    _hints: RegionResolutionHints = {},
+  ): Promise<RoutingDecision> {
     const placement = await placementService.resolvePlacementContext(userId);
     const cell = await cellService.resolveUserHomeCell(userId, placement.region);
     return {

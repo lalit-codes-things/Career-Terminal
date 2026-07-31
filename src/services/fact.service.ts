@@ -20,11 +20,7 @@ import { cellRoutingService } from './routing/cell-routing.service';
  * - INVALID         soft-deleted or review-rejected; no longer usable
  */
 export type FactQualityStatus =
-  | 'OBSERVED'
-  | 'INFERRED'
-  | 'USER_CONFIRMED'
-  | 'SUPERSEDED'
-  | 'INVALID';
+  'OBSERVED' | 'INFERRED' | 'USER_CONFIRMED' | 'SUPERSEDED' | 'INVALID';
 
 /** Fact fields required to compute a quality status (subset of FactObservation). */
 export interface FactQualityInput {
@@ -66,8 +62,20 @@ export function getFactQualityStatus(fact: FactQualityInput): FactQualityStatus 
  * Returns 'a' | 'b' | 'tie'.
  */
 export function resolveFactPrecedence(
-  a: { confidence: number; observedAt: Date; isUserCorrected: boolean; isCurrent: boolean; deletedAt: Date | null },
-  b: { confidence: number; observedAt: Date; isUserCorrected: boolean; isCurrent: boolean; deletedAt: Date | null },
+  a: {
+    confidence: number;
+    observedAt: Date;
+    isUserCorrected: boolean;
+    isCurrent: boolean;
+    deletedAt: Date | null;
+  },
+  b: {
+    confidence: number;
+    observedAt: Date;
+    isUserCorrected: boolean;
+    isCurrent: boolean;
+    deletedAt: Date | null;
+  },
 ): 'a' | 'b' | 'tie' {
   const aInvalid = !a.isCurrent || a.deletedAt !== null;
   const bInvalid = !b.isCurrent || b.deletedAt !== null;
@@ -273,7 +281,9 @@ export class FactService {
           extractionRunId: input.extractionRunId,
           provenanceId: input.provenanceId,
           factType: input.factType,
-          factData: input.factData as Parameters<typeof tx.factObservation.create>[0]['data']['factData'],
+          factData: input.factData as Parameters<
+            typeof tx.factObservation.create
+          >[0]['data']['factData'],
           sourceType: input.sourceType,
           sourceId: input.sourceId,
           sourceVersion: input.sourceVersion,

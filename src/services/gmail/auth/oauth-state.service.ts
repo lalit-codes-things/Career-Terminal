@@ -171,7 +171,13 @@ class RedisStateBackend implements IOAuthStateBackend {
     let cursor = '0';
     const pattern = `${REDIS_KEY_PREFIX}*`;
     do {
-      const [nextCursor, keys] = await this.getClient().scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      const [nextCursor, keys] = await this.getClient().scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100,
+      );
       cursor = nextCursor;
       count += keys.length;
     } while (cursor !== '0');

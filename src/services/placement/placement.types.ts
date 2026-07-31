@@ -63,8 +63,7 @@ export interface DataPlaneTarget {
 
 export function isSupportedRegion(candidate: unknown): candidate is SupportedRegion {
   return (
-    typeof candidate === 'string' &&
-    (SUPPORTED_REGIONS as readonly string[]).includes(candidate)
+    typeof candidate === 'string' && (SUPPORTED_REGIONS as readonly string[]).includes(candidate)
   );
 }
 

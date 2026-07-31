@@ -32,8 +32,8 @@ jest.mock('../lib/mutex', () => ({
 }));
 
 jest.mock('../db/transaction-utils', () => ({
-  executeWithTransientRetry: jest.fn(async (_client: unknown, run: (tx: unknown) => Promise<unknown>) =>
-    run(prisma as unknown),
+  executeWithTransientRetry: jest.fn(
+    async (_client: unknown, run: (tx: unknown) => Promise<unknown>) => run(prisma as unknown),
   ),
 }));
 

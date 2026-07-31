@@ -240,7 +240,10 @@ export const createSecureRateLimiter = (windowMs: number, maxRequests: number): 
  * Rejects requests on unexpected Redis errors.
  * Use for authentication, password/token operations, sensitive mutations.
  */
-export const createSecureUserRateLimiter = (windowMs: number, maxRequests: number): RequestHandler =>
+export const createSecureUserRateLimiter = (
+  windowMs: number,
+  maxRequests: number,
+): RequestHandler =>
   createRateLimiterHandler(
     (req) => req.user?.id ?? req.ip ?? req.socket.remoteAddress ?? 'unknown',
     windowMs,

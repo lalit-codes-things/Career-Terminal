@@ -301,9 +301,7 @@ describe('Action deduplication', () => {
 
   it('strategyTags are preserved for analytics deduplication downstream', async () => {
     const tags = ['with_referral', 'early_application'];
-    (prisma.actionEvent.create as jest.Mock).mockResolvedValue(
-      makeEvent({ strategyTags: tags }),
-    );
+    (prisma.actionEvent.create as jest.Mock).mockResolvedValue(makeEvent({ strategyTags: tags }));
 
     await actionService.recordAction(makeInput({ strategyTags: tags }));
 
@@ -352,9 +350,7 @@ describe('Ownership and ordering', () => {
 
   it('invalid sourceType is rejected', async () => {
     await expect(
-      actionService.recordAction(
-        makeInput({ sourceType: 'INVALID_TYPE' as 'USER_ACTION' }),
-      ),
+      actionService.recordAction(makeInput({ sourceType: 'INVALID_TYPE' as 'USER_ACTION' })),
     ).rejects.toThrow();
   });
 });

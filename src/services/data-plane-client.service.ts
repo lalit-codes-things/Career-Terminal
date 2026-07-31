@@ -4,7 +4,7 @@ import { SupportedRegion } from './placement/placement.types';
 
 /**
  * DataPlaneClient — routes operations to the correct regional service.
- * 
+ *
  * This is an abstraction layer that allows the application to be region-aware.
  * Initially, since we only have one region, it delegates to the local services.
  * In the future, this will handle routing to different regional databases,

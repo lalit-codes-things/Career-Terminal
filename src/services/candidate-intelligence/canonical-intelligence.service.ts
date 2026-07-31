@@ -66,8 +66,7 @@ export function computeDeduplicationKey(
   factType: string,
   factData: Record<string, unknown>,
 ): string {
-  const norm = (v: unknown): string =>
-    typeof v === 'string' ? v.toLowerCase().trim() : '';
+  const norm = (v: unknown): string => (typeof v === 'string' ? v.toLowerCase().trim() : '');
 
   switch (factType.toUpperCase()) {
     case 'SKILL':
@@ -81,13 +80,13 @@ export function computeDeduplicationKey(
 
     case 'EXPERIENCE': {
       const company = norm(factData['company']);
-      const role    = norm(factData['role']) || norm(factData['title']);
+      const role = norm(factData['role']) || norm(factData['title']);
       return `${company}|${role}` || 'unknown-experience';
     }
 
     case 'EDUCATION': {
       const institution = norm(factData['institution']) || norm(factData['school']);
-      const degree      = norm(factData['degree']);
+      const degree = norm(factData['degree']);
       return `${institution}|${degree}` || 'unknown-education';
     }
 
@@ -173,7 +172,7 @@ export class CanonicalIntelligenceService {
 
     // 1. Resolve cell.
     const routing = await cellRoutingService.resolveUserRouting(input.userId);
-    const cellId  = input.cellId ?? routing.cellId;
+    const cellId = input.cellId ?? routing.cellId;
     if (input.cellId && input.cellId !== routing.cellId) {
       throw new CellBoundaryViolationError(input.userId, routing.cellId, input.cellId);
     }
@@ -182,10 +181,18 @@ export class CanonicalIntelligenceService {
     const fact = await db.factObservation.findUnique({
       where: { id: input.sourceFactId },
       select: {
-        id: true, userId: true, factType: true, factData: true,
-        confidence: true, observedAt: true, isCurrent: true,
-        deletedAt: true, needsReview: true, isUserCorrected: true,
-        sourceVersion: true, provenanceId: true,
+        id: true,
+        userId: true,
+        factType: true,
+        factData: true,
+        confidence: true,
+        observedAt: true,
+        isCurrent: true,
+        deletedAt: true,
+        needsReview: true,
+        isUserCorrected: true,
+        sourceVersion: true,
+        provenanceId: true,
       },
     });
 
@@ -202,11 +209,15 @@ export class CanonicalIntelligenceService {
       throw new FactNotEligibleError(input.sourceFactId, 'fact is soft-deleted');
     }
     if (fact.needsReview && !fact.isUserCorrected) {
-      throw new FactNotEligibleError(input.sourceFactId, 'fact is flagged needsReview with no user correction');
+      throw new FactNotEligibleError(
+        input.sourceFactId,
+        'fact is flagged needsReview with no user correction',
+      );
     }
 
     // 3. Compute deduplication key (caller may supply it to override).
-    const dedupKey = input.deduplicationKey ??
+    const dedupKey =
+      input.deduplicationKey ??
       computeDeduplicationKey(fact.factType, fact.factData as Record<string, unknown>);
 
     // 4. Resolve provenanceId (prefer explicit input, else use fact's provenance).
@@ -247,30 +258,34 @@ export class CanonicalIntelligenceService {
       }
 
       const incoming: PrecedenceInput = {
-        confidence:      input.confidence,
-        observedAt:      input.observedAt,
+        confidence: input.confidence,
+        observedAt: input.observedAt,
         isUserCorrected: fact.isUserCorrected,
       };
 
       // 7. If an existing canonical record exists, apply precedence rules.
       if (existing) {
         const existingPrecedence: PrecedenceInput = {
-          confidence:      existing.confidence,
-          observedAt:      existing.lastObservedAt,
+          confidence: existing.confidence,
+          observedAt: existing.lastObservedAt,
           isUserCorrected: existing.sourceFact?.isUserCorrected ?? false,
         };
 
         if (!candidateWins(incoming, existingPrecedence)) {
           // Rule 3: do not downgrade.
-          logger.info('[CanonicalIntelligenceService] Existing record retained (higher precedence)', {
-            userId: input.userId, canonicalId: existing.id,
-            existingConfidence: existingPrecedence.confidence,
-            candidateConfidence: incoming.confidence,
-          });
+          logger.info(
+            '[CanonicalIntelligenceService] Existing record retained (higher precedence)',
+            {
+              userId: input.userId,
+              canonicalId: existing.id,
+              existingConfidence: existingPrecedence.confidence,
+              candidateConfidence: incoming.confidence,
+            },
+          );
           return {
-            canonicalId:        existing.id,
-            promoted:           false,
-            winningFactId:      existing.sourceFactId,
+            canonicalId: existing.id,
+            promoted: false,
+            winningFactId: existing.sourceFactId,
             winningProvenanceId: provenanceId,
           };
         }
@@ -286,43 +301,43 @@ export class CanonicalIntelligenceService {
           },
         },
         create: {
-          userId:           input.userId,
+          userId: input.userId,
           cellId,
-          factType:         fact.factType,
+          factType: fact.factType,
           deduplicationKey: dedupKey,
-          sourceFactId:     input.sourceFactId,
+          sourceFactId: input.sourceFactId,
           provenanceId: provenanceId!,
-          confidence:       input.confidence,
-          lastObservedAt:   input.observedAt,
-          sourceVersion:    input.sourceVersion ?? fact.sourceVersion ?? null,
-          isActive:         true,
+          confidence: input.confidence,
+          lastObservedAt: input.observedAt,
+          sourceVersion: input.sourceVersion ?? fact.sourceVersion ?? null,
+          isActive: true,
         },
         update: {
-          sourceFactId:   input.sourceFactId,
+          sourceFactId: input.sourceFactId,
           provenanceId: provenanceId!,
-          confidence:     input.confidence,
+          confidence: input.confidence,
           lastObservedAt: input.observedAt,
-          sourceVersion:  input.sourceVersion ?? fact.sourceVersion ?? null,
+          sourceVersion: input.sourceVersion ?? fact.sourceVersion ?? null,
           cellId,
-          isActive:       true,
-          updatedAt:      new Date(),
+          isActive: true,
+          updatedAt: new Date(),
         },
         select: { id: true },
       });
 
       logger.info('[CanonicalIntelligenceService] Fact promoted to canonical', {
         userId: input.userId,
-        canonicalId:  upserted.id,
-        factType:     fact.factType,
+        canonicalId: upserted.id,
+        factType: fact.factType,
         dedupKey,
         sourceFactId: input.sourceFactId,
-        confidence:   input.confidence,
+        confidence: input.confidence,
       });
 
       return {
-        canonicalId:        upserted.id,
-        promoted:           true,
-        winningFactId:      input.sourceFactId,
+        canonicalId: upserted.id,
+        promoted: true,
+        winningFactId: input.sourceFactId,
         winningProvenanceId: provenanceId,
       };
     });
@@ -338,7 +353,8 @@ export class CanonicalIntelligenceService {
       select: { id: true, userId: true },
     });
     if (!record) throw new CanonicalIntelligenceNotFoundError(canonicalId);
-    if (record.userId !== userId) throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
+    if (record.userId !== userId)
+      throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
 
     await (this.db as PrismaClient).canonicalCandidateIntelligence.update({
       where: { id: canonicalId },
@@ -366,13 +382,13 @@ export class CanonicalIntelligenceService {
 
     const rows = await db.canonicalCandidateIntelligence.findMany({
       where: {
-        userId:   query.userId,
-        ...(query.factType        ? { factType: query.factType } : {}),
-        ...(query.includeInactive ? {}                          : { isActive: true }),
+        userId: query.userId,
+        ...(query.factType ? { factType: query.factType } : {}),
+        ...(query.includeInactive ? {} : { isActive: true }),
       },
       include: {
-        sourceFact:  query.includeFactData   ? { select: { factData: true } } : false,
-        provenance:  query.includeProvenance ? true : false,
+        sourceFact: query.includeFactData ? { select: { factData: true } } : false,
+        provenance: query.includeProvenance ? true : false,
       },
       orderBy: [{ factType: 'asc' }, { lastObservedAt: 'desc' }],
     });
@@ -392,13 +408,14 @@ export class CanonicalIntelligenceService {
     const row = await (this.db as PrismaClient).canonicalCandidateIntelligence.findUnique({
       where: { id: canonicalId },
       include: {
-        sourceFact: opts.includeFactData   ? { select: { factData: true } } : false,
+        sourceFact: opts.includeFactData ? { select: { factData: true } } : false,
         provenance: opts.includeProvenance ? true : false,
       },
     });
 
     if (!row) throw new CanonicalIntelligenceNotFoundError(canonicalId);
-    if (row.userId !== userId) throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
+    if (row.userId !== userId)
+      throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
 
     return this.toEnriched(row, opts);
   }
@@ -408,34 +425,32 @@ export class CanonicalIntelligenceService {
    * Ownership is verified. Raw extraction internals are not exposed —
    * only the provenance traceability record.
    */
-  async getProvenanceForCanonical(
-    canonicalId: string,
-    userId: string,
-  ): Promise<ProvenanceRecord> {
+  async getProvenanceForCanonical(canonicalId: string, userId: string): Promise<ProvenanceRecord> {
     const row = await (this.db as PrismaClient).canonicalCandidateIntelligence.findUnique({
       where: { id: canonicalId },
       include: { provenance: true },
     });
 
     if (!row) throw new CanonicalIntelligenceNotFoundError(canonicalId);
-    if (row.userId !== userId) throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
+    if (row.userId !== userId)
+      throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
 
     const p = row.provenance;
     return {
-      id:              p.id,
-      userId:          p.userId,
-      cellId:          p.cellId,
-      sourceType:      p.sourceType,
-      sourceId:        p.sourceId,
-      sourceVersion:   p.sourceVersion,
-      sourceIdentity:  p.sourceIdentity,
+      id: p.id,
+      userId: p.userId,
+      cellId: p.cellId,
+      sourceType: p.sourceType,
+      sourceId: p.sourceId,
+      sourceVersion: p.sourceVersion,
+      sourceIdentity: p.sourceIdentity,
       extractionRunId: p.extractionRunId,
-      parserVersion:   p.parserVersion,
-      modelProvider:   p.modelProvider,
-      modelVersion:    p.modelVersion,
-      promptVersion:   p.promptVersion,
-      schemaVersion:   p.schemaVersion,
-      createdAt:       p.createdAt,
+      parserVersion: p.parserVersion,
+      modelProvider: p.modelProvider,
+      modelVersion: p.modelVersion,
+      promptVersion: p.promptVersion,
+      schemaVersion: p.schemaVersion,
+      createdAt: p.createdAt,
     };
   }
 
@@ -451,7 +466,8 @@ export class CanonicalIntelligenceService {
       select: { userId: true, cellId: true },
     });
     if (!row) throw new CanonicalIntelligenceNotFoundError(canonicalId);
-    if (row.userId !== userId) throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
+    if (row.userId !== userId)
+      throw new CrossUserOwnershipError('CanonicalCandidateIntelligence', canonicalId);
 
     const routing = await cellRoutingService.resolveUserRouting(userId);
     if (row.cellId !== routing.cellId) {
@@ -465,19 +481,19 @@ export class CanonicalIntelligenceService {
     row: Prisma.CanonicalCandidateIntelligenceGetPayload<Record<string, never>>,
   ): CanonicalIntelligenceRecord {
     return {
-      id:               row.id,
-      userId:           row.userId,
-      cellId:           row.cellId,
-      factType:         row.factType,
+      id: row.id,
+      userId: row.userId,
+      cellId: row.cellId,
+      factType: row.factType,
       deduplicationKey: row.deduplicationKey,
-      sourceFactId:     row.sourceFactId,
-      provenanceId:     row.provenanceId,
-      confidence:       row.confidence,
-      lastObservedAt:   row.lastObservedAt,
-      sourceVersion:    row.sourceVersion,
-      isActive:         row.isActive,
-      createdAt:        row.createdAt,
-      updatedAt:        row.updatedAt,
+      sourceFactId: row.sourceFactId,
+      provenanceId: row.provenanceId,
+      confidence: row.confidence,
+      lastObservedAt: row.lastObservedAt,
+      sourceVersion: row.sourceVersion,
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 
@@ -487,32 +503,32 @@ export class CanonicalIntelligenceService {
   ): EnrichedCanonicalRecord {
     const canonical = this.toCanonicalRecord(row);
 
-    const factData = opts.includeFactData && row.sourceFact
-      ? (row.sourceFact.factData as Record<string, unknown>)
-      : undefined;
+    const factData =
+      opts.includeFactData && row.sourceFact
+        ? (row.sourceFact.factData as Record<string, unknown>)
+        : undefined;
 
     const provenance: ProvenanceRecord | undefined =
       opts.includeProvenance && row.provenance
         ? {
-            id:              row.provenance.id,
-            userId:          row.provenance.userId,
-            cellId:          row.provenance.cellId,
-            sourceType:      row.provenance.sourceType,
-            sourceId:        row.provenance.sourceId,
-            sourceVersion:   row.provenance.sourceVersion,
-            sourceIdentity:  row.provenance.sourceIdentity,
+            id: row.provenance.id,
+            userId: row.provenance.userId,
+            cellId: row.provenance.cellId,
+            sourceType: row.provenance.sourceType,
+            sourceId: row.provenance.sourceId,
+            sourceVersion: row.provenance.sourceVersion,
+            sourceIdentity: row.provenance.sourceIdentity,
             extractionRunId: row.provenance.extractionRunId,
-            parserVersion:   row.provenance.parserVersion,
-            modelProvider:   row.provenance.modelProvider,
-            modelVersion:    row.provenance.modelVersion,
-            promptVersion:   row.provenance.promptVersion,
-            schemaVersion:   row.provenance.schemaVersion,
-            createdAt:       row.provenance.createdAt,
+            parserVersion: row.provenance.parserVersion,
+            modelProvider: row.provenance.modelProvider,
+            modelVersion: row.provenance.modelVersion,
+            promptVersion: row.provenance.promptVersion,
+            schemaVersion: row.provenance.schemaVersion,
+            createdAt: row.provenance.createdAt,
           }
         : undefined;
 
-    return { canonical, ...(factData    ? { factData }    : {}),
-                        ...(provenance  ? { provenance }  : {}) };
+    return { canonical, ...(factData ? { factData } : {}), ...(provenance ? { provenance } : {}) };
   }
 }
 

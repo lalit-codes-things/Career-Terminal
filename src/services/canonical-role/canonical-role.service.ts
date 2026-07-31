@@ -10,17 +10,17 @@
 
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../../config/database';
-import {
-  type CanonicalRoleInput,
-  type CanonicalRoleRecord,
-} from '../../domain/canonical-role';
+import { type CanonicalRoleInput, type CanonicalRoleRecord } from '../../domain/canonical-role';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export class CanonicalRoleService {
   constructor(private readonly db: DbClient = prisma) {}
 
-  async createRole(input: CanonicalRoleInput, db: DbClient = this.db): Promise<CanonicalRoleRecord> {
+  async createRole(
+    input: CanonicalRoleInput,
+    db: DbClient = this.db,
+  ): Promise<CanonicalRoleRecord> {
     const record = await db.canonicalRole.create({
       data: {
         canonicalName: input.canonicalName,
@@ -37,7 +37,10 @@ export class CanonicalRoleService {
     return this.toRecord(record);
   }
 
-  async upsertRole(input: CanonicalRoleInput, db: DbClient = this.db): Promise<CanonicalRoleRecord> {
+  async upsertRole(
+    input: CanonicalRoleInput,
+    db: DbClient = this.db,
+  ): Promise<CanonicalRoleRecord> {
     const record = await db.canonicalRole.upsert({
       where: { canonicalName: input.canonicalName },
       create: {
@@ -64,7 +67,10 @@ export class CanonicalRoleService {
     return this.toRecord(record);
   }
 
-  async getRole(canonicalName: string, db: DbClient = this.db): Promise<CanonicalRoleRecord | null> {
+  async getRole(
+    canonicalName: string,
+    db: DbClient = this.db,
+  ): Promise<CanonicalRoleRecord | null> {
     const record = await db.canonicalRole.findUnique({
       where: { canonicalName },
     });

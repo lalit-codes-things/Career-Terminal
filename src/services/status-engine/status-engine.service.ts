@@ -228,7 +228,8 @@ export class StatusEngine {
 
     let historyEntry: ApplicationStatusHistoryRecord | null = null;
 
-    const previousStatus = orderedHistory.at(-1)?.status ?? this.normalizeStatus(application.status) ?? null;
+    const previousStatus =
+      orderedHistory.at(-1)?.status ?? this.normalizeStatus(application.status) ?? null;
     const created = await db.applicationStatusHistory.create({
       data: {
         applicationId: input.applicationId,

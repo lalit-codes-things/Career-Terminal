@@ -20,40 +20,46 @@ jest.mock('../config/database', () => ({
   prisma: {
     canonicalCandidateIntelligence: {
       findUnique: jest.fn(),
-      findMany:   jest.fn(),
-      upsert:     jest.fn(),
-      update:     jest.fn(),
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
     },
     factObservation: {
       findUnique: jest.fn(),
-      findMany:   jest.fn(),
-      findFirst:  jest.fn(),
-      create:     jest.fn(),
-      update:     jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
-    factProvenance:  { findUnique: jest.fn(), findMany: jest.fn() },
-    extractionRun:   { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
-    jobApplication:  { findFirst: jest.fn() },
-    resume:          { findFirst: jest.fn() },
-    emailMessage:    { findFirst: jest.fn() },
+    factProvenance: { findUnique: jest.fn(), findMany: jest.fn() },
+    extractionRun: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    jobApplication: { findFirst: jest.fn() },
+    resume: { findFirst: jest.fn() },
+    emailMessage: { findFirst: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
 
 jest.mock('../services/routing/cell-routing.service', () => ({
   cellRoutingService: {
-    resolveUserRouting:   jest.fn(),
+    resolveUserRouting: jest.fn(),
     ensureCellMatchesUser: jest.fn(),
   },
 }));
 
-
-import { prisma }             from '../config/database';
+import { prisma } from '../config/database';
 import { cellRoutingService } from '../services/routing/cell-routing.service';
-import { CanonicalIntelligenceService, computeDeduplicationKey }
-                              from '../services/candidate-intelligence/canonical-intelligence.service';
-import { ownershipGuard }     from '../services/ownership/ownership.guard';
-import { factService }        from '../services/fact.service';
+import {
+  CanonicalIntelligenceService,
+  computeDeduplicationKey,
+} from '../services/candidate-intelligence/canonical-intelligence.service';
+import { ownershipGuard } from '../services/ownership/ownership.guard';
+import { factService } from '../services/fact.service';
 import {
   CrossUserOwnershipError,
   CellBoundaryViolationError,
@@ -64,67 +70,67 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const USER_A   = 'aaaaaaaa-0000-0000-0000-000000000001';
-const USER_B   = 'bbbbbbbb-0000-0000-0000-000000000002';
-const CELL_A   = 'us-east-1-shard-000';
-const CELL_B   = 'us-east-1-shard-001';
-const FACT_ID  = 'fact-0000-0000-0000-000000000001';
-const PROV_ID  = 'prov-0000-0000-0000-000000000001';
-const RUN_ID   = 'run-0000-0000-0000-000000000001';
-const CAN_ID   = 'can-0000-0000-0000-000000000001';
+const USER_A = 'aaaaaaaa-0000-0000-0000-000000000001';
+const USER_B = 'bbbbbbbb-0000-0000-0000-000000000002';
+const CELL_A = 'us-east-1-shard-000';
+const CELL_B = 'us-east-1-shard-001';
+const FACT_ID = 'fact-0000-0000-0000-000000000001';
+const PROV_ID = 'prov-0000-0000-0000-000000000001';
+const RUN_ID = 'run-0000-0000-0000-000000000001';
+const CAN_ID = 'can-0000-0000-0000-000000000001';
 
 // ── Fixture factories ─────────────────────────────────────────────────────────
 
 const makeFact = (o: Record<string, unknown> = {}) => ({
-  id:               FACT_ID,
-  userId:           USER_A,
-  factType:         'SKILL',
-  factData:         { name: 'TypeScript' },
-  confidence:       0.9,
-  observedAt:       new Date('2026-03-01T00:00:00Z'),
-  isCurrent:        true,
-  deletedAt:        null,
-  needsReview:      false,
-  isUserCorrected:  false,
-  sourceVersion:    'v1',
-  provenanceId:     PROV_ID,
+  id: FACT_ID,
+  userId: USER_A,
+  factType: 'SKILL',
+  factData: { name: 'TypeScript' },
+  confidence: 0.9,
+  observedAt: new Date('2026-03-01T00:00:00Z'),
+  isCurrent: true,
+  deletedAt: null,
+  needsReview: false,
+  isUserCorrected: false,
+  sourceVersion: 'v1',
+  provenanceId: PROV_ID,
   ...o,
 });
 
 const makeCanonical = (o: Record<string, unknown> = {}) => ({
-  id:               CAN_ID,
-  userId:           USER_A,
-  cellId:           CELL_A,
-  factType:         'SKILL',
+  id: CAN_ID,
+  userId: USER_A,
+  cellId: CELL_A,
+  factType: 'SKILL',
   deduplicationKey: 'typescript',
-  sourceFactId:     FACT_ID,
-  provenanceId:     PROV_ID,
-  confidence:       0.9,
-  lastObservedAt:   new Date('2026-03-01T00:00:00Z'),
-  sourceVersion:    'v1',
-  isActive:         true,
-  createdAt:        new Date('2026-03-01T00:00:00Z'),
-  updatedAt:        new Date('2026-03-01T00:00:00Z'),
-  sourceFact:       { isUserCorrected: false },
-  provenance:       makeProvenance(),
+  sourceFactId: FACT_ID,
+  provenanceId: PROV_ID,
+  confidence: 0.9,
+  lastObservedAt: new Date('2026-03-01T00:00:00Z'),
+  sourceVersion: 'v1',
+  isActive: true,
+  createdAt: new Date('2026-03-01T00:00:00Z'),
+  updatedAt: new Date('2026-03-01T00:00:00Z'),
+  sourceFact: { isUserCorrected: false },
+  provenance: makeProvenance(),
   ...o,
 });
 
 const makeProvenance = (o: Record<string, unknown> = {}) => ({
-  id:              PROV_ID,
-  userId:          USER_A,
-  cellId:          CELL_A,
-  sourceType:      'RESUME',
-  sourceId:        'res-001',
-  sourceVersion:   'v1',
-  sourceIdentity:  'sha256-abc',
+  id: PROV_ID,
+  userId: USER_A,
+  cellId: CELL_A,
+  sourceType: 'RESUME',
+  sourceId: 'res-001',
+  sourceVersion: 'v1',
+  sourceIdentity: 'sha256-abc',
   extractionRunId: RUN_ID,
-  parserVersion:   '1.0.0',
-  modelProvider:   null,
-  modelVersion:    null,
-  promptVersion:   null,
-  schemaVersion:   'v1',
-  createdAt:       new Date('2026-03-01T00:00:00Z'),
+  parserVersion: '1.0.0',
+  modelProvider: null,
+  modelVersion: null,
+  promptVersion: null,
+  schemaVersion: 'v1',
+  createdAt: new Date('2026-03-01T00:00:00Z'),
   ...o,
 });
 
@@ -132,14 +138,17 @@ const makeProvenance = (o: Record<string, unknown> = {}) => ({
 
 function mockRouting(cellId = CELL_A) {
   (cellRoutingService.resolveUserRouting as jest.Mock).mockResolvedValue({
-    userId: USER_A, cellId, region: 'us-east-1',
-    residencyRegion: 'us-east-1', routingState: 'ROUTABLE',
+    userId: USER_A,
+    cellId,
+    region: 'us-east-1',
+    residencyRegion: 'us-east-1',
+    routingState: 'ROUTABLE',
   });
 }
 
 function mockTransaction() {
-  (prisma.$transaction as jest.Mock).mockImplementation(
-    (cb: (tx: typeof prisma) => unknown) => cb(prisma),
+  (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: typeof prisma) => unknown) =>
+    cb(prisma),
   );
 }
 
@@ -162,12 +171,12 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     const result = await svc.materialise({
-      userId:      USER_A,
+      userId: USER_A,
       sourceFactId: FACT_ID,
       provenanceId: PROV_ID,
-      factType:    'SKILL',
-      confidence:  0.9,
-      observedAt:  new Date('2026-03-01T00:00:00Z'),
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date('2026-03-01T00:00:00Z'),
     });
 
     expect(result.promoted).toBe(true);
@@ -184,8 +193,12 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.8, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.8,
+      observedAt: new Date(),
     });
 
     expect(prisma.canonicalCandidateIntelligence.upsert).toHaveBeenCalledWith(
@@ -200,8 +213,14 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
       makeFact({ deletedAt: new Date() }),
     );
     await expect(
-      svc.materialise({ userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-        factType: 'SKILL', confidence: 0.9, observedAt: new Date() }),
+      svc.materialise({
+        userId: USER_A,
+        sourceFactId: FACT_ID,
+        provenanceId: PROV_ID,
+        factType: 'SKILL',
+        confidence: 0.9,
+        observedAt: new Date(),
+      }),
     ).rejects.toThrow(FactNotEligibleError);
   });
 
@@ -210,8 +229,14 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
       makeFact({ isCurrent: false }),
     );
     await expect(
-      svc.materialise({ userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-        factType: 'SKILL', confidence: 0.9, observedAt: new Date() }),
+      svc.materialise({
+        userId: USER_A,
+        sourceFactId: FACT_ID,
+        provenanceId: PROV_ID,
+        factType: 'SKILL',
+        confidence: 0.9,
+        observedAt: new Date(),
+      }),
     ).rejects.toThrow(FactNotEligibleError);
   });
 
@@ -220,12 +245,17 @@ describe('1. Valid facts materialise into canonical intelligence', () => {
       makeFact({ needsReview: true, isUserCorrected: false }),
     );
     await expect(
-      svc.materialise({ userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-        factType: 'SKILL', confidence: 0.9, observedAt: new Date() }),
+      svc.materialise({
+        userId: USER_A,
+        sourceFactId: FACT_ID,
+        provenanceId: PROV_ID,
+        factType: 'SKILL',
+        confidence: 0.9,
+        observedAt: new Date(),
+      }),
     ).rejects.toThrow(FactNotEligibleError);
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Historical extraction runs remain unchanged
@@ -246,8 +276,12 @@ describe('2. Historical extraction runs remain unchanged', () => {
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date(),
     });
 
     expect(prisma.factObservation.update).not.toHaveBeenCalled();
@@ -279,8 +313,12 @@ describe('2. Historical extraction runs remain unchanged', () => {
     );
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.5, observedAt: olderDate,
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.5,
+      observedAt: olderDate,
     });
 
     expect(result.promoted).toBe(false);
@@ -308,8 +346,12 @@ describe('3. Provenance remains traceable', () => {
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date(),
     });
 
     expect(result.winningProvenanceId).toBe(PROV_ID);
@@ -339,14 +381,14 @@ describe('3. Provenance remains traceable', () => {
     ]);
 
     const results = await svc.getForUser({
-      userId: USER_A, includeProvenance: true,
+      userId: USER_A,
+      includeProvenance: true,
     });
 
     expect(results[0]!.provenance).toBeDefined();
     expect(results[0]!.provenance!.id).toBe(PROV_ID);
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Older extraction results cannot silently overwrite newer canonical data
@@ -370,8 +412,12 @@ describe('4. Older extraction cannot silently overwrite newer canonical data', (
     );
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.5, observedAt: new Date('2026-03-01'),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.5,
+      observedAt: new Date('2026-03-01'),
     });
 
     expect(result.promoted).toBe(false);
@@ -387,8 +433,12 @@ describe('4. Older extraction cannot silently overwrite newer canonical data', (
     );
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date('2026-01-01'),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date('2026-01-01'),
     });
 
     expect(result.promoted).toBe(false);
@@ -402,13 +452,21 @@ describe('4. Older extraction cannot silently overwrite newer canonical data', (
       makeFact({ id: FACT_ID_NEW, confidence: 0.9, observedAt: newerDate }),
     );
     (prisma.canonicalCandidateIntelligence.findUnique as jest.Mock).mockResolvedValue(
-      makeCanonical({ sourceFactId: FACT_ID, confidence: 0.9, lastObservedAt: new Date('2026-03-01') }),
+      makeCanonical({
+        sourceFactId: FACT_ID,
+        confidence: 0.9,
+        lastObservedAt: new Date('2026-03-01'),
+      }),
     );
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID_NEW, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: newerDate,
+      userId: USER_A,
+      sourceFactId: FACT_ID_NEW,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: newerDate,
     });
 
     expect(result.promoted).toBe(true);
@@ -423,13 +481,21 @@ describe('4. Older extraction cannot silently overwrite newer canonical data', (
       makeFact({ id: FACT_ID_HIGH, confidence: 0.99, observedAt: olderDate }),
     );
     (prisma.canonicalCandidateIntelligence.findUnique as jest.Mock).mockResolvedValue(
-      makeCanonical({ sourceFactId: FACT_ID, confidence: 0.7, lastObservedAt: new Date('2026-03-01') }),
+      makeCanonical({
+        sourceFactId: FACT_ID,
+        confidence: 0.7,
+        lastObservedAt: new Date('2026-03-01'),
+      }),
     );
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID_HIGH, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.99, observedAt: olderDate,
+      userId: USER_A,
+      sourceFactId: FACT_ID_HIGH,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.99,
+      observedAt: olderDate,
     });
 
     expect(result.promoted).toBe(true);
@@ -457,16 +523,24 @@ describe('5. Duplicate processing is idempotent', () => {
     );
 
     const first = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date(),
     });
     const second = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date(),
     });
 
     expect(first.canonicalId).toBe(second.canonicalId);
-    expect(first.promoted).toBe(false);   // idempotent path
+    expect(first.promoted).toBe(false); // idempotent path
     expect(second.promoted).toBe(false);
     expect(prisma.canonicalCandidateIntelligence.upsert).not.toHaveBeenCalled();
   });
@@ -477,8 +551,12 @@ describe('5. Duplicate processing is idempotent', () => {
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.9, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.9,
+      observedAt: new Date(),
     });
 
     const upsertCall = (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mock.calls[0][0];
@@ -487,7 +565,6 @@ describe('5. Duplicate processing is idempotent', () => {
     expect(upsertCall.where.unique_canonical_per_user_type_key.factType).toBe('SKILL');
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. Conflicting facts follow deterministic rules
@@ -504,17 +581,29 @@ describe('6. Conflict resolution is deterministic', () => {
 
   it('user-corrected fact beats machine fact with higher confidence (Rule 4)', async () => {
     const FACT_ID_CORRECTED = 'fact-corrected-0000-0000-0000-000000000001';
-    const userCorrectedFact = makeFact({ id: FACT_ID_CORRECTED, isUserCorrected: true, confidence: 0.5 });
+    const userCorrectedFact = makeFact({
+      id: FACT_ID_CORRECTED,
+      isUserCorrected: true,
+      confidence: 0.5,
+    });
     (prisma.factObservation.findUnique as jest.Mock).mockResolvedValue(userCorrectedFact);
     // Existing canonical is machine-extracted with higher confidence and different factId
     (prisma.canonicalCandidateIntelligence.findUnique as jest.Mock).mockResolvedValue(
-      makeCanonical({ sourceFactId: FACT_ID, confidence: 0.99, sourceFact: { isUserCorrected: false } }),
+      makeCanonical({
+        sourceFactId: FACT_ID,
+        confidence: 0.99,
+        sourceFact: { isUserCorrected: false },
+      }),
     );
     (prisma.canonicalCandidateIntelligence.upsert as jest.Mock).mockResolvedValue({ id: CAN_ID });
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID_CORRECTED, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.5, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID_CORRECTED,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.5,
+      observedAt: new Date(),
     });
 
     expect(result.promoted).toBe(true);
@@ -530,8 +619,12 @@ describe('6. Conflict resolution is deterministic', () => {
     );
 
     const result = await svc.materialise({
-      userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-      factType: 'SKILL', confidence: 0.99, observedAt: new Date(),
+      userId: USER_A,
+      sourceFactId: FACT_ID,
+      provenanceId: PROV_ID,
+      factType: 'SKILL',
+      confidence: 0.99,
+      observedAt: new Date(),
     });
 
     expect(result.promoted).toBe(false);
@@ -555,7 +648,7 @@ describe('6. Conflict resolution is deterministic', () => {
     // so a SKILL "python" and a CERTIFICATION "python" are separate rows.
     // The key itself is just the normalised name, not type-prefixed.
     const skill = computeDeduplicationKey('SKILL', { name: 'Python' });
-    const cert  = computeDeduplicationKey('CERTIFICATION', { name: 'Python' });
+    const cert = computeDeduplicationKey('CERTIFICATION', { name: 'Python' });
     expect(skill).toBe('python');
     expect(cert).toBe('python');
     // They are equal here — but they occupy different (factType) slots in the table.
@@ -596,8 +689,14 @@ describe('7. Cross-user access is rejected', () => {
     );
 
     await expect(
-      svc.materialise({ userId: USER_A, sourceFactId: FACT_ID, provenanceId: PROV_ID,
-        factType: 'SKILL', confidence: 0.9, observedAt: new Date() }),
+      svc.materialise({
+        userId: USER_A,
+        sourceFactId: FACT_ID,
+        provenanceId: PROV_ID,
+        factType: 'SKILL',
+        confidence: 0.9,
+        observedAt: new Date(),
+      }),
     ).rejects.toThrow(MaterialisationOwnershipError);
     expect(prisma.canonicalCandidateIntelligence.upsert).not.toHaveBeenCalled();
   });
@@ -607,8 +706,7 @@ describe('7. Cross-user access is rejected', () => {
       makeCanonical({ userId: USER_B }),
     );
 
-    await expect(svc.getById(CAN_ID, USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(svc.getById(CAN_ID, USER_A)).rejects.toThrow(CrossUserOwnershipError);
   });
 
   it('retire rejects when canonical record belongs to USER_B', async () => {
@@ -616,8 +714,7 @@ describe('7. Cross-user access is rejected', () => {
       makeCanonical({ userId: USER_B }),
     );
 
-    await expect(svc.retire(CAN_ID, USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(svc.retire(CAN_ID, USER_A)).rejects.toThrow(CrossUserOwnershipError);
     expect(prisma.canonicalCandidateIntelligence.update).not.toHaveBeenCalled();
   });
 
@@ -626,8 +723,9 @@ describe('7. Cross-user access is rejected', () => {
       makeCanonical({ userId: USER_B }),
     );
 
-    await expect(ownershipGuard.ensureCanonicalIntelligenceAccess(USER_A, CAN_ID))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(ownershipGuard.ensureCanonicalIntelligenceAccess(USER_A, CAN_ID)).rejects.toThrow(
+      CrossUserOwnershipError,
+    );
   });
 
   it('getProvenanceForCanonical rejects when canonical belongs to USER_B', async () => {
@@ -635,11 +733,11 @@ describe('7. Cross-user access is rejected', () => {
       makeCanonical({ userId: USER_B, provenance: makeProvenance({ userId: USER_B }) }),
     );
 
-    await expect(svc.getProvenanceForCanonical(CAN_ID, USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(svc.getProvenanceForCanonical(CAN_ID, USER_A)).rejects.toThrow(
+      CrossUserOwnershipError,
+    );
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 8. Cross-cell access is rejected
@@ -654,13 +752,19 @@ describe('8. Cross-cell access is rejected', () => {
   });
 
   it('materialise rejects when supplied cellId mismatches routed cell', async () => {
-    mockRouting(CELL_A);  // user routes to CELL_A
+    mockRouting(CELL_A); // user routes to CELL_A
     (prisma.factObservation.findUnique as jest.Mock).mockResolvedValue(makeFact());
 
     await expect(
-      svc.materialise({ userId: USER_A, cellId: CELL_B,  // caller supplies wrong cell
-        sourceFactId: FACT_ID, provenanceId: PROV_ID,
-        factType: 'SKILL', confidence: 0.9, observedAt: new Date() }),
+      svc.materialise({
+        userId: USER_A,
+        cellId: CELL_B, // caller supplies wrong cell
+        sourceFactId: FACT_ID,
+        provenanceId: PROV_ID,
+        factType: 'SKILL',
+        confidence: 0.9,
+        observedAt: new Date(),
+      }),
     ).rejects.toThrow(CellBoundaryViolationError);
     expect(prisma.canonicalCandidateIntelligence.upsert).not.toHaveBeenCalled();
   });
@@ -668,11 +772,12 @@ describe('8. Cross-cell access is rejected', () => {
   it('assertCellBoundary throws when canonical record cellId differs from routed cell', async () => {
     mockRouting(CELL_A);
     (prisma.canonicalCandidateIntelligence.findUnique as jest.Mock).mockResolvedValue(
-      makeCanonical({ cellId: CELL_B }),   // record was written to CELL_B
+      makeCanonical({ cellId: CELL_B }), // record was written to CELL_B
     );
 
-    await expect(svc.assertCellBoundary(CAN_ID, USER_A))
-      .rejects.toThrow(CellBoundaryViolationError);
+    await expect(svc.assertCellBoundary(CAN_ID, USER_A)).rejects.toThrow(
+      CellBoundaryViolationError,
+    );
   });
 
   it('assertCellBoundary passes when cells match', async () => {
@@ -681,8 +786,7 @@ describe('8. Cross-cell access is rejected', () => {
       makeCanonical({ cellId: CELL_A }),
     );
 
-    await expect(svc.assertCellBoundary(CAN_ID, USER_A))
-      .resolves.toBeUndefined();
+    await expect(svc.assertCellBoundary(CAN_ID, USER_A)).resolves.toBeUndefined();
   });
 
   it('assertCellBoundary throws CrossUserOwnershipError when record belongs to USER_B', async () => {
@@ -691,16 +795,16 @@ describe('8. Cross-cell access is rejected', () => {
       makeCanonical({ userId: USER_B, cellId: CELL_A }),
     );
 
-    await expect(svc.assertCellBoundary(CAN_ID, USER_A))
-      .rejects.toThrow(CrossUserOwnershipError);
+    await expect(svc.assertCellBoundary(CAN_ID, USER_A)).rejects.toThrow(CrossUserOwnershipError);
   });
 
   it('absent canonical record throws CanonicalIntelligenceNotFoundError in assertCellBoundary', async () => {
     mockRouting(CELL_A);
     (prisma.canonicalCandidateIntelligence.findUnique as jest.Mock).mockResolvedValue(null);
 
-    await expect(svc.assertCellBoundary(CAN_ID, USER_A))
-      .rejects.toThrow(CanonicalIntelligenceNotFoundError);
+    await expect(svc.assertCellBoundary(CAN_ID, USER_A)).rejects.toThrow(
+      CanonicalIntelligenceNotFoundError,
+    );
   });
 });
 
@@ -717,7 +821,7 @@ describe('9. Read model does not expose raw extraction data by default', () => {
 
   it('getForUser without includeFactData returns no factData property', async () => {
     (prisma.canonicalCandidateIntelligence.findMany as jest.Mock).mockResolvedValue([
-      makeCanonical({ sourceFact: null }),   // sourceFact not included
+      makeCanonical({ sourceFact: null }), // sourceFact not included
     ]);
 
     const results = await svc.getForUser({ userId: USER_A });
@@ -790,7 +894,6 @@ describe('9. Read model does not expose raw extraction data by default', () => {
   });
 });
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 10. Existing Epic 0–3 behaviour remains compatible
 // ─────────────────────────────────────────────────────────────────────────────
@@ -814,7 +917,9 @@ describe('10. Existing Epic 0-3 compatibility', () => {
 
   it('OwnershipGuard.ensureApplicationAccess still works (unchanged)', async () => {
     (prisma.jobApplication.findFirst as jest.Mock).mockResolvedValue({
-      id: 'app-1', userId: USER_A, legacyUserId: USER_A,
+      id: 'app-1',
+      userId: USER_A,
+      legacyUserId: USER_A,
     });
 
     const r = await ownershipGuard.ensureApplicationAccess(USER_A, 'app-1');

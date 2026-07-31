@@ -9,10 +9,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
-import {
-  type RecommendationInput,
-  type RecommendationRecord,
-} from '../../domain/recommendation';
+import { type RecommendationInput, type RecommendationRecord } from '../../domain/recommendation';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 

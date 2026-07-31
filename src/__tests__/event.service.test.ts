@@ -4,14 +4,17 @@ import { EVENT_TYPES } from '../services/event/event.types';
 import { queueService } from '../services/queue/queue.service';
 import { prisma } from '../config/database';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
+    $transaction: jest.fn(),
     event: {
       create: jest.fn(),
       update: jest.fn(),
     },
-  },
-}));
+  };
+  prisma.$transaction.mockImplementation((cb: (tx: any) => unknown) => cb(prisma));
+  return { prisma };
+});
 
 jest.mock('../services/queue/queue.service', () => ({
   queueService: {
@@ -27,7 +30,14 @@ describe('Event System', () => {
 
   describe('EventDispatcher', () => {
     it('should persist event and dispatch job for RESUME_UPLOADED', async () => {
-      const mockEvent = { id: 'evt-1', eventType: EVENT_TYPES.RESUME_UPLOADED };
+      const mockEvent = {
+        id: 'evt-1',
+        eventType: EVENT_TYPES.RESUME_UPLOADED,
+        userId: 'u1',
+        cellId: 'c1',
+        correlationId: 'corr-1',
+        payload: { fileHash: 'abc' },
+      };
       (prisma.event.create as jest.Mock).mockResolvedValue(mockEvent);
 
       await eventDispatcher.publish({
@@ -54,7 +64,7 @@ describe('Event System', () => {
           eventId: 'evt-1',
           correlationId: 'corr-1',
           fileHash: 'abc',
-        })
+        }),
       );
     });
   });

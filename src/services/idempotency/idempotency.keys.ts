@@ -56,11 +56,7 @@ export function keyForAppFromEmail(providerMessageId: string): string {
   return truncate(`${prefix('app:email')}:${providerMessageId}`);
 }
 
-export function keyForAppFromManual(
-  userId: string,
-  opportunityId: string,
-  salt?: string,
-): string {
+export function keyForAppFromManual(userId: string, opportunityId: string, salt?: string): string {
   const base = `${prefix('app:manual')}:${userId}:${opportunityId}`;
   return truncate(salt ? `${base}:${salt}` : base);
 }
@@ -124,10 +120,7 @@ export function jobIdForApplicationMerge(
  * prefer operation-specific stable keys instead.
  */
 export function occurrenceHash(isoTimestamp: string, extraContext = ''): string {
-  return createHash('sha1')
-    .update(`${isoTimestamp}|${extraContext}`)
-    .digest('hex')
-    .slice(0, 12);
+  return createHash('sha1').update(`${isoTimestamp}|${extraContext}`).digest('hex').slice(0, 12);
 }
 
 // ── Validation (used by IdempotencyService when strict mode is enabled) ─────

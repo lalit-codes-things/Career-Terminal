@@ -251,10 +251,10 @@ export class CloudSecretProvider implements ISecretProvider {
  *   'vault'            → VaultSecretProvider (implement before enabling)
  *   'aws' | 'gcp' | 'azure' → CloudSecretProvider (implement before enabling)
  *
-  * The factory is called once at startup. The resulting singleton is used
-  * everywhere secrets are needed (via config/index.ts and the cryptographic
-  * key manager).
-  */
+ * The factory is called once at startup. The resulting singleton is used
+ * everywhere secrets are needed (via config/index.ts and the cryptographic
+ * key manager).
+ */
 export function createSecretProvider(): ISecretProvider {
   const backend = config.secretProviderBackend;
 
@@ -271,5 +271,16 @@ export function createSecretProvider(): ISecretProvider {
   }
 }
 
-/** Singleton — created once at process startup. */
-export const secretProvider: ISecretProvider = createSecretProvider();
+/**
+ * Singleton — created lazily to avoid circular import issues at module load.
+ * The first call to `getSecretProvider()` triggers creation once `config`
+ * is fully initialized.
+ */
+let _secretProvider: ISecretProvider | null = null;
+
+export function getSecretProvider(): ISecretProvider {
+  if (!_secretProvider) {
+    _secretProvider = createSecretProvider();
+  }
+  return _secretProvider;
+}

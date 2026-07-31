@@ -129,7 +129,11 @@ export class IdempotencyService {
    * sentinel "in-progress" value.  A failing caller MUST call `abort()`
    * (or let the claimer clean it up via TTL + a future replay).
    */
-  async claim(key: string, operationType: string, options: { ttlDays?: number; strictKeyValidation?: boolean } = {}): Promise<ClaimResult> {
+  async claim(
+    key: string,
+    operationType: string,
+    options: { ttlDays?: number; strictKeyValidation?: boolean } = {},
+  ): Promise<ClaimResult> {
     this.validateKeyOrThrow(key, options.strictKeyValidation);
 
     const IN_PROGRESS = '00000000-0000-0000-0000-000000000000';

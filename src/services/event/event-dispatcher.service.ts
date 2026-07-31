@@ -108,7 +108,7 @@ export class EventDispatcherService {
   }
 
   private async dispatchToQueue(event: DispatchedEvent): Promise<void> {
-    const payload = event.payload as Record<string, unknown>;
+    const payload = event.payload;
 
     switch (event.eventType) {
       case EVENT_TYPES.RESUME_UPLOADED: {
