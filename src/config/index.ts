@@ -43,6 +43,9 @@ interface AppConfig {
   databaseReplicaUrl?: string;
   databaseTimeout: number;
   databasePoolTimeout: number;
+  databaseRole: 'app_runtime' | 'app_worker' | 'app_migration' | 'app_readonly' | 'app_admin';
+  databaseAppUser?: string;
+  databaseAppPassword?: string;
 
   /** JWT signing secret */
   jwtSecret: string;
@@ -168,6 +171,23 @@ interface AppConfig {
     host?: string;
     port?: number;
   };
+
+  /** KMS config */
+  kms: {
+    keyId?: string;
+    encryptionContext?: string;
+  };
+
+  /** Redis ACL / TLS */
+  redisAcl: {
+    username?: string;
+    password?: string;
+    tlsEnabled: boolean;
+    tlsCaPath?: string;
+  };
+
+  /** Worker service account */
+  workerServiceAccount?: string;
 }
 
 function validateSecrets(cfg: {
@@ -230,6 +250,9 @@ function loadConfig(): AppConfig {
     databaseReplicaUrl: env.DATABASE_REPLICA_URL,
     databaseTimeout: env.DATABASE_TIMEOUT,
     databasePoolTimeout: env.DATABASE_POOL_TIMEOUT,
+    databaseRole: env.DATABASE_ROLE,
+    databaseAppUser: env.DATABASE_APP_USER,
+    databaseAppPassword: env.DATABASE_APP_PASSWORD,
 
     jwtSecret: env.JWT_SECRET,
     internalApiKey: env.INTERNAL_API_KEY,
@@ -343,6 +366,20 @@ function loadConfig(): AppConfig {
       host: env.PGBOUNCER_HOST,
       port: env.PGBOUNCER_PORT,
     },
+
+    kms: {
+      keyId: env.KMS_KEY_ID,
+      encryptionContext: env.AWS_KMS_ENCRYPTION_CONTEXT,
+    },
+
+    redisAcl: {
+      username: env.REDIS_ACL_USERNAME,
+      password: env.REDIS_ACL_PASSWORD,
+      tlsEnabled: env.REDIS_TLS_ENABLED,
+      tlsCaPath: env.REDIS_TLS_CA_PATH,
+    },
+
+    workerServiceAccount: env.WORKER_SERVICE_ACCOUNT,
   };
 
   validateSecrets(cfg);

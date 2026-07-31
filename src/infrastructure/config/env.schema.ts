@@ -16,6 +16,9 @@ export const envSchema = z.object({
   DATABASE_POOL_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_CONNECTION_LIMIT: z.coerce.number().int().positive().max(100).default(5),
   DATABASE_CONNECT_TIMEOUT: z.coerce.number().int().positive().default(10),
+  DATABASE_ROLE: z.enum(['app_runtime', 'app_worker', 'app_migration', 'app_readonly', 'app_admin']).default('app_runtime'),
+  DATABASE_APP_USER: z.string().optional(),
+  DATABASE_APP_PASSWORD: z.string().optional(),
 
   // PostgreSQL (used by docker-compose / migrations)
   POSTGRES_USER: z.string().default('career-terminal'),
@@ -170,6 +173,19 @@ export const envSchema = z.object({
   // Outbox dispatcher
   OUTBOX_DISPATCH_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
   OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
+
+  // KMS (AWS KMS envelope encryption)
+  KMS_KEY_ID: z.string().optional(),
+  AWS_KMS_ENCRYPTION_CONTEXT: z.string().optional(),
+
+  // Redis ACL / TLS
+  REDIS_ACL_USERNAME: z.string().optional(),
+  REDIS_ACL_PASSWORD: z.string().optional(),
+  REDIS_TLS_ENABLED: z.coerce.boolean().default(false),
+  REDIS_TLS_CA_PATH: z.string().optional(),
+
+  // Worker service account
+  WORKER_SERVICE_ACCOUNT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
