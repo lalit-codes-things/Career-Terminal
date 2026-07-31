@@ -37,6 +37,10 @@ interface AppConfig {
 
   /** Encryption key for token storage (32 bytes hex) */
   encryptionKey: string;
+  /** Rotation encryption key v2 (optional) */
+  encryptionKeyV2?: string;
+  /** Rotation encryption key v3 (optional) */
+  encryptionKeyV3?: string;
 
   /** Database connection URL */
   databaseUrl: string;
@@ -239,6 +243,9 @@ interface AppConfig {
 function validateSecrets(cfg: {
   jwtSecret: string;
   encryptionKey: string;
+  encryptionKeyV2?: string;
+  encryptionKeyV3?: string;
+  activeEncryptionKeyVersion: number;
   nodeEnv: string;
   internalApiKey?: string;
 }): void {
@@ -255,7 +262,13 @@ function validateSecrets(cfg: {
     throw new Error('INTERNAL_API_KEY is required in production.');
   }
 
-  validateEncryptionConfig();
+  validateEncryptionConfig({
+    encryptionKey: cfg.encryptionKey,
+    encryptionKeyV2: cfg.encryptionKeyV2,
+    encryptionKeyV3: cfg.encryptionKeyV3,
+    activeEncryptionKeyVersion: cfg.activeEncryptionKeyVersion,
+    isProduction: cfg.nodeEnv === 'production',
+  });
   validateWorkloadIdentity();
 }
 
@@ -356,6 +369,8 @@ function loadConfig(): AppConfig {
     },
 
     encryptionKey: env.ENCRYPTION_KEY,
+    encryptionKeyV2: env.ENCRYPTION_KEY_V2,
+    encryptionKeyV3: env.ENCRYPTION_KEY_V3,
     databaseUrl: env.DATABASE_URL,
     databaseReplicaUrl: env.DATABASE_REPLICA_URL,
     databaseAppUrl: env.DATABASE_APP_URL,

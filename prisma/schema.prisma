@@ -453,8 +453,10 @@ model Opportunity {
   companyId         String           @map("company_id") @db.Uuid
   externalId        String?          @map("external_id")
   title             String
+  normalizedTitle   String           @map("normalized_title")
   description       String?          @db.Text
   location          String?
+  normalizedLocation String          @map("normalized_location") @default("")
   salaryRange       String?          @map("salary_range")
   employmentType    String?          @map("employment_type")
   workSetting       String?          @map("work_setting")
@@ -480,6 +482,7 @@ model Opportunity {
   @@index([companyId])
   @@index([title])
   @@index([location])
+  @@unique([companyId, normalizedTitle, normalizedLocation])
   @@map("opportunities")
 }
 

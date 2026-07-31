@@ -375,6 +375,7 @@ export class ApplicationCommandService {
 
         if (activeResumeRow) {
           await resumeUploadService.linkApplicationResume(
+            userId,
             app.id,
             activeResumeRow,
             {

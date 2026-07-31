@@ -53,8 +53,8 @@ export const envSchema = z.object({
   INTERNAL_API_KEY: z.string().optional(),
 
   // Encryption key rotation (Epic 0.7)
-  // ENCRYPTION_KEY_V2 / V3 etc. are read directly by utils/encryption.ts
-  // They are not validated here because they are optional rotation keys.
+  ENCRYPTION_KEY_V2: z.string().length(64).optional(),
+  ENCRYPTION_KEY_V3: z.string().length(64).optional(),
   ACTIVE_ENCRYPTION_KEY_VERSION: z.coerce.number().int().positive().default(1),
 
   // Secret provider backend (Epic 0.7)

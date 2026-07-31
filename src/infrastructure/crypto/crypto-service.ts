@@ -200,7 +200,7 @@ export class KMSCryptoService implements ICryptoService {
         ? this.parseEncryptionContext(config.kms.encryptionContext)
         : undefined;
 
-    this.client = client ?? new KMSClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+    this.client = client ?? new KMSClient({ region: config.s3.region ?? 'us-east-1' });
   }
 
   async encrypt(plaintext: string): Promise<EncryptResult> {
@@ -409,7 +409,7 @@ export class KMSCryptoService implements ICryptoService {
  * startup (see src/index.ts runStartupDiagnostics) so a missing key fails fast.
  */
 export function createCryptoService(): ICryptoService {
-  const backend = process.env.CRYPTO_BACKEND ?? 'software';
+  const backend = config.cryptoBackend ?? 'software';
 
   switch (backend) {
     case 'kms':

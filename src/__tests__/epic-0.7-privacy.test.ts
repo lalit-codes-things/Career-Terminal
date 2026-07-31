@@ -36,12 +36,7 @@ import {
 
 import { SECRET_NAMES } from '../infrastructure/secrets/secret-provider';
 
-import {
-  SoftwareCryptoService,
-  KMSCryptoService,
-  createCryptoService,
-} from '../infrastructure/crypto/crypto-service';
-
+import { SoftwareCryptoService, KMSCryptoService } from '../infrastructure/crypto/crypto-service';
 import { invalidateKeyCache } from '../utils/encryption';
 
 import {
@@ -360,17 +355,23 @@ describe('Epic 0.7 — CryptoService: SoftwareCryptoService (Phase 15)', () => {
     // Encrypt with v1
     const { ciphertext: v1Cipher } = await svc.encrypt('token-to-migrate');
 
-    // Activate v2
+    // Activate v2 — must re-require to pick up new config
     process.env.ENCRYPTION_KEY_V2 = V2_KEY;
     process.env.ACTIVE_ENCRYPTION_KEY_VERSION = '2';
-    invalidateKeyCache();
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SoftwareCryptoService: FreshSvc } = require('../infrastructure/crypto/crypto-service');
+    const freshSvc = new FreshSvc();
 
-    const v2Cipher = await svc.reEncryptIfStale(v1Cipher);
+    const v2Cipher = await freshSvc.reEncryptIfStale(v1Cipher);
     expect(v2Cipher).not.toBeNull();
     expect(v2Cipher).toMatch(/^v2:/);
     // And the re-encrypted value must still decrypt correctly
-    const decrypted = await svc.decrypt(v2Cipher!);
+    const decrypted = await freshSvc.decrypt(v2Cipher);
     expect(decrypted).toBe('token-to-migrate');
+
+    delete process.env.ENCRYPTION_KEY_V2;
+    delete process.env.ACTIVE_ENCRYPTION_KEY_VERSION;
   });
 
   it('4g. validateConfig does not throw with a valid key', () => {
@@ -392,14 +393,25 @@ describe('Epic 0.7 — CryptoService: KMSCryptoService stub (Phase 15)', () => {
 
   it('4j. createCryptoService returns SoftwareCryptoService when CRYPTO_BACKEND=software', () => {
     process.env.CRYPTO_BACKEND = 'software';
-    const service = createCryptoService();
-    expect(service).toBeInstanceOf(SoftwareCryptoService);
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createCryptoService: freshCreate, SoftwareCryptoService: FreshSoftware } =
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../infrastructure/crypto/crypto-service');
+    const service = freshCreate();
+    expect(service).toBeInstanceOf(FreshSoftware);
+    delete process.env.CRYPTO_BACKEND;
   });
 
   it('4k. createCryptoService returns KMSCryptoService when CRYPTO_BACKEND=kms', () => {
     process.env.CRYPTO_BACKEND = 'kms';
-    const service = createCryptoService();
-    expect(service).toBeInstanceOf(KMSCryptoService);
+    jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createCryptoService: freshCreate, KMSCryptoService: FreshKMS } =
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../infrastructure/crypto/crypto-service');
+    const service = freshCreate();
+    expect(service).toBeInstanceOf(FreshKMS);
     delete process.env.CRYPTO_BACKEND;
   });
 });

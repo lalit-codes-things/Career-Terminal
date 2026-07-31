@@ -1,8 +1,10 @@
 import { prisma } from '../config/database';
 import { companyService } from '../services/company';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma: Record<string, jest.Mock | Record<string, jest.Mock>> = {
+    $transaction: jest.fn(),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
     company: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -18,10 +20,16 @@ jest.mock('../config/database', () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     },
-  },
-}));
+  };
+  (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: unknown) => unknown) =>
+    cb(prisma),
+  );
+  return { prisma };
+});
 
 const mockPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
+  $executeRawUnsafe: jest.Mock;
   company: {
     findUnique: jest.Mock;
     create: jest.Mock;

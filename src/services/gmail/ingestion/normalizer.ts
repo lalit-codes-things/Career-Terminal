@@ -10,13 +10,12 @@ import type { GmailMessage } from '../models/gmail.types';
 export interface NormalizedEmailInput {
   providerMessageId: string;
   threadId: string;
-  sender: string;
-  recipients: any; // Stored as JSON in DB
+  from: string;
+  to: string[];
   subject: string;
   bodyText: string | null;
   bodyHtml: string | null;
   labels: string[];
-  hasAttachments: boolean;
   receivedAt: Date;
 }
 
@@ -35,13 +34,12 @@ export class EmailNormalizer {
     return {
       providerMessageId: message.id,
       threadId: message.threadId,
-      sender: message.sender || 'Unknown Sender',
-      recipients: message.recipients,
+      from: message.sender || 'Unknown Sender',
+      to: message.recipients.to ?? [],
       subject,
       bodyText,
       bodyHtml,
       labels: message.labelIds,
-      hasAttachments: message.hasAttachments,
       receivedAt: message.receivedAt,
     };
   }

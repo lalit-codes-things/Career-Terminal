@@ -125,13 +125,17 @@ export class GmailOAuthService {
    * @throws {NotFoundError} If the connection doesn't exist
    * @throws {TokenError} If the refresh token is revoked or invalid
    */
-  async refreshAccessToken(connectionId: string): Promise<TokenRefreshResult> {
+  async refreshAccessToken(userId: string, connectionId: string): Promise<TokenRefreshResult> {
     const connection = await prisma.userEmailConnection.findUnique({
       where: { id: connectionId },
     });
 
     if (!connection) {
       throw new NotFoundError('UserEmailConnection', connectionId);
+    }
+
+    if (connection.userId !== userId) {
+      throw new TokenError('Unauthorized: connection does not belong to the requesting user');
     }
 
     // Decrypt the stored refresh token
@@ -185,13 +189,17 @@ export class GmailOAuthService {
    * @param connectionId - The UserEmailConnection ID
    * @returns A valid (non-expired) access token
    */
-  async getValidAccessToken(connectionId: string): Promise<string> {
+  async getValidAccessToken(userId: string, connectionId: string): Promise<string> {
     const connection = await prisma.userEmailConnection.findUnique({
       where: { id: connectionId },
     });
 
     if (!connection) {
       throw new NotFoundError('UserEmailConnection', connectionId);
+    }
+
+    if (connection.userId !== userId) {
+      throw new TokenError('Unauthorized: connection does not belong to the requesting user');
     }
 
     if (connection.status === 'REVOKED') {
@@ -204,7 +212,7 @@ export class GmailOAuthService {
     const needsRefresh = now >= expiryMs - TOKEN_EXPIRY_BUFFER_MS;
 
     if (needsRefresh) {
-      const refreshed = await this.refreshAccessToken(connectionId);
+      const refreshed = await this.refreshAccessToken(userId, connectionId);
       return refreshed.accessToken;
     }
 

@@ -32,6 +32,10 @@
  */
 import crypto from 'crypto';
 import { EncryptionError } from '../errors/app-errors';
+// Lazy require to avoid circular dependency with config/index.ts
+// (config imports validateEncryptionConfig from this module).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const getConfig = () => require('../config').config;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,36 +72,45 @@ function buildEnvVarName(version: number): string {
 }
 
 function loadKeyVersion(version: number): Buffer | null {
-  const envVarName = buildEnvVarName(version);
-  const keyHex = process.env[envVarName];
+  const keyHex = getConfigKey(version);
   if (!keyHex) return null;
 
   if (keyHex.length !== KEY_HEX_LENGTH) {
     throw new EncryptionError(
-      `${envVarName} must be exactly ${KEY_HEX_LENGTH} hex characters (${KEY_LENGTH} bytes). ` +
+      `ENCRYPTION_KEY_V${version === 1 ? '' : version} must be exactly ${KEY_HEX_LENGTH} hex characters (${KEY_LENGTH} bytes). ` +
         `Got ${keyHex.length} characters.`,
     );
   }
 
   // Validate it is valid hex
   if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
-    throw new EncryptionError(`${envVarName} contains non-hex characters.`);
+    throw new EncryptionError(
+      `ENCRYPTION_KEY_V${version === 1 ? '' : version} contains non-hex characters.`,
+    );
   }
 
   return Buffer.from(keyHex, 'hex');
 }
 
 /**
+ * Retrieve the raw key hex string for a given version from config.
+ * Called by loadKeyVersion (runtime) — safe after config is initialized.
+ */
+function getConfigKey(version: number): string | undefined {
+  const cfg = getConfig();
+  return version === 1
+    ? cfg.encryptionKey
+    : version === 2
+      ? cfg.encryptionKeyV2
+      : cfg.encryptionKeyV3;
+}
+
+/**
  * Get the active key version for NEW encryptions.
- * Reads from environment (default: 1).
+ * Reads from config (default: 1).
  */
 function getActiveVersion(): number {
-  const envVersion = process.env.ACTIVE_ENCRYPTION_KEY_VERSION;
-  if (envVersion) {
-    const v = parseInt(envVersion, 10);
-    if (!isNaN(v) && v >= 1) return v;
-  }
-  return 1;
+  return getConfig().activeEncryptionKeyVersion;
 }
 
 /**
@@ -329,13 +342,53 @@ export function invalidateKeyCache(version?: number): void {
 }
 
 /**
+ * Validate a raw hex key string for the given version. Throws on invalid format.
+ */
+function loadKeyFromHex(keyHex: string | undefined, version: number): Buffer | null {
+  if (!keyHex) return null;
+
+  if (keyHex.length !== KEY_HEX_LENGTH) {
+    throw new EncryptionError(
+      `ENCRYPTION_KEY_V${version === 1 ? '' : version} must be exactly ${KEY_HEX_LENGTH} hex characters (${KEY_LENGTH} bytes). ` +
+        `Got ${keyHex.length} characters.`,
+    );
+  }
+
+  if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+    throw new EncryptionError(
+      `ENCRYPTION_KEY_V${version === 1 ? '' : version} contains non-hex characters.`,
+    );
+  }
+
+  return Buffer.from(keyHex, 'hex');
+}
+
+/**
  * Validate that the encryption subsystem is correctly configured.
  * Throws EncryptionError if the primary key is missing or malformed.
  * Call this during application startup to fail fast on misconfiguration.
  */
-export function validateEncryptionConfig(): void {
+export function validateEncryptionConfig(opts?: {
+  encryptionKey?: string;
+  encryptionKeyV2?: string;
+  encryptionKeyV3?: string;
+  activeEncryptionKeyVersion?: number;
+  isProduction?: boolean;
+}): void {
+  const keySources =
+    opts ??
+    (() => {
+      const cfg = getConfig();
+      return {
+        encryptionKey: cfg.encryptionKey,
+        encryptionKeyV2: cfg.encryptionKeyV2,
+        encryptionKeyV3: cfg.encryptionKeyV3,
+        activeEncryptionKeyVersion: cfg.activeEncryptionKeyVersion,
+        isProduction: cfg.isProduction,
+      };
+    })();
   // Always validate primary key (version 1)
-  const v1Key = loadKeyVersion(1);
+  const v1Key = loadKeyFromHex(keySources.encryptionKey, 1);
   if (!v1Key) {
     throw new EncryptionError(
       'ENCRYPTION_KEY is not set. ' +
@@ -344,7 +397,7 @@ export function validateEncryptionConfig(): void {
   }
 
   const allZeros = v1Key.every((b) => b === 0);
-  if (allZeros && process.env.NODE_ENV === 'production') {
+  if (allZeros && keySources.isProduction) {
     throw new EncryptionError(
       'ENCRYPTION_KEY is set to the all-zeros placeholder value in production. ' +
         'This is a critical security misconfiguration.',
@@ -352,13 +405,25 @@ export function validateEncryptionConfig(): void {
   }
 
   // Validate optional higher-version keys if configured
-  for (let v = 2; v <= 10; v++) {
-    const envVarName = buildEnvVarName(v);
-    if (process.env[envVarName]) {
-      loadKeyVersion(v); // throws on invalid format
-    }
+  const keyV2 = keySources.encryptionKeyV2;
+  if (keyV2) {
+    loadKeyFromHex(keyV2, 2);
+  }
+  const keyV3 = keySources.encryptionKeyV3;
+  if (keyV3) {
+    loadKeyFromHex(keyV3, 3);
   }
 
-  const activeVersion = getActiveVersion();
-  getKeyByVersion(activeVersion); // throws if active version is not configured
+  const activeVersion = keySources.activeEncryptionKeyVersion ?? 1;
+  const activeKey = loadKeyFromHex(
+    activeVersion === 1
+      ? keySources.encryptionKey
+      : activeVersion === 2
+        ? keySources.encryptionKeyV2
+        : keySources.encryptionKeyV3,
+    activeVersion,
+  );
+  if (!activeKey) {
+    throw new EncryptionError(`Active encryption key version ${activeVersion} is not configured.`);
+  }
 }

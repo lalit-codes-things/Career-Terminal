@@ -50,6 +50,7 @@ const mockClient = GmailClient.prototype as unknown as {
 };
 const mockPrisma = prisma as unknown as {
   $transaction: jest.Mock;
+  $executeRawUnsafe: jest.Mock;
   userEmailConnection: {
     findFirst: jest.Mock;
     update: jest.Mock;
@@ -105,6 +106,7 @@ describe('GmailIngestionService', () => {
     mockPrisma.syncBatch.findFirst.mockResolvedValue(null);
     mockPrisma.syncBatch.create.mockResolvedValue({ id: 'batch-1', userId: 'user-1' });
     mockPrisma.syncBatch.update.mockResolvedValue({ id: 'batch-1', userId: 'user-1' });
+    mockPrisma.$executeRawUnsafe = jest.fn().mockResolvedValue(undefined);
     mockPrisma.$transaction.mockImplementation((fn) => fn(mockPrisma));
 
     // Mock DurableCheckpointService

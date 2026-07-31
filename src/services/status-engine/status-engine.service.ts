@@ -420,7 +420,7 @@ export class StatusEngine {
     sourceEmailId: string | null;
     changedByUserId: string | null;
     timestamp: Date;
-    metadata: any;
+    metadata: Prisma.JsonValue;
     createdAt: Date;
   }): ApplicationStatusHistoryRecord {
     return {
