@@ -155,6 +155,23 @@ rules:
     verbs: ["get"]
 
 ---
+# Worker: database, redis, encryption (generic worker SA for job processors)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: career-terminal-worker-secrets
+  namespace: career-terminal
+  labels:
+    app.kubernetes.io/component: worker
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - career-terminal-secrets      # main secret (database, redis, encryption)
+      - career-terminal-redis-secret
+    verbs: ["get"]
+
+---
 # ── RoleBindings ──────────────────────────────────────────────────────────────
 
 apiVersion: rbac.authorization.k8s.io/v1
