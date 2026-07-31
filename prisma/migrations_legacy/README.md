@@ -33,6 +33,8 @@ The active chain is now:
 3. `20260731000002_enable_rls`       — ROW LEVEL SECURITY policies.
 4. `20260731000003_add_pgvector_search` — HNSW / trigram / GIN / composite
    indexes and the embedding-model seed.
+5. `20260731000004_outbox_lease_fields` — outbox dispatcher lease/claim columns.
+6. `20260731000005_fix_rls_policies`    — embedding table RLS + worker role access.
 
 Any data migration needed for pre-existing rows must be written as an ops-run
 script (not a Prisma migration) against the new baseline.

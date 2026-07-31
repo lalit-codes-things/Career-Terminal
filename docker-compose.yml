@@ -199,6 +199,7 @@ services:
       NODE_ENV:            production
       PORT:                3000
       DATABASE_APP_URL:    postgresql://${DATABASE_RUNTIME_USER:-career_terminal_runtime}:${DATABASE_RUNTIME_PASSWORD:-${DATABASE_APP_PASSWORD}}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_runtime
+      SHADOW_DATABASE_URL: postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@postgres:5432/career-terminal-shadow?schema=public
       DATABASE_CONNECTION_LIMIT: 5
       # Redis Queue (BullMQ) — no eviction, separate from cache
       REDIS_QUEUE_HOST:     redis-queue

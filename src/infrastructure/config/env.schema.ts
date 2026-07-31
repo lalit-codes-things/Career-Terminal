@@ -18,6 +18,8 @@ export const envSchema = z.object({
   DATABASE_APP_URL: z.string().optional(),
   DATABASE_WORKER_URL: z.string().optional(),
   DATABASE_MIGRATION_URL: z.string().optional(),
+  // Shadow database for Prisma migrate dev (must have same extensions as primary)
+  SHADOW_DATABASE_URL: z.string().optional(),
   DATABASE_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_POOL_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_CONNECTION_LIMIT: z.coerce.number().int().positive().max(100).default(5),
