@@ -101,6 +101,7 @@ interface AppConfig {
     accessKeyId?: string;
     secretAccessKey?: string;
     timeout: number;
+    kmsKeyId?: string;
   };
 
   /** Malware scanner configuration */
@@ -280,6 +281,16 @@ function validateProductionStorage(cfg: AppConfig): void {
       'S3_BUCKET is required in production. Durable storage must not fall back to NullStorage in production.',
     );
   }
+
+  // Production requires KMS-backed server-side encryption for all S3 objects.
+  // Development/test (including local MinIO) may use AES256.
+  if (cfg.isProduction && !cfg.s3.kmsKeyId) {
+    throw new Error(
+      'S3_KMS_KEY_ID is required in production. All S3 objects must use AWS KMS ' +
+        'server-side encryption (SSE-KMS). Set S3_KMS_KEY_ID to the KMS key ARN ' +
+        'or alias for resume/object storage.',
+    );
+  }
 }
 
 function validateSecurityConfig(cfg: AppConfig): void {
@@ -420,7 +431,8 @@ function loadConfig(): AppConfig {
       endpoint: env.AWS_ENDPOINT_URL_S3,
       accessKeyId: env.AWS_ACCESS_KEY_ID,
       secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-      timeout: env.S3_TIMEOUT,
+       timeout: env.S3_TIMEOUT,
+       kmsKeyId: env.S3_KMS_KEY_ID,
     },
 
     malware: {

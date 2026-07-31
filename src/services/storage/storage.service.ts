@@ -62,6 +62,7 @@ export class S3StorageService implements IStorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly circuitBreaker: CircuitBreaker;
+  private readonly sseConfig: { ServerSideEncryption: 'AES256' | 'aws:kms'; SSEKMSKeyId?: string };
 
   constructor() {
     this.bucket = config.s3.bucket;
@@ -71,8 +72,10 @@ export class S3StorageService implements IStorageService {
 
     this.client = new S3Client({
       region: config.s3.region,
+      ...(config.s3.endpoint ? { endpoint: config.s3.endpoint, forcePathStyle: true } : {}),
     });
 
+    this.sseConfig = this.resolveSseConfig();
     this.circuitBreaker = new CircuitBreaker('S3Storage', {
       failureThreshold: 3,
       resetTimeout: 30000,
@@ -80,28 +83,44 @@ export class S3StorageService implements IStorageService {
     });
   }
 
+  /**
+   * Resolves the server-side encryption configuration.
+   *
+   * Production: when S3_KMS_KEY_ID is configured, uses aws:kms envelope
+   *   encryption with the specified KMS key ARN.
+   * Development/test (incl. local MinIO): falls back to AES256.
+   */
+  private resolveSseConfig(): { ServerSideEncryption: 'AES256' | 'aws:kms'; SSEKMSKeyId?: string } {
+    if (config.s3.kmsKeyId) {
+      logger.info('[StorageService] Using KMS-backed S3 encryption', { keyId: config.s3.kmsKeyId });
+      return { ServerSideEncryption: 'aws:kms', SSEKMSKeyId: config.s3.kmsKeyId };
+    }
+    logger.info('[StorageService] Using AES256 S3 encryption (KMS key not configured)');
+    return { ServerSideEncryption: 'AES256' };
+  }
+
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<UploadResult> {
     return this.uploadToBucket(this.bucket, key, buffer, mimeType);
   }
 
-  async uploadToBucket(
-    bucket: string,
-    key: string,
-    buffer: Buffer,
-    mimeType: string,
-  ): Promise<UploadResult> {
-    await this.circuitBreaker.fire(() =>
-      this.client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: mimeType,
-          // Server-side encryption — use your KMS key ARN in production
-          ServerSideEncryption: 'AES256',
-        }),
-      ),
-    );
+   async uploadToBucket(
+     bucket: string,
+     key: string,
+     buffer: Buffer,
+     mimeType: string,
+   ): Promise<UploadResult> {
+     await this.circuitBreaker.fire(() =>
+       this.client.send(
+         new PutObjectCommand({
+           Bucket: bucket,
+           Key: key,
+           Body: buffer,
+           ContentType: mimeType,
+           ServerSideEncryption: this.sseConfig.ServerSideEncryption,
+           SSEKMSKeyId: this.sseConfig.SSEKMSKeyId,
+         }),
+       ),
+     );
 
     const presignedUrl = await this.getPresignedUrl(key);
 
@@ -162,16 +181,17 @@ export class S3StorageService implements IStorageService {
     destinationKey = sourceKey,
     sourceBucket = this.bucket,
   ): Promise<void> {
-    await this.circuitBreaker.fire(() =>
-      this.client.send(
-        new CopyObjectCommand({
-          Bucket: destinationBucket,
-          CopySource: `${sourceBucket}/${sourceKey}`,
-          Key: destinationKey,
-          ServerSideEncryption: 'AES256',
-        }),
-      ),
-    );
+     await this.circuitBreaker.fire(() =>
+       this.client.send(
+         new CopyObjectCommand({
+           Bucket: destinationBucket,
+           CopySource: `${sourceBucket}/${sourceKey}`,
+           Key: destinationKey,
+           ServerSideEncryption: this.sseConfig.ServerSideEncryption,
+           SSEKMSKeyId: this.sseConfig.SSEKMSKeyId,
+         }),
+       ),
+     );
     logger.info('[StorageService] File copied', { sourceKey, destinationBucket, destinationKey });
   }
 }

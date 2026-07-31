@@ -16,12 +16,15 @@ import { resumeMatcherService } from '../services/resume-matcher/resume-matcher.
 import { resumeUploadService } from '../services/resume/resume-upload.service';
 import { uploadLimiter, expensiveLimiter } from '../middleware/rate-limiter';
 import { sanitizeFilename } from '../infrastructure/security/utils';
+import { parseSizeToBytes } from '../lib/size';
+import { config } from '../config';
+
+const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
 const ALLOWED_RESUME_MIME_TYPES = new Set([
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
 ]);
 
 const MAX_JOB_DESCRIPTION_LENGTH = 50_000;
@@ -36,7 +39,7 @@ const upload = multer({
       cb(null, `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname)}`);
     },
   }),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: MAX_MULTIPART_SIZE_BYTES },
 });
 
 export const resumeRouter = Router();
@@ -62,7 +65,7 @@ resumeRouter.post(
       // MIME type validation
       if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
         throw new ValidationError(
-          `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX, TXT`,
+          `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX`,
         );
       }
 

@@ -12,6 +12,8 @@ data:
   REDIS_PORT: "6379"
   REDIS_DB: "0"
   AWS_REGION: "us-east-1"
+  # S3_KMS_KEY_ID is injected via secret (production) — leave absent in configmap.
+  # The app falls back to AES256 SSE when unset (dev/test only).
   POSTGRES_DB: "career-terminal"
   POSTGRES_USER: "career-terminal"
   MINIO_BUCKET: "career-terminal-resumes"

@@ -32,6 +32,7 @@ import {
   buildResumeVersionTag,
 } from '../action.service';
 import { config } from '../../config';
+import { parseSizeToBytes } from '../../lib/size';
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -39,7 +40,7 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/msword',
 ]);
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 const QUARANTINE_BUCKET = config.s3.bucket;
 const CLEAN_BUCKET = config.s3.bucket;
 
