@@ -5,6 +5,7 @@
  */
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { type IHealthChecker, type HealthCheckResult } from '../health.types';
+import { config } from '../../../config';
 
 export class StorageChecker implements IHealthChecker {
   readonly name = 'storage';
@@ -13,12 +14,12 @@ export class StorageChecker implements IHealthChecker {
   private readonly bucket: string;
 
   constructor() {
-    const endpoint = process.env.AWS_ENDPOINT_URL_S3;
+    const endpoint = config.s3.endpoint;
 
-    this.bucket = process.env.S3_BUCKET ?? process.env.MINIO_BUCKET ?? '';
+    this.bucket = config.s3.bucket;
 
     this.client = new S3Client({
-      region: process.env.AWS_REGION ?? 'us-east-1',
+      region: config.s3.region,
       ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     });
   }

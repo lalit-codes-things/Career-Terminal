@@ -45,6 +45,8 @@ export const WORKLOAD_IDENTITIES = {
 
 export type WorkloadIdentity = (typeof WORKLOAD_IDENTITIES)[keyof typeof WORKLOAD_IDENTITIES];
 
+import { config } from '../config';
+
 // ---------------------------------------------------------------------------
 // Secret access policy matrix — Phase 3
 // ---------------------------------------------------------------------------
@@ -106,7 +108,7 @@ export const WORKLOAD_SECRET_POLICY: Record<WorkloadIdentity, string[]> = {
  * Falls back to 'career-terminal-api' when not set (development / test).
  */
 export function getCurrentWorkloadIdentity(): WorkloadIdentity | null {
-  const identity = process.env.WORKLOAD_IDENTITY as WorkloadIdentity | undefined;
+  const identity = config.workerServiceAccount as WorkloadIdentity | undefined;
 
   if (!identity) {
     // In dev/test there is no explicit workload identity

@@ -89,12 +89,31 @@ interface AppConfig {
     timeout: number;
   };
 
-  /** AWS S3 configuration */
+  /** S3 configuration */
   s3: {
     bucket: string;
     region: string;
+    endpoint?: string;
     timeout: number;
   };
+
+  /** Malware scanner configuration */
+  malware: {
+    clamavHost: string;
+    clamavPort: number;
+    scanTimeoutMs: number;
+  };
+
+  /** MinIO configuration (local dev) */
+  minio: {
+    rootUser: string;
+    rootPassword?: string;
+    bucket: string;
+    endpoint?: string;
+  };
+
+  /** Gmail ingestion depth limit */
+  ingestionQueueDepthLimit: number;
 
   /** CORS configuration */
   cors: {
@@ -199,7 +218,15 @@ interface AppConfig {
     tlsCaPath?: string;
   };
 
-  /** Worker service account */
+  /** Worker execution settings */
+  worker: {
+    concurrency: number;
+    queues: string;
+    shutdownTimeoutMs: number;
+    startOnDev: boolean;
+  };
+
+  /** Worker service account (k8s workload identity) */
   workerServiceAccount?: string;
 }
 
@@ -367,8 +394,24 @@ function loadConfig(): AppConfig {
     s3: {
       bucket: env.S3_BUCKET || '',
       region: env.AWS_REGION,
+      endpoint: env.AWS_ENDPOINT_URL_S3,
       timeout: env.S3_TIMEOUT,
     },
+
+    malware: {
+      clamavHost: env.CLAMAV_HOST,
+      clamavPort: env.CLAMAV_PORT,
+      scanTimeoutMs: env.CLAMAV_SCAN_TIMEOUT_MS,
+    },
+
+    minio: {
+      rootUser: env.MINIO_ROOT_USER,
+      rootPassword: env.MINIO_ROOT_PASSWORD,
+      bucket: env.MINIO_BUCKET,
+      endpoint: env.MINIO_ENDPOINT,
+    },
+
+    ingestionQueueDepthLimit: env.INGESTION_QUEUE_DEPTH_LIMIT,
 
     cors: {
       allowedOrigins: env.ALLOWED_ORIGINS
@@ -463,6 +506,13 @@ function loadConfig(): AppConfig {
       password: env.REDIS_ACL_PASSWORD,
       tlsEnabled: env.REDIS_TLS_ENABLED,
       tlsCaPath: env.REDIS_TLS_CA_PATH,
+    },
+
+    worker: {
+      concurrency: env.WORKER_CONCURRENCY,
+      queues: env.WORKER_QUEUES,
+      shutdownTimeoutMs: env.WORKER_SHUTDOWN_TIMEOUT,
+      startOnDev: env.NODE_ENV === 'development' || process.env.START_WORKERS === 'true',
     },
 
     workerServiceAccount: env.WORKER_SERVICE_ACCOUNT,

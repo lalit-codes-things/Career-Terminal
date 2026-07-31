@@ -110,6 +110,20 @@ export const envSchema = z.object({
   MINIO_BUCKET: z.string().default('career-terminal-resumes'),
   MINIO_ENDPOINT: z.string().optional(),
 
+  // Malware scanner
+  CLAMAV_HOST: z.string().default('localhost'),
+  CLAMAV_PORT: z.coerce.number().int().positive().default(3310),
+  CLAMAV_SCAN_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+
+  // Gmail ingestion
+  INGESTION_QUEUE_DEPTH_LIMIT: z.coerce.number().int().positive().default(10000),
+
+  // MinIO (docker-compose local dev)
+  MINIO_ROOT_USER: z.string().default('minioadmin'),
+  MINIO_ROOT_PASSWORD: z.string().optional(),
+  MINIO_BUCKET: z.string().default('career-terminal-resumes'),
+  MINIO_ENDPOINT: z.string().optional(),
+
   // CORS
   ALLOWED_ORIGINS: z.string().optional(),
   ALLOWED_METHODS: z.string().default('GET,POST,PUT,PATCH,DELETE,OPTIONS'),

@@ -1,18 +1,20 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Career Terminal — Docker Compose
 #
-# Services:
-#   postgres   — PostgreSQL 16 (primary database)
-#   pgbouncer  — Connection pooler (transaction mode, sits between api and pg)
-#   redis      — Redis 7 (cache + BullMQ queues)
-#   minio      — S3-compatible object storage (resume files)
-#   api        — Career Terminal Express backend (production build)
+# ⚠️  DEVELOPMENT ONLY — DO NOT USE IN PRODUCTION
 #
-# Usage:
-#   cp .env.example .env        # fill in real values
-#   docker compose up --build
+# This compose file is intended for local development and integration testing.
+# Production deployments MUST use the Kubernetes manifests in ./k8s/ or a
+# dedicated production orchestration system. Internal services (postgres,
+# pgbouncer, redis, minio) MUST NOT be publicly reachable in production.
 #
-# Secrets are never hardcoded — all values come from the .env file.
+# For production:
+#   - Use separate Redis instances with TLS + ACL authentication
+#   - Do not expose PostgreSQL, PgBouncer, Redis, or MinIO ports
+#   - Use workload-identity secrets (not environment variables)
+#   - Run separate worker processes with DATABASE_WORKER_URL
+#   - Enable TLS for all database and Redis connections
+#   - Use least-privilege PostgreSQL roles
 # ─────────────────────────────────────────────────────────────────────────────
 name: career-terminal
 
@@ -196,7 +198,7 @@ services:
     environment:
       NODE_ENV:            production
       PORT:                3000
-      DATABASE_URL:        postgresql://${DATABASE_APP_USER:-career_terminal_app}:${DATABASE_APP_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_runtime
+      DATABASE_APP_URL:    postgresql://${DATABASE_RUNTIME_USER:-career_terminal_runtime}:${DATABASE_RUNTIME_PASSWORD:-${DATABASE_APP_PASSWORD}}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_runtime
       DATABASE_CONNECTION_LIMIT: 5
       # Redis Queue (BullMQ) — no eviction, separate from cache
       REDIS_QUEUE_HOST:     redis-queue
@@ -237,7 +239,7 @@ services:
     command: ["node", "dist/services/queue/workers/index.js"]
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${DATABASE_APP_USER:-career_terminal_app}:${DATABASE_APP_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_worker
+      DATABASE_WORKER_URL: postgresql://${DATABASE_WORKER_USER:-career_terminal_worker}:${DATABASE_WORKER_PASSWORD:-${DATABASE_RUNTIME_PASSWORD:-${DATABASE_APP_PASSWORD}}}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_worker
       DATABASE_CONNECTION_LIMIT: 5
       REDIS_QUEUE_HOST:     redis-queue
       REDIS_QUEUE_PORT:     6379

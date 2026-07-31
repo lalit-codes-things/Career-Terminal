@@ -4,6 +4,7 @@
  */
 import Redis from 'ioredis';
 import { type IHealthChecker, type HealthCheckResult } from '../health.types';
+import { config } from '../../../config';
 
 export class RedisChecker implements IHealthChecker {
   readonly name = 'redis';
@@ -11,17 +12,30 @@ export class RedisChecker implements IHealthChecker {
   private readonly client: Redis;
 
   constructor() {
-    this.client = new Redis({
-      host: process.env.REDIS_HOST ?? 'localhost',
-      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-      password: process.env.REDIS_PASSWORD || undefined,
-      db: parseInt(process.env.REDIS_DB ?? '0', 10),
+    const clientConfig: Redis.RedisOptions = {
+      host: config.redisCache.host ?? config.redis.host,
+      port: config.redisCache.port ?? config.redis.port,
+      password: config.redisCache.password ?? config.redis.password,
+      db: config.redisCache.db ?? config.redis.db,
       lazyConnect: true,
       connectTimeout: 3_000,
       commandTimeout: 3_000,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 0,
-    });
+    };
+
+    if (config.redisAcl.username) {
+      clientConfig.username = config.redisAcl.username;
+    }
+
+    if (config.redisAcl.tlsEnabled) {
+      clientConfig.tls = {
+        ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+        rejectUnauthorized: true,
+      };
+    }
+
+    this.client = new Redis(clientConfig);
 
     // Suppress unhandled error events on the health-check client.
     this.client.on('error', () => {

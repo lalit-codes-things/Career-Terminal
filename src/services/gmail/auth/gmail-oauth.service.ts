@@ -14,7 +14,7 @@ import { google } from 'googleapis';
 import { config } from '../../../config';
 import { prisma } from '../../../config/database';
 import { OAuthError, TokenError, NotFoundError } from '../../../errors/app-errors';
-import { encryptToken, decryptToken } from '../../../utils/encryption';
+import { cryptoService } from '../../../infrastructure/crypto/crypto-service';
 import { oauthStateService } from './oauth-state.service';
 import { userService } from '../../user';
 import type {
@@ -134,8 +134,8 @@ export class GmailOAuthService {
       throw new NotFoundError('UserEmailConnection', connectionId);
     }
 
-    // Decrypt the stored refresh token
-    const refreshToken = decryptToken(connection.refreshTokenEncrypted);
+      // Decrypt the stored refresh token
+      const refreshToken = await cryptoService.decrypt(connection.refreshTokenEncrypted);
 
     try {
       // Set the refresh token and request a new access token
@@ -147,7 +147,7 @@ export class GmailOAuthService {
       }
 
       // Encrypt and update the new access token
-      const encryptedAccessToken = encryptToken(credentials.access_token);
+      const encryptedAccessToken = (await cryptoService.encrypt(credentials.access_token)).ciphertext;
       const expiryDate = new Date(credentials.expiry_date);
 
       await prisma.userEmailConnection.update({
@@ -208,7 +208,7 @@ export class GmailOAuthService {
     }
 
     // Token is still valid — decrypt and return
-    return decryptToken(connection.accessTokenEncrypted);
+    return await cryptoService.decrypt(connection.accessTokenEncrypted);
   }
 
   // ============================================================
@@ -279,8 +279,8 @@ export class GmailOAuthService {
     tokens: GoogleTokens,
     profile: GoogleUserProfile,
   ): Promise<{ id: string }> {
-    const encryptedAccessToken = encryptToken(tokens.accessToken);
-    const encryptedRefreshToken = encryptToken(tokens.refreshToken);
+    const encryptedAccessToken = (await cryptoService.encrypt(tokens.accessToken)).ciphertext;
+    const encryptedRefreshToken = (await cryptoService.encrypt(tokens.refreshToken)).ciphertext;
     const scopes = tokens.scope.split(' ');
     const userScope = await userService.userScopeFor(userId);
 

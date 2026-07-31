@@ -13,6 +13,7 @@
  * (http://bucket.localhost:9000/key).
  */
 import { S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
+import { config } from '../../config';
 
 export interface StorageClientOptions {
   /** Override the endpoint (MinIO in dev, absent for real S3 in prod). */
@@ -24,15 +25,15 @@ export interface StorageClientOptions {
 }
 
 /**
- * Resolves storage client options from environment variables.
+ * Resolves storage client options from centralized config.
  */
 function resolveStorageOptions(): StorageClientOptions {
   return {
-    endpoint: process.env.AWS_ENDPOINT_URL_S3,
-    region: process.env.AWS_REGION ?? 'us-east-1',
+    endpoint: config.s3.endpoint,
+    region: config.s3.region,
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    bucket: process.env.S3_BUCKET ?? process.env.MINIO_BUCKET,
+    bucket: config.s3.bucket,
   };
 }
 
@@ -44,23 +45,23 @@ function resolveStorageOptions(): StorageClientOptions {
 export function createStorageClient(opts?: StorageClientOptions): S3Client {
   const options = opts ?? resolveStorageOptions();
 
-  const config: S3ClientConfig = {
+  const clientConfig: S3ClientConfig = {
     region: options.region ?? 'us-east-1',
   };
 
   if (options.endpoint) {
-    config.endpoint = options.endpoint;
-    config.forcePathStyle = true; // Required for MinIO
+    clientConfig.endpoint = options.endpoint;
+    clientConfig.forcePathStyle = true; // Required for MinIO
   }
 
   if (options.accessKeyId && options.secretAccessKey) {
-    config.credentials = {
+    clientConfig.credentials = {
       accessKeyId: options.accessKeyId,
       secretAccessKey: options.secretAccessKey,
     };
   }
 
-  return new S3Client(config);
+  return new S3Client(clientConfig);
 }
 
 /**
@@ -70,7 +71,7 @@ export function createStorageClient(opts?: StorageClientOptions): S3Client {
 export const storageClient = createStorageClient();
 
 /**
- * The configured bucket name — read from environment variables.
+ * The configured bucket name — read from centralized config.
  * Use this wherever a bucket name is needed rather than reading env directly.
  */
-export const storageBucket = process.env.S3_BUCKET ?? process.env.MINIO_BUCKET ?? '';
+export const storageBucket = config.s3.bucket;

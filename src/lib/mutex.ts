@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from './logger';
+import { config } from '../config';
 
 // Lazily initialized — client is NOT created at module load time.
 // This prevents open handles in test environments that never call acquireLock/releaseLock.
@@ -8,11 +9,11 @@ let _redis: Redis | null = null;
 
 function getRedis(): Redis {
   if (!_redis) {
-    _redis = new Redis({
-      host: process.env.REDIS_HOST ?? 'localhost',
-      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-      password: process.env.REDIS_PASSWORD || undefined,
-      db: parseInt(process.env.REDIS_DB ?? '0', 10),
+    const clientConfig: Redis.RedisOptions = {
+      host: config.redisCache.host ?? config.redis.host,
+      port: config.redisCache.port ?? config.redis.port,
+      password: config.redisCache.password ?? config.redis.password,
+      db: config.redisCache.db ?? config.redis.db,
       maxRetriesPerRequest: null,
       lazyConnect: true,
       enableReadyCheck: false,
@@ -23,7 +24,20 @@ function getRedis(): Redis {
         }
         return Math.min(times * 200, 10_000);
       },
-    });
+    };
+
+    if (config.redisAcl.username) {
+      clientConfig.username = config.redisAcl.username;
+    }
+
+    if (config.redisAcl.tlsEnabled) {
+      clientConfig.tls = {
+        ca: config.redisAcl.tlsCaPath ? require('fs').readFileSync(config.redisAcl.tlsCaPath) : undefined,
+        rejectUnauthorized: true,
+      };
+    }
+
+    _redis = new Redis(clientConfig);
 
     _redis.on('connect', () => logger.info('[mutex] Connected to Redis'));
     _redis.on('error', (err: Error) =>

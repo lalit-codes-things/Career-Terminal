@@ -87,16 +87,16 @@ function loadKeyVersion(version: number): Buffer | null {
   return Buffer.from(keyHex, 'hex');
 }
 
+import { config } from '../config';
+
 /**
  * Get the active key version for NEW encryptions.
- * Reads ACTIVE_ENCRYPTION_KEY_VERSION from env (default: 1).
+ * Reads from centralized config (default: 1).
  */
 function getActiveVersion(): number {
-  const v = process.env.ACTIVE_ENCRYPTION_KEY_VERSION;
-  if (!v) return 1;
-  const n = parseInt(v, 10);
-  if (isNaN(n) || n < 1) return 1;
-  return n;
+  const v = config.activeEncryptionKeyVersion;
+  if (!v || v < 1) return 1;
+  return v;
 }
 
 /**
@@ -343,7 +343,7 @@ export function validateEncryptionConfig(): void {
   }
 
   const allZeros = v1Key.every((b) => b === 0);
-  if (allZeros && process.env.NODE_ENV === 'production') {
+  if (allZeros && config.nodeEnv === 'production') {
     throw new EncryptionError(
       'ENCRYPTION_KEY is set to the all-zeros placeholder value in production. ' +
         'This is a critical security misconfiguration.',

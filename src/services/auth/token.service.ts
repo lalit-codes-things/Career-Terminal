@@ -25,6 +25,7 @@ import type { ICacheService } from '../cache/cache.service';
 import { cacheService as defaultCacheService } from '../cache/cache.service';
 import { TokenError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
+import { config } from '../../config';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -76,7 +77,7 @@ export class TokenService {
   private readonly cache: ICacheService;
 
   constructor(cache: ICacheService = defaultCacheService) {
-    const secret = process.env.JWT_SECRET;
+    const secret = config.jwtSecret;
     if (!secret) {
       throw new Error('Missing required environment variable: JWT_SECRET');
     }
