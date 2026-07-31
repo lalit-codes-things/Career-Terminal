@@ -21,6 +21,7 @@ import { ValidationError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
 import { sanitizeFilename } from '../../infrastructure/security/utils';
 import { userOwnershipFilter } from '../../utils/user-ownership';
+import { setRlsUserIdInTransaction } from '../../middleware/rls';
 import { userService } from '../user';
 import { placementService } from '../placement/placement.service';
 import {
@@ -167,50 +168,63 @@ export class ResumeUploadService {
     const nextVersion = (currentMaxRow?.version ?? 0) + 1;
     const now = new Date();
 
-    await prisma.userResume.updateMany({
-      where: { ...ownershipFilter, isActive: true },
-      data: { isActive: false, supersededAt: now },
-    });
+    // Transactional outbox: the userResume write and the RESUME_UPLOADED event
+    // insert commit (or roll back) atomically. RLS is set transaction-scoped so
+    // the RLS policies apply even under PgBouncer transaction pooling.
+    const outboxEvent = await prisma.$transaction(async (tx) => {
+      await setRlsUserIdInTransaction(tx, userScope.userId);
 
-    const userResume = await prisma.userResume.create({
-      data: {
-        userId: userScope.userId,
-        legacyUserId: userScope.legacyUserId,
-        filename: safeFilename,
-        s3Key: cleanStorageKey,
-        contentType: mimeType,
-        originalName: safeFilename,
-        resumeHashId,
-        isActive: true,
-        scanningStatus: 'pending',
-        status: 'pending',
-        version: nextVersion,
-      },
-    });
+      await tx.userResume.updateMany({
+        where: { ...ownershipFilter, isActive: true },
+        data: { isActive: false, supersededAt: now },
+      });
 
-    await eventDispatcher.publish({
-      eventType: EVENT_TYPES.RESUME_UPLOADED,
-      aggregateId: userResume.id,
-      aggregateType: 'UserResume',
-      userId,
-      cellId: placement.cellId,
-      payload: {
+      const newUserResume = await tx.userResume.create({
+        data: {
+          userId: userScope.userId,
+          legacyUserId: userScope.legacyUserId,
+          filename: safeFilename,
+          s3Key: cleanStorageKey,
+          contentType: mimeType,
+          originalName: safeFilename,
+          resumeHashId,
+          isActive: true,
+          scanningStatus: 'pending',
+          status: 'pending',
+          version: nextVersion,
+        },
+      });
+
+      return eventDispatcher.publishInTransaction(tx, {
+        eventType: EVENT_TYPES.RESUME_UPLOADED,
+        aggregateId: newUserResume.id,
+        aggregateType: 'UserResume',
         userId,
         cellId: placement.cellId,
-        userResumeId: userResume.id,
-        quarantineBucket,
-        quarantineKey,
-        cleanBucket,
-        cleanKey: cleanStorageKey,
-        originalFilename: safeFilename,
-        mimeType,
-        fileHash: hash,
-      },
+        payload: {
+          userId,
+          cellId: placement.cellId,
+          userResumeId: newUserResume.id,
+          quarantineBucket,
+          quarantineKey,
+          cleanBucket,
+          cleanKey: cleanStorageKey,
+          originalFilename: safeFilename,
+          mimeType,
+          fileHash: hash,
+        },
+      });
     });
+
+    // Transaction has committed — fast-path dispatch the queue job. If this
+    // fails the event stays 'pending' and the OutboxDispatcher retries.
+    await eventDispatcher.publishFromEvent(outboxEvent);
+
+    const userResumeId = outboxEvent.id;
 
     logger.info('[ResumeUpload] Upload queued for malware scan', {
       userId,
-      userResumeId: userResume.id,
+      userResumeId,
       deduplicated,
       version: nextVersion,
     });
@@ -221,7 +235,7 @@ export class ResumeUploadService {
         actionType: ACTION_TYPES.RESUME_UPDATE,
         strategyTags: [buildResumeVersionTag(nextVersion)],
         context: {
-          userResumeId: userResume.id,
+          userResumeId,
           version: nextVersion,
           deduplicated,
           scanningStatus: 'pending',
@@ -232,14 +246,14 @@ export class ResumeUploadService {
     } catch (error) {
       logger.warn('[ResumeUpload] Failed to record RESUME_UPDATE action', {
         userId,
-        userResumeId: userResume.id,
+        userResumeId,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
     const presignedUrl = await this.storage.getPresignedUrl(cleanStorageKey);
     return {
-      userResumeId: userResume.id,
+      userResumeId,
       resumeHashId,
       storageKey: cleanStorageKey,
       presignedUrl,

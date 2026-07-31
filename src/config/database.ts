@@ -79,17 +79,46 @@ function enrichUrl(baseUrl: string | undefined, role?: string): string | undefin
 }
 
 /**
+ * Select the least-privilege base URL for a PostgreSQL role.
+ *
+ * In production each role has a dedicated login user/URL:
+ *   app_runtime  → DATABASE_APP_URL (or DATABASE_URL)
+ *   app_worker   → DATABASE_WORKER_URL (or DATABASE_URL)
+ *   app_migration → DATABASE_MIGRATION_URL (or DATABASE_URL)
+ *
+ * This guarantees the application never inherits the superuser or a
+ * cross-role credential: `career_terminal_runtime` is a member of exactly
+ * one DML group role and cannot SET ROLE into another.
+ */
+export function databaseUrlForRole(role?: string): string {
+  if (role === 'app_worker' && config.databaseWorkerUrl) {
+    return config.databaseWorkerUrl;
+  }
+  if (role === 'app_migration' && config.databaseMigrationUrl) {
+    return config.databaseMigrationUrl;
+  }
+  if (role === 'app_runtime' && config.databaseAppUrl) {
+    return config.databaseAppUrl;
+  }
+  return config.databaseUrl;
+}
+
+/**
  * Creates a PrismaClient with the specified PostgreSQL role.
  * The role is set via the connection URL options parameter, which PostgreSQL
  * applies on session initialization. This works with direct connections and
- * PgBouncer transaction pooling.
+ * PgBouncer transaction pooling (provided the login user is a member of the
+ * target role).
  *
- * In production, the base database user must be a member of the target role.
+ * The base URL is chosen per role (see databaseUrlForRole) so a worker or
+ * migration process never reuses the runtime credential.
  */
 export function createPrismaClient(role?: string): PrismaClient {
-  const url = enrichUrl(config.databaseUrl, role);
+  const roleOrDefault = role ?? config.databaseRole;
+  const baseUrl = databaseUrlForRole(roleOrDefault);
+  const url = enrichUrl(baseUrl, roleOrDefault);
   const client = new PrismaClient({
-    datasources: { db: { url: url ?? config.databaseUrl } },
+    datasources: { db: { url: url ?? baseUrl } },
     log: logLevels,
   });
 

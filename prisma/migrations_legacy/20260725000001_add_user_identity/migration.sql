@@ -101,20 +101,20 @@ CREATE INDEX "email_messages_user_id_idx" ON "email_messages" ("user_id");
 
 -- ── gmail_sync_state ──────────────────────────────────────────────────────────
 
-ALTER TABLE "gmail_sync_state" ADD COLUMN "legacy_user_id" TEXT;
-UPDATE "gmail_sync_state" SET "legacy_user_id" = "user_id" WHERE "legacy_user_id" IS NULL;
-ALTER TABLE "gmail_sync_state" ALTER COLUMN "legacy_user_id" SET NOT NULL;
+ALTER TABLE "GmailSyncState" ADD COLUMN "legacy_user_id" TEXT;
+UPDATE "GmailSyncState" SET "legacy_user_id" = "user_id" WHERE "legacy_user_id" IS NULL;
+ALTER TABLE "GmailSyncState" ALTER COLUMN "legacy_user_id" SET NOT NULL;
 
-ALTER TABLE "gmail_sync_state" ADD COLUMN "user_id_new" UUID;
-UPDATE "gmail_sync_state"
+ALTER TABLE "GmailSyncState" ADD COLUMN "user_id_new" UUID;
+UPDATE "GmailSyncState"
 SET "user_id_new" = "user_id"::uuid
 WHERE "user_id" ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
 
-ALTER TABLE "gmail_sync_state" DROP CONSTRAINT IF EXISTS "gmail_sync_state_user_id_key";
-ALTER TABLE "gmail_sync_state" DROP COLUMN "user_id";
-ALTER TABLE "gmail_sync_state" RENAME COLUMN "user_id_new" TO "user_id";
-CREATE UNIQUE INDEX "gmail_sync_state_user_id_key" ON "gmail_sync_state" ("user_id");
-CREATE UNIQUE INDEX "gmail_sync_state_legacy_user_id_key" ON "gmail_sync_state" ("legacy_user_id");
+ALTER TABLE "GmailSyncState" DROP CONSTRAINT IF EXISTS "gmail_sync_state_user_id_key";
+ALTER TABLE "GmailSyncState" DROP COLUMN "user_id";
+ALTER TABLE "GmailSyncState" RENAME COLUMN "user_id_new" TO "user_id";
+CREATE UNIQUE INDEX "gmail_sync_state_user_id_key" ON "GmailSyncState" ("user_id");
+CREATE UNIQUE INDEX "gmail_sync_state_legacy_user_id_key" ON "GmailSyncState" ("legacy_user_id");
 
 -- ── sync_jobs ─────────────────────────────────────────────────────────────────
 
@@ -170,7 +170,7 @@ SELECT DISTINCT legacy_id::uuid, 'us-east-1', 'v1', NOW(), 'active', NOW(), NOW(
 FROM (
     SELECT "legacy_user_id" AS legacy_id FROM "user_email_connections"
     UNION SELECT "legacy_user_id" FROM "email_messages"
-    UNION SELECT "legacy_user_id" FROM "gmail_sync_state"
+    UNION SELECT "legacy_user_id" FROM "GmailSyncState"
     UNION SELECT "legacy_user_id" FROM "sync_jobs"
     UNION SELECT "legacy_user_id" FROM "job_applications"
     UNION SELECT "legacy_user_id" FROM "user_resumes"
@@ -196,7 +196,7 @@ ALTER TABLE "email_messages"
     ADD CONSTRAINT "email_messages_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "gmail_sync_state"
+ALTER TABLE "GmailSyncState"
     ADD CONSTRAINT "gmail_sync_state_user_id_fkey"
     FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

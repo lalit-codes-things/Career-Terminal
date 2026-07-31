@@ -41,11 +41,19 @@ interface AppConfig {
   /** Database connection URL */
   databaseUrl: string;
   databaseReplicaUrl?: string;
+  /** Least-privilege URLs per role. Fall back to databaseUrl when unset. */
+  databaseAppUrl?: string;
+  databaseWorkerUrl?: string;
+  databaseMigrationUrl?: string;
   databaseTimeout: number;
   databasePoolTimeout: number;
   databaseRole: 'app_runtime' | 'app_worker' | 'app_migration' | 'app_readonly' | 'app_admin';
   databaseAppUser?: string;
   databaseAppPassword?: string;
+  /** Read-after-write window (ms) — reads route to primary after a write. */
+  databaseStickyReadWindowMs: number;
+  /** Container/bootstrap superuser (docker-compose only; never used by app). */
+  postgresUser: string;
 
   /** JWT signing secret */
   jwtSecret: string;
@@ -176,7 +184,12 @@ interface AppConfig {
   kms: {
     keyId?: string;
     encryptionContext?: string;
+    keyVersion: number;
+    dekCacheTtlMs: number;
   };
+
+  /** Active crypto backend ('software' | 'kms') */
+  cryptoBackend: string;
 
   /** Redis ACL / TLS */
   redisAcl: {
@@ -227,6 +240,70 @@ function validateSecurityConfig(cfg: AppConfig): void {
   }
 }
 
+/**
+ * Production database credential guard.
+ *
+ * Enforces that application processes never connect with a superuser or
+ * migration credential:
+ *   - DATABASE_URL must use a dedicated application user (never the
+ *     POSTGRES superuser, never 'postgres').
+ *   - The active role must be a DML role (app_runtime / app_worker) for
+ *     API/worker processes. app_migration / app_admin are only valid for
+ *     migration jobs and ops tooling.
+ *   - If DATABASE_MIGRATION_URL is set, it must use a DIFFERENT user than
+ *     the application URL.
+ */
+function validateProductionDatabaseCredentials(cfg: AppConfig): void {
+  if (!cfg.isProduction) return;
+
+  const forbiddenUsers = new Set(['postgres', 'root']);
+  if (cfg.postgresUser) {
+    forbiddenUsers.add(cfg.postgresUser);
+  }
+
+  const url = cfg.databaseAppUrl ?? cfg.databaseUrl;
+  let user: string | null = null;
+  try {
+    user = url ? new URL(url).username : null;
+  } catch {
+    throw new Error(
+      'DATABASE_URL is not a valid PostgreSQL connection URL. Refusing to start in production.',
+    );
+  }
+
+  if (user && forbiddenUsers.has(user)) {
+    throw new Error(
+      `Production DATABASE_URL uses the superuser credential '${user}'. ` +
+        'Application processes must connect with a dedicated least-privilege ' +
+        'role user (e.g. career_terminal_runtime / career_terminal_worker).',
+    );
+  }
+
+  if (cfg.databaseRole === 'app_migration' || cfg.databaseRole === 'app_admin') {
+    throw new Error(
+      `Production API/worker processes must not run as '${cfg.databaseRole}'. ` +
+        'Use app_runtime (api) or app_worker (worker). Migrations run only in ' +
+        'the dedicated migration job with DATABASE_MIGRATION_URL.',
+    );
+  }
+
+  if (cfg.databaseMigrationUrl) {
+    let migrationUser: string | null = null;
+    try {
+      migrationUser = new URL(cfg.databaseMigrationUrl).username;
+    } catch {
+      throw new Error('DATABASE_MIGRATION_URL is not a valid PostgreSQL connection URL.');
+    }
+    if (migrationUser && migrationUser === user) {
+      throw new Error(
+        'Production DATABASE_MIGRATION_URL must use a DIFFERENT user than the ' +
+          'application DATABASE_URL. The application must never share the ' +
+          'migration credential.',
+      );
+    }
+  }
+}
+
 function loadConfig(): AppConfig {
   const env = parseEnv();
 
@@ -248,11 +325,16 @@ function loadConfig(): AppConfig {
     encryptionKey: env.ENCRYPTION_KEY,
     databaseUrl: env.DATABASE_URL,
     databaseReplicaUrl: env.DATABASE_REPLICA_URL,
+    databaseAppUrl: env.DATABASE_APP_URL,
+    databaseWorkerUrl: env.DATABASE_WORKER_URL,
+    databaseMigrationUrl: env.DATABASE_MIGRATION_URL,
     databaseTimeout: env.DATABASE_TIMEOUT,
     databasePoolTimeout: env.DATABASE_POOL_TIMEOUT,
     databaseRole: env.DATABASE_ROLE,
     databaseAppUser: env.DATABASE_APP_USER,
     databaseAppPassword: env.DATABASE_APP_PASSWORD,
+    databaseStickyReadWindowMs: env.DATABASE_STICKY_READ_WINDOW_MS,
+    postgresUser: env.POSTGRES_USER,
 
     jwtSecret: env.JWT_SECRET,
     internalApiKey: env.INTERNAL_API_KEY,
@@ -370,7 +452,11 @@ function loadConfig(): AppConfig {
     kms: {
       keyId: env.KMS_KEY_ID,
       encryptionContext: env.AWS_KMS_ENCRYPTION_CONTEXT,
+      keyVersion: env.KMS_KEY_VERSION,
+      dekCacheTtlMs: env.KMS_DEK_CACHE_TTL_MS,
     },
+
+    cryptoBackend: env.CRYPTO_BACKEND,
 
     redisAcl: {
       username: env.REDIS_ACL_USERNAME,
@@ -385,6 +471,7 @@ function loadConfig(): AppConfig {
   validateSecrets(cfg);
   validateSecurityConfig(cfg);
   validateProductionStorage(cfg);
+  validateProductionDatabaseCredentials(cfg);
   return cfg;
 }
 

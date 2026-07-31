@@ -12,6 +12,12 @@ export const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
   DATABASE_REPLICA_URL: z.string().optional(),
+  // Dedicated least-privilege connection URLs. In production the API/worker
+  // pods use DATABASE_APP_URL / DATABASE_WORKER_URL and ONLY the migration
+  // job uses DATABASE_MIGRATION_URL. DATABASE_URL may also carry the app URL.
+  DATABASE_APP_URL: z.string().optional(),
+  DATABASE_WORKER_URL: z.string().optional(),
+  DATABASE_MIGRATION_URL: z.string().optional(),
   DATABASE_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_POOL_TIMEOUT: z.coerce.number().int().positive().default(30000),
   DATABASE_CONNECTION_LIMIT: z.coerce.number().int().positive().max(100).default(5),
@@ -19,6 +25,9 @@ export const envSchema = z.object({
   DATABASE_ROLE: z.enum(['app_runtime', 'app_worker', 'app_migration', 'app_readonly', 'app_admin']).default('app_runtime'),
   DATABASE_APP_USER: z.string().optional(),
   DATABASE_APP_PASSWORD: z.string().optional(),
+  // How long (ms) a read-after-write request routes reads to the primary to
+  // avoid stale reads from a lagging replica.
+  DATABASE_STICKY_READ_WINDOW_MS: z.coerce.number().int().positive().default(5000),
 
   // PostgreSQL (used by docker-compose / migrations)
   POSTGRES_USER: z.string().default('career-terminal'),
@@ -177,6 +186,10 @@ export const envSchema = z.object({
   // KMS (AWS KMS envelope encryption)
   KMS_KEY_ID: z.string().optional(),
   AWS_KMS_ENCRYPTION_CONTEXT: z.string().optional(),
+  // Integer key version stamped into KMS envelopes (defaults to 1).
+  KMS_KEY_VERSION: z.coerce.number().int().positive().default(1),
+  // How long a decrypted Data Encryption Key is cached in-process (ms).
+  KMS_DEK_CACHE_TTL_MS: z.coerce.number().int().positive().default(300000),
 
   // Redis ACL / TLS
   REDIS_ACL_USERNAME: z.string().optional(),

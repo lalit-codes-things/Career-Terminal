@@ -8,9 +8,18 @@
  * How it works:
  *   1. Extracts `req.user.id` from the authenticated request.
  *   2. Calls `setRlsUserId()` so the Prisma query interceptor emits
- *      `SELECT set_app_user_id(?)` before each model query.
+ *      `SELECT set_app_user_id_session(?)` before each model query.
  *   3. Service/worker processes must set the user explicitly before
  *      operating on user-owned data.
+ *
+ * Connection-pooling semantics:
+ *   - The interceptor uses the SESSION-scoped GUC function, which is safe on
+ *     direct connections. Under PgBouncer transaction pooling, DISCARD ALL
+ *     resets session state between pooled transactions, so the GUC is NOT
+ *     carried over — RLS then fails CLOSED (no cross-tenant leakage).
+ *   - For pooled deployments, RLS-sensitive work MUST run inside an explicit
+ *     transaction using `setRlsUserIdInTransaction(tx, userId)` or
+ *     `withRlsTransaction()`, which set the TRANSACTION-scoped GUC.
  */
 
 import { type Request, type Response, type NextFunction } from 'express';
@@ -89,11 +98,17 @@ export function clearWorkerRlsContext(): void {
 // Prisma middleware — injects SET app.current_user_id before each query
 // ---------------------------------------------------------------------------
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 
 /**
  * Attaches RLS context-setting behavior to the Prisma client.
  * Call once after creating the PrismaClient instance.
+ *
+ * Uses the SESSION-scoped GUC (set_app_user_id_session) because it is emitted
+ * as its own statement ahead of the model query. This is only effective on
+ * direct (non-pooled) connections. Under PgBouncer transaction pooling the
+ * GUC is discarded between pooled transactions (fail closed); production code
+ * must use `setRlsUserIdInTransaction` / `withRlsTransaction` instead.
  */
 export function attachRlsMiddleware(client: PrismaClient): void {
   const anyClient = client as unknown as Record<string, unknown>;
@@ -105,7 +120,7 @@ export function attachRlsMiddleware(client: PrismaClient): void {
     const userId = currentUserId;
     if (userId) {
       try {
-        await client.$executeRawUnsafe('SELECT set_app_user_id($1)', userId);
+        await client.$executeRawUnsafe('SELECT set_app_user_id_session($1)', userId);
       } catch (err) {
         logger.warn('[RLS] Failed to set current_user_id', {
           error: (err as Error).message,
@@ -120,6 +135,10 @@ export function attachRlsMiddleware(client: PrismaClient): void {
 /**
  * Sets the RLS user ID on a transaction. Call this inside every $transaction
  * callback before performing model operations.
+ *
+ * Uses the TRANSACTION-scoped GUC (set_app_user_id): the value is visible
+ * only within the current transaction and is discarded on commit/rollback,
+ * making it safe under PgBouncer transaction pooling.
  */
 export async function setRlsUserIdInTransaction(tx: unknown, userId: string): Promise<void> {
   try {
@@ -133,4 +152,25 @@ export async function setRlsUserIdInTransaction(tx: unknown, userId: string): Pr
       userId,
     });
   }
+}
+
+/**
+ * Runs `callback` inside a Prisma transaction with the RLS user ID set via the
+ * transaction-scoped GUC. The canonical way to operate on user-owned rows when
+ * the application connects through PgBouncer transaction pooling.
+ *
+ * @example
+ * const rows = await withRlsTransaction(prisma, userId, async (tx) =>
+ *   tx.jobApplication.findMany({ where: { userId } }),
+ * );
+ */
+export async function withRlsTransaction<T>(
+  db: PrismaClient,
+  userId: string,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return db.$transaction(async (tx) => {
+    await setRlsUserIdInTransaction(tx, userId);
+    return callback(tx);
+  });
 }

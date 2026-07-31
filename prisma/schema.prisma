@@ -780,7 +780,7 @@ model FactObservation {
   factType          String   @map("fact_type")
   factData          Json     @map("fact_data")
   sourceType        String   @map("source_type")
-  sourceId          String   @map("source_id")
+  sourceId          String   @map("source_id") @db.Uuid
   sourceVersion     String?  @map("source_version")
   extractionMethod  String   @map("extraction_method")
   modelVersion      String?  @map("model_version")
@@ -871,7 +871,7 @@ model ExtractionRun {
   userId           String   @map("user_id") @db.Uuid
   cellId           String?  @map("cell_id")
   sourceType       String   @map("source_type")
-  sourceId         String   @map("source_id")
+  sourceId         String   @map("source_id") @db.Uuid
   sourceVersion    String?  @map("source_version")
   sourceIdentity   String?  @map("source_identity")
   modelId          String   @map("model_id")

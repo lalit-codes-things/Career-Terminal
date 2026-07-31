@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import { config } from './config';
+import { cryptoService } from './infrastructure/crypto/crypto-service';
 import { queueService } from './services/queue/queue.service';
 import { startAllWorkers, stopAllWorkers } from './services/queue/workers';
 import { prisma } from './config/database';
@@ -73,6 +74,16 @@ async function runStartupDiagnostics(): Promise<void> {
     logger.info('Database connection successful');
   } catch (err) {
     logger.error('Database connection failed', {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  // Validate crypto configuration (fail fast on KMS misconfiguration)
+  try {
+    cryptoService.validateConfig();
+    logger.info('Crypto configuration valid', { backend: config.cryptoBackend });
+  } catch (err) {
+    logger.error('Crypto configuration invalid', {
       message: err instanceof Error ? err.message : String(err),
     });
   }
