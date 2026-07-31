@@ -56,7 +56,7 @@ export function requestLimits(): RequestHandler {
  * Check structural limits of parsed request bodies
  */
 function checkStructureLimits(
-  obj: any,
+  obj: unknown,
   depth: number,
   maxDepth: number,
   maxArray: number,
@@ -78,8 +78,9 @@ function checkStructureLimits(
       checkStructureLimits(item, depth + 1, maxDepth, maxArray, maxString);
     }
   } else if (obj !== null && typeof obj === 'object') {
-    for (const key of Object.keys(obj)) {
-      checkStructureLimits(obj[key], depth + 1, maxDepth, maxArray, maxString);
+    const record = obj as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      checkStructureLimits(record[key], depth + 1, maxDepth, maxArray, maxString);
     }
   }
 }

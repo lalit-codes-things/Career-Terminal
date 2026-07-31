@@ -46,7 +46,7 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
       throw new Error(`User ${payload.userId} has no active email connection`);
     }
 
-    await gmailOAuthService.getValidAccessToken(payload.userId);
+    await gmailOAuthService.getValidAccessToken(payload.userId, connection.id);
 
     const claim = await durableCheckpointService.claimCheckpoint(prisma, payload.userId, workerId);
 

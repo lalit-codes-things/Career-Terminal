@@ -259,6 +259,51 @@ describe('OpportunityService', () => {
 
     expect(releaseLock).toHaveBeenCalled();
   });
+
+  it('matches existing opportunity by normalized title + location (Step 0b)', async () => {
+    // URL miss, then normalized match hit
+    mockPrisma.opportunity.findFirst
+      .mockResolvedValueOnce(null) // URL miss (Step 1)
+      .mockResolvedValueOnce(OPPORTUNITY_EXISTING); // normalized match (Step 0b)
+    mockPrisma.opportunity.update.mockImplementation(async (_: unknown) => OPPORTUNITY_EXISTING);
+
+    const result = await service.resolve(INPUT);
+
+    expect(result.isNew).toBe(false);
+    expect(result.opportunityId).toBe(OPPORTUNITY_EXISTING.id);
+    // Verify the normalized match query was issued
+    expect(mockPrisma.opportunity.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          companyId: COMPANY_1.id,
+          normalizedTitle: expect.any(String),
+          normalizedLocation: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('falls back to creating new when P2002 unique constraint race occurs (concurrent creation)', async () => {
+    mockPrisma.opportunity.findFirst.mockResolvedValue(null); // URL + normalized miss
+    mockPrisma.opportunity.findMany.mockResolvedValue([]); // no fuzzy candidates
+
+    // create throws P2002 (concurrent insert won the race)
+    const p2002Error = new Error('duplicate key') as Error & { code?: string };
+    p2002Error.code = 'P2002';
+    mockPrisma.opportunity.create.mockRejectedValueOnce(p2002Error);
+    // After P2002, the normalized findFirst returns the existing row
+    mockPrisma.opportunity.findFirst
+      .mockResolvedValueOnce(null) // URL miss
+      .mockResolvedValueOnce(null) // normalized miss first time
+      .mockResolvedValueOnce(OPPORTUNITY_EXISTING); // normalized hit on retry after P2002
+    mockPrisma.opportunity.update.mockImplementation(async (_: unknown) => OPPORTUNITY_EXISTING);
+
+    const result = await service.resolve(INPUT);
+
+    expect(result.isNew).toBe(false);
+    expect(result.opportunityId).toBe(OPPORTUNITY_EXISTING.id);
+  });
 });
 
 describe('OpportunityService fuzzy matching helpers', () => {
@@ -270,11 +315,13 @@ describe('OpportunityService fuzzy matching helpers', () => {
 
     // First call: create a new opportunity
     mockPrisma.opportunity.findFirst
-      .mockResolvedValueOnce(null) // URL miss on first call
-      .mockResolvedValueOnce(OPPORTUNITY_EXISTING); // URL hit on second call
+      .mockResolvedValueOnce(null) // URL miss (Step 1)
+      .mockResolvedValueOnce(null) // normalized miss (Step 0b)
+      .mockResolvedValueOnce(null) // URL miss second resolve (Step 1)
+      .mockResolvedValueOnce(OPPORTUNITY_EXISTING); // normalized hit second resolve (Step 0b)
     mockPrisma.opportunity.findMany
-      .mockResolvedValueOnce([]) // no fuzzy candidates first call
-      .mockResolvedValueOnce([OPPORTUNITY_EXISTING]); // fuzzy hits second call
+      .mockResolvedValueOnce([]) // no fuzzy candidates first resolve (Step 2)
+      .mockResolvedValueOnce([OPPORTUNITY_EXISTING]); // fuzzy hits second resolve
     mockPrisma.opportunity.create.mockResolvedValueOnce(OPPORTUNITY_EXISTING);
     mockPrisma.opportunity.update.mockImplementation(async (_: unknown) => OPPORTUNITY_EXISTING);
 

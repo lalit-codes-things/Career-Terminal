@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import { OutcomeEvent } from '@prisma/client';
+import { OutcomeEvent, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { analyticsService } from './analytics.service';
 import { ApplicationStatus } from '../domain/application-status';
@@ -10,7 +10,7 @@ export interface RecordOutcomeInput {
   outcomeType: string;
   sourceType: 'EMAIL' | 'MANUAL' | 'IMPORT';
   sourceId?: string;
-  sourceData?: any;
+  sourceData?: Prisma.InputJsonValue;
   evidence?: string;
   confidence?: number;
   occurredAt: Date;

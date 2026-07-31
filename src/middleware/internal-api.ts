@@ -26,6 +26,7 @@ import { type Request, type Response, type NextFunction } from 'express';
 import { AppError } from '../errors/app-errors';
 import { timingSafeStringEqual } from '../utils/secure-compare';
 import { logger } from '../lib/logger';
+import { config } from '../config';
 
 class ForbiddenInternalError extends AppError {
   constructor() {
@@ -34,7 +35,7 @@ class ForbiddenInternalError extends AppError {
 }
 
 export function requireInternalApiKey(req: Request, _res: Response, next: NextFunction): void {
-  const configuredKey = process.env.INTERNAL_API_KEY;
+  const configuredKey = config.internalApiKey;
 
   // In test / dev without the key configured, allow through so existing
   // tests are unaffected. In production, config validation ensures the key

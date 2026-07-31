@@ -4,6 +4,7 @@ import { NotFoundError } from '../../errors/app-errors';
 import { ownershipGuard } from '../ownership/ownership.guard';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 import { userOwnershipFilter } from '../../utils/user-ownership';
+import { withRlsTransaction } from '../../middleware/rls';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -193,80 +194,85 @@ export class CompanyService {
     pagination?: PaginationInput,
   ): Promise<readonly CompanyListItem[]> {
     const paging = resolvePagination(pagination);
-    const companies = (await prisma.company.findMany({
-      where: {
-        ...(filters.name
-          ? { name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } }
-          : {}),
-        ...(filters.domain
-          ? { domain: { contains: filters.domain, mode: Prisma.QueryMode.insensitive } }
-          : {}),
-        ...(filters.industry
-          ? { industry: { contains: filters.industry, mode: Prisma.QueryMode.insensitive } }
-          : {}),
-        applications: {
-          some: userOwnershipFilter(userId),
-        },
-      },
-      include: {
-        applications: {
-          where: userOwnershipFilter(userId),
-          select: {
-            id: true,
-            appliedDate: true,
+    const companies = (await withRlsTransaction(prisma, userId, async (tx) => {
+      return tx.company.findMany({
+        where: {
+          ...(filters.name
+            ? { name: { contains: filters.name, mode: Prisma.QueryMode.insensitive } }
+            : {}),
+          ...(filters.domain
+            ? { domain: { contains: filters.domain, mode: Prisma.QueryMode.insensitive } }
+            : {}),
+          ...(filters.industry
+            ? { industry: { contains: filters.industry, mode: Prisma.QueryMode.insensitive } }
+            : {}),
+          applications: {
+            some: userOwnershipFilter(userId),
           },
         },
-        recruiters: {
-          where: {
-            applications: {
-              some: userOwnershipFilter(userId),
+        include: {
+          applications: {
+            where: userOwnershipFilter(userId),
+            select: {
+              id: true,
+              appliedDate: true,
             },
           },
-          select: { id: true },
+          recruiters: {
+            where: {
+              applications: {
+                some: userOwnershipFilter(userId),
+              },
+            },
+            select: { id: true },
+          },
         },
-      },
-      orderBy: { updatedAt: 'desc' },
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+        orderBy: { updatedAt: 'desc' },
+        ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+      });
     })) as CompanyWithRelations[];
 
     return companies.map((company) => this.mapListItem(company));
   }
 
   public async getCompany(userId: string, companyId: string): Promise<CompanyDetails> {
-    await ownershipGuard.ensureCompanyAccess(userId, companyId, prisma);
+    const company = await withRlsTransaction(prisma, userId, async (tx) => {
+      await ownershipGuard.ensureCompanyAccess(userId, companyId, tx);
 
-    const company = (await prisma.company.findFirst({
-      where: {
-        id: companyId,
-      },
-      include: {
-        aliases: true,
-        applications: {
-          where: userOwnershipFilter(userId),
-          select: {
-            id: true,
-            appliedDate: true,
-          },
+      return tx.company.findFirst({
+        where: {
+          id: companyId,
         },
-        recruiters: {
-          where: {
-            applications: {
-              some: userOwnershipFilter(userId),
+        include: {
+          aliases: true,
+          applications: {
+            where: userOwnershipFilter(userId),
+            select: {
+              id: true,
+              appliedDate: true,
             },
           },
-          select: { id: true },
+          recruiters: {
+            where: {
+              applications: {
+                some: userOwnershipFilter(userId),
+              },
+            },
+            select: { id: true },
+          },
         },
-      },
-    })) as CompanyWithRelations | null;
+      });
+    });
 
-    if (!company) {
+    const wrappedCompany = company as CompanyWithRelations | null;
+    if (!wrappedCompany) {
       throw new NotFoundError('Company', companyId);
     }
 
-    const base = this.mapListItem(company);
+    const base = this.mapListItem(wrappedCompany);
     return {
       ...base,
-      aliases: company.aliases.map((alias) => alias.value),
+      aliases: wrappedCompany.aliases.map((alias) => alias.value),
     };
   }
 
@@ -275,27 +281,29 @@ export class CompanyService {
     companyId: string,
     pagination?: PaginationInput,
   ): Promise<readonly CompanyApplicationListItem[]> {
-    await ownershipGuard.ensureCompanyAccess(userId, companyId, prisma);
     const paging = resolvePagination(pagination);
 
-    const applications = await prisma.jobApplication.findMany({
-      where: {
-        ...userOwnershipFilter(userId),
-        companyId,
-      },
-      orderBy: { appliedDate: 'desc' },
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
-      select: {
-        id: true,
-        userId: true,
-        legacyUserId: true,
-        appliedDate: true,
-        status: true,
-        roleTitle: true,
-        companyName: true,
-        recruiterName: true,
-        recruiterEmail: true,
-      },
+    const applications = await withRlsTransaction(prisma, userId, async (tx) => {
+      await ownershipGuard.ensureCompanyAccess(userId, companyId, tx);
+      return tx.jobApplication.findMany({
+        where: {
+          ...userOwnershipFilter(userId),
+          companyId,
+        },
+        orderBy: { appliedDate: 'desc' },
+        ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+        select: {
+          id: true,
+          userId: true,
+          legacyUserId: true,
+          appliedDate: true,
+          status: true,
+          roleTitle: true,
+          companyName: true,
+          recruiterName: true,
+          recruiterEmail: true,
+        },
+      });
     });
 
     return applications.map((application) => ({

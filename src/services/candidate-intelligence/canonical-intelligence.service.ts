@@ -498,7 +498,9 @@ export class CanonicalIntelligenceService {
   }
 
   private toEnriched(
-    row: any,
+    row: Prisma.CanonicalCandidateIntelligenceGetPayload<{
+      include: { sourceFact: true; provenance: true };
+    }>,
     opts: { includeFactData?: boolean; includeProvenance?: boolean },
   ): EnrichedCanonicalRecord {
     const canonical = this.toCanonicalRecord(row);

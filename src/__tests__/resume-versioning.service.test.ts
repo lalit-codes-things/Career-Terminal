@@ -82,24 +82,29 @@ jest.mock('../services/queue/queue.service', () => ({
     addResumeParsingJob: jest.fn(),
   },
 }));
-
-jest.mock('../services/user', () => ({
-  userService: {
-    userScopeFor: jest.fn(),
-  },
-}));
-
 jest.mock('../services/action.service', () => ({
   actionService: {
     recordAction: jest.fn(),
+    buildResumeVersionTag: jest.fn(),
+    ACTION_TYPES: { RESUME_UPDATE: 'resume_update' },
+    SOURCE_TYPES: {},
   },
-  ACTION_TYPES: {
-    RESUME_UPDATE: 'RESUME_UPDATE',
+}));
+
+jest.mock('../services/ownership/ownership.guard', () => ({
+  ownershipGuard: {
+    ensureApplicationAccess: jest
+      .fn()
+      .mockResolvedValue({ id: 'app-1', userId: 'user-1', legacyUserId: null }),
   },
-  SOURCE_TYPES: {
-    SYSTEM_TRACKED: 'SYSTEM_TRACKED',
+}));
+
+jest.mock('../services/user', () => ({
+  userService: {
+    userScopeFor: jest.fn().mockResolvedValue({ userId: 'user-1', legacyUserId: 'user-1' }),
+    resolveUserId: jest.fn().mockResolvedValue('user-1'),
+    setUserRegion: jest.fn(),
   },
-  buildResumeVersionTag: jest.fn((version: number) => `resume_version:${version}`),
 }));
 
 jest.mock('../services/placement/placement.service', () => ({
@@ -136,6 +141,7 @@ const RESUME_HASH_V2_ID = 'rhash-00000000-0000-0000-0000-000000000002';
 const USER_RESUME_V1_ID = 'ur-00000000-0000-0000-0000-000000000001';
 const USER_RESUME_V2_ID = 'ur-00000000-0000-0000-0000-000000000002';
 const APPLICATION_ID = 'app-00000000-0000-0000-0000-000000000001';
+const OTHER_USER = 'user-00000000-0000-0000-0000-000000000002';
 const SHA256_V1 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const SHA256_V2 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b856';
 const STORAGE_KEY_V1 = `uploads/resumes/${SHA256_V1}.pdf`;
@@ -501,7 +507,7 @@ describe('ResumeUploadService — application linkage', () => {
     const appliedAt = new Date('2026-03-01');
     mockPrisma.applicationResume.upsert.mockResolvedValue(undefined);
 
-    await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, {
+    await service.linkApplicationResume(USER_ID, APPLICATION_ID, ACTIVE_ROW, {
       appliedAt,
       usageContext: { strategy: 'generic' },
     });
@@ -535,8 +541,8 @@ describe('ResumeUploadService — application linkage', () => {
     const appliedAt = new Date('2026-03-01');
     mockPrisma.applicationResume.upsert.mockResolvedValue(undefined);
 
-    await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, { appliedAt });
-    await service.linkApplicationResume(APPLICATION_ID, ACTIVE_ROW, { appliedAt });
+    await service.linkApplicationResume(USER_ID, APPLICATION_ID, ACTIVE_ROW, { appliedAt });
+    await service.linkApplicationResume(USER_ID, APPLICATION_ID, ACTIVE_ROW, { appliedAt });
 
     expect(mockPrisma.applicationResume.upsert).toHaveBeenCalledTimes(2);
     expect(mockPrisma.applicationResume.upsert).toHaveBeenNthCalledWith(
@@ -547,7 +553,7 @@ describe('ResumeUploadService — application linkage', () => {
 
   it('getApplicationResume returns null when no link exists', async () => {
     mockPrisma.applicationResume.findFirst.mockResolvedValue(null);
-    expect(await service.getApplicationResume(APPLICATION_ID)).toBeNull();
+    expect(await service.getApplicationResume(USER_ID, APPLICATION_ID)).toBeNull();
   });
 
   it('getApplicationResume returns the snapshot metadata when linked', async () => {
@@ -575,7 +581,7 @@ describe('ResumeUploadService — application linkage', () => {
       },
     });
 
-    const result = await service.getApplicationResume(APPLICATION_ID);
+    const result = await service.getApplicationResume(USER_ID, APPLICATION_ID);
     expect(result).toEqual({
       userResumeId: USER_RESUME_V1_ID,
       version: 1,
@@ -585,6 +591,18 @@ describe('ResumeUploadService — application linkage', () => {
       usageContext: { strategy: 'generic' },
       fileSizeBytes: SAMPLE_FILE_SIZE,
     });
+  });
+
+  it('getApplicationResume enforces ownership — cross-user access returns null', async () => {
+    mockPrisma.applicationResume.findFirst.mockResolvedValue(null);
+    expect(await service.getApplicationResume(OTHER_USER, APPLICATION_ID)).toBeNull();
+    expect(mockPrisma.applicationResume.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          applicationId: APPLICATION_ID,
+        }),
+      }),
+    );
   });
 });
 

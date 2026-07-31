@@ -9,7 +9,7 @@ import { oauthStateService } from '../services/gmail/auth/oauth-state.service';
 import { prisma } from '../config/database';
 import { google } from 'googleapis';
 import * as encryption from '../utils/encryption';
-import { OAuthError, NotFoundError } from '../errors/app-errors';
+import { OAuthError, NotFoundError, TokenError } from '../errors/app-errors';
 
 // Mock dependencies
 jest.mock('googleapis');
@@ -163,13 +163,14 @@ describe('GmailOAuthService', () => {
     it('should return token if not expired', async () => {
       (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue({
         id: 'conn_1',
+        userId: 'user-1',
         tokenExpiry: new Date(Date.now() + 3600000), // 1 hour in future
         status: 'ACTIVE',
         accessTokenEncrypted: 'encrypted_access',
       });
       (encryption.decryptToken as jest.Mock).mockReturnValue('decrypted_access');
 
-      const token = await service.getValidAccessToken('conn_1');
+      const token = await service.getValidAccessToken('user-1', 'conn_1');
 
       expect(token).toBe('decrypted_access');
       expect(mockRefreshAccessToken).not.toHaveBeenCalled();
@@ -178,6 +179,7 @@ describe('GmailOAuthService', () => {
     it('should trigger refresh if token is expired', async () => {
       (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue({
         id: 'conn_1',
+        userId: 'user-1',
         tokenExpiry: new Date(Date.now() - 1000), // 1 second in past
         status: 'ACTIVE',
         refreshTokenEncrypted: 'encrypted_refresh',
@@ -191,7 +193,7 @@ describe('GmailOAuthService', () => {
         },
       });
 
-      const token = await service.getValidAccessToken('conn_1');
+      const token = await service.getValidAccessToken('user-1', 'conn_1');
 
       expect(token).toBe('new_access');
       expect(mockRefreshAccessToken).toHaveBeenCalled();
@@ -200,7 +202,22 @@ describe('GmailOAuthService', () => {
 
     it('should throw NotFoundError if connection does not exist', async () => {
       (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue(null);
-      await expect(service.getValidAccessToken('missing_conn')).rejects.toThrow(NotFoundError);
+      await expect(service.getValidAccessToken('user-1', 'missing_conn')).rejects.toThrow(
+        NotFoundError,
+      );
+    });
+
+    it('should throw TokenError if connection belongs to a different user (IDOR protection)', async () => {
+      (prisma.userEmailConnection.findUnique as jest.Mock).mockResolvedValue({
+        id: 'conn_1',
+        userId: 'victim-user',
+        tokenExpiry: new Date(Date.now() + 3600000),
+        status: 'ACTIVE',
+        accessTokenEncrypted: 'encrypted_access',
+      });
+      await expect(service.getValidAccessToken('attacker-user', 'conn_1')).rejects.toThrow(
+        TokenError,
+      );
     });
   });
 });

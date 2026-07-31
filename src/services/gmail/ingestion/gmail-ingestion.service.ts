@@ -22,6 +22,7 @@ import { EmailNormalizer } from './normalizer';
 import { GmailApiError, NotFoundError } from '../../../errors/app-errors';
 import { logger } from '../../../lib/logger';
 import type { GmailMessageRef } from '../models/gmail.types';
+import type { ResumeResult } from '../durable-checkpoint.service';
 import { applicationTrackingService } from '../../application-tracking/application-tracking.service';
 import {
   jobEmailClassifier,
@@ -34,6 +35,7 @@ import { features } from '../../../config/features';
 import { queueService } from '../../queue/queue.service';
 import { durableCheckpointService } from '../durable-checkpoint.service';
 import { placementService } from '../../placement/placement.service';
+import { withRlsTransaction } from '../../../middleware/rls';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface IngestionService {
@@ -271,8 +273,12 @@ export class GmailIngestionService implements IngestionService {
    * Resume an interrupted batch by reprocessing emails that weren't completed.
    * This is safe because processAndSaveBatch uses upsert (idempotent).
    */
-  private async resumeInterruptedBatch(userId: string, resume: any): Promise<void> {
+  private async resumeInterruptedBatch(userId: string, resume: ResumeResult): Promise<void> {
     const batch = resume.state.pendingBatch;
+    if (!batch) {
+      logger.warn('[Sync] No pending batch to resume', { userId });
+      return;
+    }
     const { client, connectionId } = await this.setupClient(userId);
     const fetcher = new RawEmailFetcher(client);
 
@@ -311,19 +317,21 @@ export class GmailIngestionService implements IngestionService {
   private async setupClient(
     userId: string,
   ): Promise<{ client: GmailClient; connectionId: string }> {
-    const connection = await prisma.userEmailConnection.findFirst({
-      where: {
-        ...userOwnershipFilter(userId),
-        provider: EmailProvider.GMAIL,
-        status: ConnectionStatus.ACTIVE,
-      },
+    const connection = await withRlsTransaction(prisma, userId, async (tx) => {
+      return tx.userEmailConnection.findFirst({
+        where: {
+          ...userOwnershipFilter(userId),
+          provider: EmailProvider.GMAIL,
+          status: ConnectionStatus.ACTIVE,
+        },
+      });
     });
 
     if (!connection) {
       throw new NotFoundError('Active UserEmailConnection', userId);
     }
 
-    const accessToken = await gmailOAuthService.getValidAccessToken(connection.id);
+    const accessToken = await gmailOAuthService.getValidAccessToken(userId, connection.id);
 
     return {
       client: new GmailClient({ accessToken }),
@@ -333,9 +341,11 @@ export class GmailIngestionService implements IngestionService {
 
   private async ensureUserIsActive(userId: string): Promise<void> {
     const resolvedUserId = await userService.resolveUserId(userId);
-    const user = await prisma.user.findUnique({
-      where: { id: resolvedUserId },
-      select: { deletionStatus: true },
+    const user = await withRlsTransaction(prisma, resolvedUserId, async (tx) => {
+      return tx.user.findUnique({
+        where: { id: resolvedUserId },
+        select: { deletionStatus: true },
+      });
     });
 
     if (!user || user.deletionStatus !== 'active') {
@@ -369,37 +379,41 @@ export class GmailIngestionService implements IngestionService {
       let jobStatus: 'processed' | 'failed' = 'processed';
 
       try {
-        const existingMessage = await prisma.emailMessage.findUnique({
-          where: {
-            unique_user_message: {
-              legacyUserId: userId,
-              providerMessageId: data.providerMessageId,
+        const result = await withRlsTransaction(prisma, userScope.userId, async (tx) => {
+          const existingMessage = await tx.emailMessage.findUnique({
+            where: {
+              unique_user_message: {
+                legacyUserId: userScope.legacyUserId,
+                providerMessageId: data.providerMessageId,
+              },
             },
-          },
+          });
+
+          const saved = await tx.emailMessage.upsert({
+            where: {
+              unique_user_message: {
+                legacyUserId: userScope.legacyUserId,
+                providerMessageId: data.providerMessageId,
+              },
+            },
+            create: {
+              ...data,
+              userId: userScope.userId,
+              legacyUserId: userScope.legacyUserId,
+              connectionId,
+            },
+            update: {
+              labels: data.labels,
+              threadId: data.threadId,
+            },
+          });
+
+          return { saved, isNew: !existingMessage };
         });
 
-        const saved = await prisma.emailMessage.upsert({
-          where: {
-            unique_user_message: {
-              legacyUserId: userId,
-              providerMessageId: data.providerMessageId,
-            },
-          },
-          create: {
-            ...data,
-            userId: userScope.userId,
-            legacyUserId: userScope.legacyUserId,
-            connectionId,
-          },
-          update: {
-            labels: data.labels,
-            threadId: data.threadId,
-          },
-        });
+        emailDbId = result.saved.id;
 
-        emailDbId = saved.id;
-
-        if (!existingMessage) {
+        if (result.isNew) {
           if (features.asyncEmailProcessing) {
             const placement = await placementService.resolvePlacementContext(userScope.userId);
             if (!(await this.isBackpressured())) {
@@ -407,14 +421,14 @@ export class GmailIngestionService implements IngestionService {
                 type: 'PROCESS_EMAIL',
                 userId,
                 cellId: placement.cellId,
-                emailMessageId: saved.id,
+                emailMessageId: result.saved.id,
                 metadata: batchId ? { batchId } : undefined,
               });
             }
           } else {
             const classifiableEmail: ClassifiableEmail = {
               emailId: data.providerMessageId,
-              sender: data.sender,
+              sender: data.from,
               subject: data.subject,
               bodyText: data.bodyText,
               bodyHtml: data.bodyHtml,
@@ -463,25 +477,27 @@ export class GmailIngestionService implements IngestionService {
   ): Promise<void> {
     const userScope = await userService.userScopeFor(userId);
 
-    await prisma.gmailSyncState.upsert({
-      where: { legacyUserId: userId },
-      create: {
-        userId: userScope.userId,
-        legacyUserId: userScope.legacyUserId,
-        connectionId,
-        historyId,
-        lastSyncedAt: new Date(),
-      },
-      update: {
-        userId: userScope.userId,
-        historyId,
-        lastSyncedAt: new Date(),
-      },
-    });
+    await withRlsTransaction(prisma, userScope.userId, async (tx) => {
+      await tx.gmailSyncState.upsert({
+        where: { legacyUserId: userId },
+        create: {
+          userId: userScope.userId,
+          legacyUserId: userScope.legacyUserId,
+          connectionId,
+          historyId,
+          lastSyncedAt: new Date(),
+        },
+        update: {
+          userId: userScope.userId,
+          historyId,
+          lastSyncedAt: new Date(),
+        },
+      });
 
-    await prisma.userEmailConnection.update({
-      where: { id: connectionId },
-      data: { lastSyncAt: new Date() },
+      await tx.userEmailConnection.update({
+        where: { id: connectionId },
+        data: { lastSyncAt: new Date() },
+      });
     });
   }
 }

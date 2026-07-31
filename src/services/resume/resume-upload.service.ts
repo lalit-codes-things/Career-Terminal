@@ -21,8 +21,9 @@ import { ValidationError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
 import { sanitizeFilename } from '../../infrastructure/security/utils';
 import { userOwnershipFilter } from '../../utils/user-ownership';
-import { setRlsUserIdInTransaction } from '../../middleware/rls';
+import { setRlsUserIdInTransaction, withRlsTransaction } from '../../middleware/rls';
 import { userService } from '../user';
+import { ownershipGuard } from '../ownership/ownership.guard';
 import { placementService } from '../placement/placement.service';
 import {
   actionService,
@@ -297,10 +298,13 @@ export class ResumeUploadService {
     createdAt: Date;
     version: number;
   } | null> {
-    const record = await prisma.userResume.findFirst({
-      where: { ...userOwnershipFilter(userId), isActive: true },
-      include: { resumeHash: true },
-      orderBy: { createdAt: 'desc' },
+    const record = await withRlsTransaction(prisma, userId, async (tx) => {
+      const row = await tx.userResume.findFirst({
+        where: { ...userOwnershipFilter(userId), isActive: true },
+        include: { resumeHash: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      return row;
     });
 
     if (!record || !record.resumeHash) return null;
@@ -319,68 +323,75 @@ export class ResumeUploadService {
   }
 
   async getActiveResumeRow(userId: string): Promise<ActiveResumeRow | null> {
-    const record = await prisma.userResume.findFirst({
-      where: { ...userOwnershipFilter(userId), isActive: true },
-      include: { resumeHash: true },
-      orderBy: { createdAt: 'desc' },
+    return withRlsTransaction(prisma, userId, async (tx) => {
+      const record = await tx.userResume.findFirst({
+        where: { ...userOwnershipFilter(userId), isActive: true },
+        include: { resumeHash: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!record || !record.resumeHash) return null;
+      return {
+        userResumeId: record.id,
+        storageKey: record.resumeHash.storageKey,
+        originalName: record.originalName ?? '',
+        mimeType: record.resumeHash.mimeType,
+        fileSizeBytes: record.resumeHash.sizeBytes,
+        hash: record.resumeHash.hash,
+        version: record.version,
+      };
     });
-    if (!record || !record.resumeHash) return null;
-    return {
-      userResumeId: record.id,
-      storageKey: record.resumeHash.storageKey,
-      originalName: record.originalName ?? '',
-      mimeType: record.resumeHash.mimeType,
-      fileSizeBytes: record.resumeHash.sizeBytes,
-      hash: record.resumeHash.hash,
-      version: record.version,
-    };
   }
 
   async listVersions(userId: string): Promise<ResumeVersionInfo[]> {
-    const ownershipFilter = userOwnershipFilter(userId);
-    const rows = await prisma.userResume.findMany({
-      where: ownershipFilter,
-      include: {
-        resumeHash: true,
-        _count: { select: { applicationLinks: true } },
-      },
-      orderBy: [{ version: 'asc' }],
+    return withRlsTransaction(prisma, userId, async (tx) => {
+      const ownershipFilter = userOwnershipFilter(userId);
+      const rows = await tx.userResume.findMany({
+        where: ownershipFilter,
+        include: {
+          resumeHash: true,
+          _count: { select: { applicationLinks: true } },
+        },
+        orderBy: [{ version: 'asc' }],
+      });
+      return rows.map((r) => ({
+        id: r.id,
+        version: r.version,
+        isActive: r.isActive,
+        originalName: r.originalName ?? '',
+        supersededAt: r.supersededAt,
+        createdAt: r.createdAt,
+        storageKey: r.resumeHash?.storageKey ?? '',
+        fileSizeBytes: r.resumeHash?.sizeBytes ?? 0,
+        hash: r.resumeHash?.hash ?? '',
+        applicationCount: r._count.applicationLinks,
+      }));
     });
-    return rows.map((r) => ({
-      id: r.id,
-      version: r.version,
-      isActive: r.isActive,
-      originalName: r.originalName ?? '',
-      supersededAt: r.supersededAt,
-      createdAt: r.createdAt,
-      storageKey: r.resumeHash?.storageKey ?? '',
-      fileSizeBytes: r.resumeHash?.sizeBytes ?? 0,
-      hash: r.resumeHash?.hash ?? '',
-      applicationCount: r._count.applicationLinks,
-    }));
   }
 
   async deleteVersion(userId: string, userResumeId: string): Promise<void> {
-    const ownershipFilter = userOwnershipFilter(userId);
-    const row = await prisma.userResume.findFirst({
-      where: { id: userResumeId, ...ownershipFilter },
-      include: { _count: { select: { applicationLinks: true } } },
-    });
-    if (!row) return;
-    if (row._count.applicationLinks > 0) {
-      throw new ValidationError(
-        `Cannot delete resume version ${row.version} - it is linked to ${row._count.applicationLinks} application(s).`,
-      );
-    }
-    await prisma.userResume.delete({ where: { id: row.id } });
-    logger.info('[ResumeUpload] Resume version deleted', {
-      userId,
-      userResumeId,
-      version: row.version,
+    await withRlsTransaction(prisma, userId, async (tx) => {
+      const ownershipFilter = userOwnershipFilter(userId);
+      const row = await tx.userResume.findFirst({
+        where: { id: userResumeId, ...ownershipFilter },
+        include: { _count: { select: { applicationLinks: true } } },
+      });
+      if (!row) return;
+      if (row._count.applicationLinks > 0) {
+        throw new ValidationError(
+          `Cannot delete resume version ${row.version} - it is linked to ${row._count.applicationLinks} application(s).`,
+        );
+      }
+      await tx.userResume.delete({ where: { id: row.id } });
+      logger.info('[ResumeUpload] Resume version deleted', {
+        userId,
+        userResumeId,
+        version: row.version,
+      });
     });
   }
 
   async linkApplicationResume(
+    userId: string,
     applicationId: string,
     activeRow: ActiveResumeRow,
     opts: {
@@ -389,6 +400,7 @@ export class ResumeUploadService {
     },
     db: PrismaClient | Prisma.TransactionClient = prisma,
   ): Promise<void> {
+    await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
     const snapshotMetadata: Record<string, unknown> = {
       originalName: activeRow.originalName,
       mimeType: activeRow.mimeType,
@@ -415,7 +427,10 @@ export class ResumeUploadService {
     });
   }
 
-  async getApplicationResume(applicationId: string): Promise<{
+  async getApplicationResume(
+    userId: string,
+    applicationId: string,
+  ): Promise<{
     userResumeId: string;
     version: number;
     originalName: string;
@@ -424,20 +439,25 @@ export class ResumeUploadService {
     usageContext?: unknown;
     fileSizeBytes?: number;
   } | null> {
-    const row = await prisma.applicationResume.findFirst({
-      where: { applicationId },
-      include: { resumeVersion: { include: { resumeHash: true } } },
+    return withRlsTransaction(prisma, userId, async (tx) => {
+      const row = await tx.applicationResume.findFirst({
+        where: {
+          applicationId,
+          application: userOwnershipFilter(userId),
+        },
+        include: { resumeVersion: { include: { resumeHash: true } } },
+      });
+      if (!row || !row.resumeVersion) return null;
+      return {
+        userResumeId: row.resumeVersion.id,
+        version: row.resumeVersion.version,
+        originalName: row.resumeVersion.originalName ?? '',
+        snapshotKey: row.snapshotKey,
+        appliedAt: row.appliedAt ?? new Date(0),
+        usageContext: row.usageContext,
+        fileSizeBytes: row.resumeVersion.resumeHash?.sizeBytes ?? 0,
+      };
     });
-    if (!row || !row.resumeVersion) return null;
-    return {
-      userResumeId: row.resumeVersion.id,
-      version: row.resumeVersion.version,
-      originalName: row.resumeVersion.originalName ?? '',
-      snapshotKey: row.snapshotKey,
-      appliedAt: row.appliedAt ?? new Date(0),
-      usageContext: row.usageContext,
-      fileSizeBytes: row.resumeVersion.resumeHash?.sizeBytes ?? 0,
-    };
   }
 
   private validateFile(buffer: Buffer, mimeType: string, filename: string): void {

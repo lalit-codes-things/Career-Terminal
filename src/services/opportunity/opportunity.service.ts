@@ -170,6 +170,19 @@ export class OpportunityService {
         }
       }
 
+      // Step 0b: exact normalized-title + normalized-location match (database guarantee)
+      const byNormalized = await tx.opportunity.findFirst({
+        where: {
+          companyId: company.id,
+          normalizedTitle,
+          normalizedLocation,
+        },
+      });
+      if (byNormalized) {
+        await this.touchOpportunity(byNormalized.id, input, tx);
+        return { opportunityId: byNormalized.id, isNew: false };
+      }
+
       // Step 2: pre-filter candidates in SQL by title to avoid full-table scans
       const candidates = await tx.opportunity.findMany({
         where: {
@@ -214,9 +227,42 @@ export class OpportunityService {
         return { opportunityId: matchTitleOnly.id, isNew: false };
       }
 
-      // Step 4: create a new canonical opportunity
-      const created = await this.createOpportunity(company.id, input, tx);
-      return { opportunityId: created.id, isNew: true };
+      // Step 4: create a new canonical opportunity.
+      // If the DB rejects due to a unique constraint (P2002 — a concurrent
+      // resolver created the same normalized (company, title, location) first),
+      // fall back to finding and touching the existing row instead of throwing.
+      try {
+        const created = await this.createOpportunity(
+          company.id,
+          input,
+          normalizedTitle,
+          normalizedLocation,
+          tx,
+        );
+        return { opportunityId: created.id, isNew: true };
+      } catch (err: unknown) {
+        if (err instanceof Error && 'code' in err && (err as { code?: string }).code === 'P2002') {
+          logger.info(
+            '[OpportunityService] Race condition — duplicate opportunity created concurrently',
+            {
+              companyId: company.id,
+              normalizedTitle,
+            },
+          );
+          const existing = await tx.opportunity.findFirst({
+            where: {
+              companyId: company.id,
+              normalizedTitle,
+              normalizedLocation,
+            },
+          });
+          if (existing) {
+            await this.touchOpportunity(existing.id, input, tx);
+            return { opportunityId: existing.id, isNew: false };
+          }
+        }
+        throw err;
+      }
     };
 
     try {
@@ -311,6 +357,8 @@ export class OpportunityService {
   private async createOpportunity(
     companyId: string,
     input: OpportunityResolutionInput,
+    normalizedTitle: string,
+    normalizedLocation: string,
     tx: DbClient,
   ): Promise<Opportunity> {
     const now = new Date();
@@ -318,8 +366,10 @@ export class OpportunityService {
     const data: Prisma.OpportunityCreateInput = {
       company: { connect: { id: companyId } },
       title: input.roleTitle,
+      normalizedTitle,
       description: input.description ?? null,
       location: input.location ?? null,
+      normalizedLocation,
       url: input.url ?? null,
       firstSeenAt: now,
       lastSeenAt: now,
