@@ -12,7 +12,7 @@ import { parseEnv, type Env } from '../infrastructure/config/env.schema';
 import { validateEncryptionConfig } from '../utils/encryption';
 import { validateWorkloadIdentity } from '../infrastructure/secrets/workload-identity';
 
-interface AppConfig {
+export interface AppConfig {
   /** Server port */
   port: number;
   /** Runtime environment */
@@ -241,6 +241,49 @@ interface AppConfig {
 
   /** Worker service account (k8s workload identity) */
   workerServiceAccount?: string;
+
+  /** Company Intelligence pipeline configuration (Epic: Company Intelligence Foundation). */
+  companyIntelligence: {
+    storageBackend: 'local' | 's3';
+    localDataDir: string;
+    s3Bucket?: string;
+    s3Prefix: string;
+    s3Endpoint?: string;
+    importBatchSize: number;
+    maxRetries: number;
+    retryInitialDelayMs: number;
+    retryMaxDelayMs: number;
+    globalRateLimitPerSec: number;
+  };
+
+  /** Company data provider configuration. Credentials are environment-only. */
+  companyProviders: {
+    sec: {
+      enabled: boolean;
+      baseUrl?: string;
+      dataDir?: string;
+      userAgent: string;
+      rateLimitPerSec: number;
+      timeoutMs: number;
+    };
+    companiesHouse: {
+      enabled: boolean;
+      apiKey?: string;
+      streamingApiKey?: string;
+      baseUrl: string;
+      streamingUrl: string;
+      rateLimitPerSec: number;
+      timeoutMs: number;
+    };
+    indiaMca: {
+      enabled: boolean;
+      apiKey?: string;
+      baseUrl: string;
+      resourceId: string;
+      rateLimitPerSec: number;
+      timeoutMs: number;
+    };
+  };
 }
 
 function validateSecrets(cfg: {
@@ -555,6 +598,47 @@ function loadConfig(): AppConfig {
     },
 
     workerServiceAccount: env.WORKER_SERVICE_ACCOUNT,
+
+    companyIntelligence: {
+      storageBackend: env.COMPANY_INTEL_STORAGE_BACKEND,
+      localDataDir: env.COMPANY_INTEL_LOCAL_DATA_DIR,
+      s3Bucket: env.COMPANY_INTEL_S3_BUCKET,
+      s3Prefix: env.COMPANY_INTEL_S3_PREFIX,
+      s3Endpoint: env.COMPANY_INTEL_S3_ENDPOINT,
+      importBatchSize: env.COMPANY_INTEL_IMPORT_BATCH_SIZE,
+      maxRetries: env.COMPANY_INTEL_MAX_RETRIES,
+      retryInitialDelayMs: env.COMPANY_INTEL_RETRY_INITIAL_DELAY_MS,
+      retryMaxDelayMs: env.COMPANY_INTEL_RETRY_MAX_DELAY_MS,
+      globalRateLimitPerSec: env.COMPANY_INTEL_GLOBAL_RATE_LIMIT_PER_SEC,
+    },
+
+    companyProviders: {
+      sec: {
+        enabled: env.SEC_PROVIDER_ENABLED,
+        baseUrl: env.SEC_BASE_URL,
+        dataDir: env.SEC_DATA_DIR,
+        userAgent: env.SEC_USER_AGENT,
+        rateLimitPerSec: env.SEC_RATE_LIMIT_PER_SEC,
+        timeoutMs: env.SEC_REQUEST_TIMEOUT_MS,
+      },
+      companiesHouse: {
+        enabled: env.COMPANIES_HOUSE_PROVIDER_ENABLED,
+        apiKey: env.COMPANIES_HOUSE_API_KEY,
+        streamingApiKey: env.COMPANIES_HOUSE_STREAMING_API_KEY,
+        baseUrl: env.COMPANIES_HOUSE_BASE_URL,
+        streamingUrl: env.COMPANIES_HOUSE_STREAMING_URL,
+        rateLimitPerSec: env.COMPANIES_HOUSE_RATE_LIMIT_PER_SEC,
+        timeoutMs: env.COMPANIES_HOUSE_REQUEST_TIMEOUT_MS,
+      },
+      indiaMca: {
+        enabled: env.INDIA_MCA_PROVIDER_ENABLED,
+        apiKey: env.INDIA_MCA_API_KEY,
+        baseUrl: env.INDIA_MCA_BASE_URL,
+        resourceId: env.INDIA_MCA_RESOURCE_ID,
+        rateLimitPerSec: env.INDIA_MCA_RATE_LIMIT_PER_SEC,
+        timeoutMs: env.INDIA_MCA_REQUEST_TIMEOUT_MS,
+      },
+    },
   };
 
   validateSecrets(cfg);
