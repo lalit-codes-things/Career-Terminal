@@ -11,6 +11,7 @@ const fakeProvider = (key: string, enabled = true): CompanyProvider => ({
     supportsIncremental: false,
     supportsStreaming: false,
     dataSourceKinds: ['http'],
+    dataCapabilities: ['company_profile'],
   },
   enabled,
   isAvailable: async () => true,

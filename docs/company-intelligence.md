@@ -38,17 +38,17 @@ repository — see `.env.example` for placeholders.
 
 All code lives under `src/services/company-intelligence/`:
 
-| Directory     | Responsibility                                              |
-| ------------- | ----------------------------------------------------------- |
-| `providers/`  | `CompanyProvider` interface, SEC/Companies House/India MCA, registry |
-| `importers/`  | Import planner + `CompanyImporter` pipeline, job payload contract |
+| Directory        | Responsibility                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `providers/`     | `CompanyProvider` interface, SEC/Companies House/India MCA, registry                                |
+| `importers/`     | Import planner + `CompanyImporter` pipeline, job payload contract                                   |
 | `normalization/` | Provider-agnostic name/domain/country/jurisdiction/ticker/timestamp normalizers + record normalizer |
-| `validation/` | `CompanyValidator` with error/warning issue reporting        |
-| `entities/`   | `CompanyEntityResolver` (identifier → domain → website → name) |
-| `identifiers/`| Identifier type catalogue, per-type validators, required identifiers |
-| `repository/` | `CompanyIntelRepository` contract, Prisma + in-memory implementations |
-| `storage/`    | `CompanyDataStorage` abstraction (local / S3), `HttpDataSource` |
-| `config/`     | Typed config + retry policy derived from env                |
+| `validation/`    | `CompanyValidator` with error/warning issue reporting                                               |
+| `entities/`      | `CompanyEntityResolver` (identifier → domain → website → name)                                      |
+| `identifiers/`   | Identifier type catalogue, per-type validators, required identifiers                                |
+| `repository/`    | `CompanyIntelRepository` contract, Prisma + in-memory implementations                               |
+| `storage/`       | `CompanyDataStorage` abstraction (local / S3), `HttpDataSource`                                     |
+| `config/`        | Typed config + retry policy derived from env                                                        |
 
 ## 2. Providers
 
@@ -207,3 +207,27 @@ and provider statuses need no migration.
 - BullMQ wiring for scheduled/queued imports (`ImportJobPayload` is ready).
 - S3 dataset staging tooling (config-only switch already supported).
 - Enrichment, analytics, scoring and company-intelligence calculations.
+
+## Identifier and Field Normalization
+
+Company providers must normalize identifiers before persistence by using the provider-independent helpers under `src/services/company-intelligence/normalization`. Normalizers are pure, deterministic, and do not retain process-local state, which keeps them safe for worker concurrency and future provider plug-ins.
+
+### Supported Identifier Types
+
+The identifier catalogue currently supports CIK, LEI, ISIN, Companies House / registrar company numbers, Indian CIN, EIN, PAN, DUNS, SIREN, and SIRET. Each identifier keeps its original provider value and its normalized comparison value. Scheme-specific rules include:
+
+- CIK: digits only, left-padded to 10 digits.
+- LEI: uppercase alphanumeric, ISO 17442 / ISO 7064 mod-97 checksum validation.
+- ISIN: uppercase alphanumeric, ISO 6166 format with standard check-digit validation.
+- Companies House and other registrar numbers: uppercase alphanumeric canonical form.
+- Indian CIN: uppercase 21-character MCA format.
+- EIN: nine digits, with dashes removed for canonical comparison.
+- SIREN/SIRET: digits with Luhn checksum validation.
+
+### Other Normalized Fields
+
+Shared normalization also covers ticker symbols, domains, ISO country codes, ISO currency codes, and IANA time zones. Domain normalization removes schemes, `www`, paths, query strings, trailing dots, and converts internationalized domains to punycode. Legal-name normalization strips common legal suffixes such as Ltd, Limited, LLC, PLC, Inc, Corporation, Corp, Pvt Ltd, Private Limited, AG, GmbH, BV, SA, NV, SPA, KK, and PTY when deriving comparison/display values without discarding the original provider value.
+
+### Extension Guidelines
+
+To add a future identifier, extend `IDENTIFIER_TYPES`, add a normalizer and validator in the identifier catalogue, and add tests that cover canonical formatting plus invalid values. Providers should call the normalizer during record mapping or use `CompanyRecordNormalizer`, which applies identifier normalization consistently before validation and persistence.

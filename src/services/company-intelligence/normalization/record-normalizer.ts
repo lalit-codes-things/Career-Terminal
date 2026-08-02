@@ -10,12 +10,7 @@
 import { createHash } from 'node:crypto';
 import type { CompanyRawData, CompanyStatus, NormalizedCompanyData } from '../contracts';
 import { normalizeIdentifierValue } from '../identifiers';
-import {
-  canonicalNameKey,
-  normalizeCompanyName,
-  normalizeDomain,
-  parseJurisdiction,
-} from '.';
+import { canonicalNameKey, normalizeCompanyName, normalizeDomain, parseJurisdiction } from '.';
 
 export interface NormalizeRecordOptions {
   providerKey: string;
@@ -65,10 +60,7 @@ export class CompanyRecordNormalizer {
     const parsedJurisdiction = jurisdiction ? parseJurisdiction(jurisdiction) : null;
     const normalizedJurisdiction = parsedJurisdiction?.code ?? null;
     const countryCode =
-      options.countryCode ??
-      data.countryCode ??
-      parsedJurisdiction?.countryCode ??
-      null;
+      options.countryCode ?? data.countryCode ?? parsedJurisdiction?.countryCode ?? null;
 
     const domain =
       (data.domain ? normalizeDomain(data.domain) : null) ??
@@ -77,7 +69,8 @@ export class CompanyRecordNormalizer {
 
     const fetchedAt = options.fetchedAt ?? new Date().toISOString();
     const checksum =
-      options.checksum ?? this.computeChecksum({ name, jurisdiction: normalizedJurisdiction, ...data });
+      options.checksum ??
+      this.computeChecksum({ name, jurisdiction: normalizedJurisdiction, ...data });
 
     return {
       providerKey: options.providerKey,
@@ -93,7 +86,7 @@ export class CompanyRecordNormalizer {
       identifiers: (data.identifiers ?? []).map((identifier) => ({
         type: identifier.type,
         value: identifier.value,
-        normalizedValue: normalizeIdentifierValue(identifier.value),
+        normalizedValue: normalizeIdentifierValue(identifier.value, identifier.type),
         jurisdiction: identifier.jurisdiction ?? normalizedJurisdiction ?? null,
         registrar: identifier.registrar ?? null,
         validFrom: identifier.validFrom ?? null,

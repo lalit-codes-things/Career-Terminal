@@ -59,7 +59,10 @@ export class ProviderLifecycleManager {
    * hook and probe availability. Safe to call repeatedly; idempotent once
    * the provider is already 'ready' or 'running'.
    */
-  async initialize(providerKey: string, options: ProviderInitializeOptions = {}): Promise<ProviderRuntimeState> {
+  async initialize(
+    providerKey: string,
+    options: ProviderInitializeOptions = {},
+  ): Promise<ProviderRuntimeState> {
     const provider = this.requireProvider(providerKey);
     const current = this.registry.getRuntimeState(providerKey);
     if (current.initialized && current.state !== 'failed') {
@@ -107,8 +110,16 @@ export class ProviderLifecycleManager {
       const message = providerErrorMessage(err);
       const state = this.transition(providerKey, 'failed', { lastError: message });
       this.health.recordFailure(providerKey, err);
-      emitProviderEvent({ type: 'initialize_failed', providerKey, timestamp: new Date().toISOString(), attributes: { error: message } });
-      this.logger.error('[CompanyIntel] provider initialization failed', { providerKey, error: message });
+      emitProviderEvent({
+        type: 'initialize_failed',
+        providerKey,
+        timestamp: new Date().toISOString(),
+        attributes: { error: message },
+      });
+      this.logger.error('[CompanyIntel] provider initialization failed', {
+        providerKey,
+        error: message,
+      });
       return state;
     }
   }
@@ -140,8 +151,13 @@ export class ProviderLifecycleManager {
   }
 
   /** Run a full or incremental import through the lifecycle state machine. */
-  async runSync(providerKey: string, mode: ProviderSyncMode, options: ProviderSyncOptions = {}): Promise<ImportRunResult> {
+  async runSync(
+    providerKey: string,
+    mode: ProviderSyncMode,
+    options: ProviderSyncOptions = {},
+  ): Promise<ImportRunResult> {
     return this.runImport(providerKey, {
+      providerKey,
       importType: mode === 'incremental' ? 'INCREMENTAL' : 'FULL',
       since: options.since,
       limit: options.limit,
@@ -157,7 +173,10 @@ export class ProviderLifecycleManager {
   }
 
   /** Convenience wrapper: incremental sync. */
-  runIncrementalSync(providerKey: string, options: ProviderSyncOptions = {}): Promise<ImportRunResult> {
+  runIncrementalSync(
+    providerKey: string,
+    options: ProviderSyncOptions = {},
+  ): Promise<ImportRunResult> {
     return this.runSync(providerKey, 'incremental', options);
   }
 
@@ -176,7 +195,12 @@ export class ProviderLifecycleManager {
 
     this.transition(providerKey, 'running');
     const startedAt = Date.now();
-    emitProviderEvent({ type: 'import_started', providerKey, timestamp: new Date().toISOString(), attributes: { importType: options.importType ?? 'FULL' } });
+    emitProviderEvent({
+      type: 'import_started',
+      providerKey,
+      timestamp: new Date().toISOString(),
+      attributes: { importType: options.importType ?? 'FULL' },
+    });
 
     let result: ImportRunResult;
     try {
@@ -184,19 +208,34 @@ export class ProviderLifecycleManager {
     } catch (err) {
       const message = providerErrorMessage(err);
       this.health.recordFailure(providerKey, err, { latencyMs: Date.now() - startedAt });
-      emitProviderEvent({ type: 'import_failed', providerKey, timestamp: new Date().toISOString(), attributes: { error: message } });
+      emitProviderEvent({
+        type: 'import_failed',
+        providerKey,
+        timestamp: new Date().toISOString(),
+        attributes: { error: message },
+      });
       this.transition(providerKey, 'failed', { lastError: message });
       throw err;
     }
 
     if (result.status === 'success') {
       this.health.recordSuccess(providerKey, { latencyMs: result.durationMs });
-      emitProviderEvent({ type: 'import_completed', providerKey, timestamp: new Date().toISOString(), attributes: { status: result.status } });
+      emitProviderEvent({
+        type: 'import_completed',
+        providerKey,
+        timestamp: new Date().toISOString(),
+        attributes: { status: result.status },
+      });
     } else {
       this.health.recordFailure(providerKey, new Error(result.error ?? `import ${result.status}`), {
         latencyMs: result.durationMs,
       });
-      emitProviderEvent({ type: 'import_completed', providerKey, timestamp: new Date().toISOString(), attributes: { status: result.status } });
+      emitProviderEvent({
+        type: 'import_completed',
+        providerKey,
+        timestamp: new Date().toISOString(),
+        attributes: { status: result.status },
+      });
     }
 
     this.transition(providerKey, 'ready', { initialized: true });
@@ -213,14 +252,24 @@ export class ProviderLifecycleManager {
     } catch (err) {
       const message = providerErrorMessage(err);
       this.health.recordFailure(providerKey, err, { latencyMs: Date.now() - startedAt });
-      emitProviderEvent({ type: 'health_checked', providerKey, timestamp: new Date().toISOString(), attributes: { status: 'unhealthy', error: message } });
+      emitProviderEvent({
+        type: 'health_checked',
+        providerKey,
+        timestamp: new Date().toISOString(),
+        attributes: { status: 'unhealthy', error: message },
+      });
       throw err;
     }
     this.health.recordCheck(providerKey, health.status, {
       latencyMs: Date.now() - startedAt,
       message: health.message,
     });
-    emitProviderEvent({ type: 'health_checked', providerKey, timestamp: new Date().toISOString(), attributes: { status: health.status } });
+    emitProviderEvent({
+      type: 'health_checked',
+      providerKey,
+      timestamp: new Date().toISOString(),
+      attributes: { status: health.status },
+    });
     return health;
   }
 
@@ -245,7 +294,7 @@ export class ProviderLifecycleManager {
   }
 
   states(): ProviderRuntimeState[] {
-    return this.registry.runtimeStates();
+    return this.registry.getRuntimeStates();
   }
 
   private requireProvider(providerKey: string): CompanyProvider {

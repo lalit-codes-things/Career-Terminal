@@ -25,7 +25,7 @@ describe('normalizeIdentifierValue', () => {
     expect(normalizeIdentifierValue(' us-1234 ')).toBe('US-1234');
   });
   it('normalizes CIK with leading zeros preserved as digits', () => {
-    expect(normalizeIdentifierValue('0000320193')).toBe('0000320193');
+    expect(normalizeIdentifierValue('320193', 'cik')).toBe('0000320193');
   });
 });
 
@@ -35,7 +35,7 @@ describe('isValidIdentifierValue', () => {
     expect(isValidIdentifierValue('cik', '12x')).toBe(false);
   });
   it('validates LEI', () => {
-    expect(isValidIdentifierValue('lei', '5493000HKUKQ3C9W3K18')).toBe(true);
+    expect(isValidIdentifierValue('lei', '5493001KJTIIGC8Y1R12')).toBe(true);
     expect(isValidIdentifierValue('lei', 'short')).toBe(false);
   });
   it('validates EIN with or without dash', () => {

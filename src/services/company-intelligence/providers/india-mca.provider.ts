@@ -18,7 +18,7 @@ import type {
   ProviderFetchOptions,
   ProviderHealth,
 } from './company-provider.types';
-import { buildProviderHealth } from './provider-utils';
+import { buildProviderHealth, isHttpUrl } from './provider-utils';
 
 const IN_JURISDICTION = 'IN';
 const PAGE_SIZE = 100;
@@ -73,11 +73,9 @@ export class IndiaMcaProvider implements CompanyProvider {
     return this.enabled && Boolean(this.config.apiKey && this.config.resourceId);
   }
 
-  async *fetchRecords(options: ProviderFetchOptions = {}): AsyncGenerator<
-    ProviderCompanyRecord,
-    void,
-    unknown
-  > {
+  async *fetchRecords(
+    options: ProviderFetchOptions = {},
+  ): AsyncGenerator<ProviderCompanyRecord, void, unknown> {
     if (!(await this.isAvailable())) {
       return;
     }
@@ -155,7 +153,11 @@ export class IndiaMcaProvider implements CompanyProvider {
       return buildProviderHealth(this.key, 'degraded', 'Unexpected API response shape');
     } catch (err) {
       if (err instanceof HttpDataSourceError && (err.status === 401 || err.status === 403)) {
-        return buildProviderHealth(this.key, 'unhealthy', `API authentication failed (HTTP ${err.status})`);
+        return buildProviderHealth(
+          this.key,
+          'unhealthy',
+          `API authentication failed (HTTP ${err.status})`,
+        );
       }
       return buildProviderHealth(this.key, 'degraded', `API unreachable: ${message(err)}`);
     }
@@ -253,7 +255,7 @@ export class IndiaMcaProvider implements CompanyProvider {
       addresses.push({
         type: 'registered',
         addressLines: [street].filter((line): line is string => Boolean(line)),
-        locality: rest.length > 0 ? rest[rest.length - 1] ?? null : null,
+        locality: rest.length > 0 ? (rest[rest.length - 1] ?? null) : null,
         countryCode: IN_JURISDICTION,
       });
     }

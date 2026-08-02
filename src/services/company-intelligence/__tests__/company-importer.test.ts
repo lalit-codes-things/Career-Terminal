@@ -4,7 +4,10 @@ import { CompanyImporter } from '../importers';
 import { InMemoryCompanyIntelRepository } from '../repository';
 import { CompanyProviderRegistry } from '../providers';
 
-const baseRecord = (providerRecordId: string, overrides: Record<string, unknown> = {}): ProviderCompanyRecord => ({
+const baseRecord = (
+  providerRecordId: string,
+  overrides: Record<string, unknown> = {},
+): ProviderCompanyRecord => ({
   providerKey: 'fake',
   providerRecordId,
   fetchedAt: '2024-01-01T00:00:00.000Z',
@@ -32,6 +35,7 @@ const fakeProvider = (records: ProviderCompanyRecord[]): CompanyProvider => ({
     supportsIncremental: false,
     supportsStreaming: false,
     dataSourceKinds: ['http'],
+    dataCapabilities: ['company_profile'],
   },
   enabled: true,
   isAvailable: async () => true,
@@ -116,9 +120,7 @@ describe('CompanyImporter', () => {
         ],
       }),
     ];
-    const { importer } = buildImporter(
-      fakeProvider([conflictingA, conflictingB, ...sameNumbers]),
-    );
+    const { importer } = buildImporter(fakeProvider([conflictingA, conflictingB, ...sameNumbers]));
 
     const result = await importer.runImport({ providerKey: 'fake' });
 

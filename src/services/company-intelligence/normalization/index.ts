@@ -17,3 +17,5 @@ export * from './ticker';
 export * from './jurisdiction';
 export * from './timestamp';
 export * from './record-normalizer';
+export * from './currency';
+export * from './time-zone';

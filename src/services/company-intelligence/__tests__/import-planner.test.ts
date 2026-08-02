@@ -11,6 +11,7 @@ const provider = (overrides: Partial<CompanyProvider> = {}): CompanyProvider => 
     supportsIncremental: true,
     supportsStreaming: true,
     dataSourceKinds: ['http'],
+    dataCapabilities: ['company_profile'],
   },
   enabled: true,
   isAvailable: async () => true,
@@ -40,18 +41,15 @@ describe('buildImportPlan', () => {
   });
 
   it('plans a skip when the provider is disabled', () => {
-    const plan = buildImportPlan(
-      options,
-      { provider: provider({ enabled: false }), available: true },
-    );
+    const plan = buildImportPlan(options, {
+      provider: provider({ enabled: false }),
+      available: true,
+    });
     expect(plan.reason).toBe('provider-disabled');
   });
 
   it('plans a skip when the provider is unavailable', () => {
-    const plan = buildImportPlan(
-      options,
-      { provider: provider(), available: false },
-    );
+    const plan = buildImportPlan(options, { provider: provider(), available: false });
     expect(plan.reason).toBe('provider-unavailable');
   });
 
@@ -62,6 +60,7 @@ describe('buildImportPlan', () => {
         supportsIncremental: false,
         supportsStreaming: false,
         dataSourceKinds: ['http'],
+        dataCapabilities: ['company_profile'],
       },
     });
     const plan = buildImportPlan(

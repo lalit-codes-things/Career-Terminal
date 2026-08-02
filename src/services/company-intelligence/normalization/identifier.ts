@@ -10,5 +10,6 @@ export {
   IDENTIFIER_TYPES,
   isKnownIdentifierType,
   isValidIdentifierValue,
+  normalizeIdentifier,
   normalizeIdentifierValue,
 } from '../identifiers';

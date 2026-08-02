@@ -123,7 +123,11 @@ export class CompanyProviderRegistry {
       this.registrations.delete(key) ||
       this.runtimeStates.delete(key) ||
       this.enabledOverrides.delete(key);
-    emitProviderEvent({ type: 'unregistered', providerKey: key, timestamp: new Date().toISOString() });
+    emitProviderEvent({
+      type: 'unregistered',
+      providerKey: key,
+      timestamp: new Date().toISOString(),
+    });
     return removed;
   }
 
@@ -230,7 +234,7 @@ export class CompanyProviderRegistry {
     return next;
   }
 
-  runtimeStates(): ProviderRuntimeState[] {
+  getRuntimeStates(): ProviderRuntimeState[] {
     return [...this.runtimeStates.values()].map((state) => ({ ...state }));
   }
 

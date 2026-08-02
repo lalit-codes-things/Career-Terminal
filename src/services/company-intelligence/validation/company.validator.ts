@@ -64,7 +64,12 @@ export class CompanyValidator {
     }
     if (!data.normalizedName || data.normalizedName.trim().length === 0) {
       issues.push(
-        this.issue('error', 'normalizedName', 'MISSING_NORMALIZED_NAME', 'Normalized name is required'),
+        this.issue(
+          'error',
+          'normalizedName',
+          'MISSING_NORMALIZED_NAME',
+          'Normalized name is required',
+        ),
       );
     }
     if (data.fetchedAt && !isValidTimestamp(data.fetchedAt)) {
@@ -112,7 +117,7 @@ export class CompanyValidator {
         );
       }
 
-      const normalized = normalizeIdentifierValue(identifier.value);
+      const normalized = normalizeIdentifierValue(identifier.value, identifier.type);
       const key = `${identifier.type}:${normalized}:${identifier.jurisdiction ?? ''}`;
       if (seen.has(key)) {
         issues.push(
@@ -165,7 +170,12 @@ export class CompanyValidator {
         }
       } catch {
         issues.push(
-          this.issue('warning', 'website', 'INVALID_WEBSITE', `'${data.website}' is not a valid URL`),
+          this.issue(
+            'warning',
+            'website',
+            'INVALID_WEBSITE',
+            `'${data.website}' is not a valid URL`,
+          ),
         );
       }
     }
@@ -257,21 +267,11 @@ export class CompanyValidator {
     for (const [field, value] of temporalFields) {
       if (value && !isValidTimestamp(value)) {
         issues.push(
-          this.issue(
-            'error',
-            field,
-            'INVALID_TIMESTAMP',
-            `'${value}' is not a valid timestamp`,
-          ),
+          this.issue('error', field, 'INVALID_TIMESTAMP', `'${value}' is not a valid timestamp`),
         );
       } else if (value && isFutureTimestamp(value, new Date(), toleranceMs)) {
         issues.push(
-          this.issue(
-            'warning',
-            field,
-            'FUTURE_TIMESTAMP',
-            `'${value}' is in the future`,
-          ),
+          this.issue('warning', field, 'FUTURE_TIMESTAMP', `'${value}' is in the future`),
         );
       }
     }
