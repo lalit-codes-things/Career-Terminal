@@ -20,6 +20,8 @@
     "ci:validate-k8s-images": "node scripts/ci/validate-k8s-images.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:verify": "tsx src/services/recruiter-intelligence/migration/run-startup-validation.ts",
+    "db:validate-migrations": "tsx src/services/recruiter-intelligence/migration/run-migration-validation.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "worker:start": "tsx src/services/queue/workers/index.ts",

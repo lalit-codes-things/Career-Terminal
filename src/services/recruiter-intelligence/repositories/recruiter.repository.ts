@@ -1,0 +1,130 @@
+import type { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../config/database';
+import type { RecruiterCreateInput, RecruiterAliasInput } from '../domain/recruiter-data.types';
+import { validateRecruiterCreate, validateRecruiterAlias } from '../validation/recruiter.validation';
+import { BaseRecruiterRepository } from './base-recruiter.repository';
+import type { RecruiterPersistencePort, RecruiterBulkOperationPort, RecruiterTransactionalPort } from './interfaces';
+
+export interface RecruiterRecord {
+  id: string;
+  companyId: string;
+  name: string;
+  email: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RecruiterRepositoryContract
+  extends RecruiterPersistencePort<RecruiterRecord>,
+    RecruiterBulkOperationPort<{ id?: string; canonicalName: string; source: string }>,
+    RecruiterTransactionalPort<{ id: string }> {
+  createRecruiter(input: RecruiterCreateInput): Promise<{ id: string }>;
+  createAlias(recruiterId: string, input: RecruiterAliasInput): Promise<{ id: string }>;
+  findByEmail(email: string): Promise<unknown>;
+  listByCompany(companyId: string, cursor?: string): Promise<unknown[]>;
+}
+
+export class RecruiterRepository
+  extends BaseRecruiterRepository<unknown, RecruiterRecord>
+  implements RecruiterRepositoryContract
+{
+  constructor(private readonly db: PrismaClient = prisma) {
+    super(db, 'recruiter');
+  }
+
+  async createRecruiter(input: RecruiterCreateInput): Promise<{ id: string }> {
+    const validation = validateRecruiterCreate(input);
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join(', '));
+    }
+
+    const record = await this.db.recruiter.create({
+      data: {
+        name: input.canonicalName,
+        companyId: input.companyId ?? '00000000-0000-0000-0000-000000000000',
+        email: '',
+        title: '',
+      },
+    });
+
+    return { id: record.id };
+  }
+
+  async createAlias(recruiterId: string, input: RecruiterAliasInput): Promise<{ id: string }> {
+    const validation = validateRecruiterAlias(input);
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join(', '));
+    }
+
+    const record = await this.db.recruiter.update({
+      where: { id: recruiterId },
+      data: {
+        name: input.alias,
+      },
+    });
+
+    return { id: record.id };
+  }
+
+  async create(input: RecruiterRecord): Promise<RecruiterRecord> {
+    return this.db.recruiter.create({
+      data: {
+        name: input.name,
+        companyId: input.companyId,
+        email: input.email,
+        title: input.title,
+      },
+    });
+  }
+
+  async update(id: string, input: Partial<RecruiterRecord>): Promise<RecruiterRecord> {
+    return this.db.recruiter.update({
+      where: { id },
+      data: {
+        name: input.name,
+        companyId: input.companyId,
+        email: input.email,
+        title: input.title,
+      },
+    });
+  }
+
+  async findById(id: string): Promise<RecruiterRecord | null> {
+    return this.db.recruiter.findUnique({ where: { id } });
+  }
+
+  async list(where: Record<string, unknown> = {}, options: { cursor?: string; take?: number; orderBy?: Record<string, 'asc' | 'desc'> } = {}): Promise<RecruiterRecord[]> {
+    return this.db.recruiter.findMany({
+      where,
+      ...this.buildCursorQuery(options),
+    });
+  }
+
+  async findByEmail(email: string): Promise<unknown> {
+    return this.db.recruiter.findFirst({ where: { email } });
+  }
+
+  async listByCompany(companyId: string, cursor?: string): Promise<unknown[]> {
+    return this.db.recruiter.findMany({
+      where: { companyId },
+      ...this.buildCursorQuery({ cursor, take: 25, orderBy: { createdAt: 'asc' } }),
+    });
+  }
+
+  async bulkUpsert(records: Array<{ id?: string; canonicalName: string; source: string }>): Promise<void> {
+    await this.bulkUpsertMany(async (tx) => {
+      for (const record of records) {
+        await tx.recruiter.upsert({
+          where: { id: record.id ?? '' },
+          update: { name: record.canonicalName },
+          create: { id: record.id ?? undefined, name: record.canonicalName, companyId: '00000000-0000-0000-0000-000000000000', email: '', title: '' },
+        });
+      }
+    });
+  }
+
+  async executeInTransaction<T>(operation: { run: (tx: unknown) => Promise<T> }): Promise<T> {
+    return this.withTransaction(async (tx) => operation.run(tx));
+  }
+}

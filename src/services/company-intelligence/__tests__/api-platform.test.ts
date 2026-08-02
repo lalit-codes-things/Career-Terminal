@@ -55,6 +55,23 @@ describe('Company Intelligence platform surface', () => {
     expect(result.progress).toBe(100);
   });
 
+  it('validates payloads instead of reporting a blanket success', async () => {
+    const registry = createCompanyIntelligenceWorkerRegistry();
+    const result = await registry.run('VALIDATION', {
+      correlationId: 'corr-2',
+      metadata: {
+        rawData: {
+          name: '',
+          identifiers: [{ type: 'unknown', value: 'x' }],
+        },
+      },
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.progress).toBeGreaterThan(0);
+    expect(result.error).toContain('validation');
+  });
+
   it('validates configuration and surfaces feature flags', () => {
     const report = validateCompanyIntelConfig({
       storageBackend: 'local',
