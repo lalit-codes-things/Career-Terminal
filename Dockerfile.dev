@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Development image — hot-reload via tsx watch.
+# Mount the source directory as a volume; changes are reflected immediately.
+#
+# Usage:
+#   docker compose -f docker-compose.yml up api
+# ─────────────────────────────────────────────────────────────────────────────
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies (node_modules is NOT overwritten by volume mount
+# because docker-compose mounts the source only, not node_modules).
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY prisma ./prisma/
+
+RUN npx prisma generate
+
+ENV NODE_ENV=development
+ENV PORT=3000
+
+EXPOSE 3000
+
+# tsx watch provides TypeScript hot-reload without a separate compile step.
+CMD ["npx", "tsx", "watch", "src/index.ts"]

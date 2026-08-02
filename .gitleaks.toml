@@ -1,0 +1,119 @@
+title = "Career Terminal Gitleaks Configuration"
+
+# ---------------------------------------------------------------------------
+# Rules
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "jwt-secret-hardcoded"
+description = "Hardcoded JWT secret in source code"
+regex = '''(?i)(jwt[_-]?secret|jwt[_-]?key)\s*[=:]\s*['"][a-zA-Z0-9+/]{20,}['"]'''
+tags = ["jwt", "secret", "key"]
+
+[[rules]]
+id = "encryption-key-hex"
+description = "Hardcoded 32-byte hex encryption key"
+regex = '''(?i)(encryption[_-]?key|encrypt[_-]?key)\s*[=:]\s*['"]?[0-9a-f]{64}['"]?'''
+tags = ["encryption", "key"]
+
+[[rules]]
+id = "google-client-secret"
+description = "Google OAuth client secret"
+regex = '''GOCSPX-[a-zA-Z0-9_-]{28,}'''
+tags = ["google", "oauth", "secret"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API key"
+regex = '''AIza[0-9A-Za-z_-]{35}'''
+tags = ["google", "api-key"]
+
+[[rules]]
+id = "aws-access-key-id"
+description = "AWS access key ID"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+tags = ["aws", "access-key"]
+
+[[rules]]
+id = "aws-secret-access-key"
+description = "AWS secret access key"
+regex = '''(?i)aws[_-]?secret[_-]?(access[_-]?)?key\s*[=:]\s*['"][A-Za-z0-9/+=]{40}['"]'''
+tags = ["aws", "secret-key"]
+
+[[rules]]
+id = "redis-url-with-password"
+description = "Redis connection URL with embedded password"
+regex = '''rediss?://[^:@\s]+:[^@\s]+@[^/\s]'''
+tags = ["redis", "password", "url"]
+
+[[rules]]
+id = "database-url-with-password"
+description = "Database connection URL with embedded password"
+regex = '''(postgresql|postgres|mysql|mongodb)://[^:@\s]+:[^@\s]+@[^/\s]'''
+tags = ["database", "password", "url"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API key assignment in source code"
+regex = '''(?i)(api[_-]?key|apikey)\s*[=:]\s*['"][a-zA-Z0-9_-]{20,}['"]'''
+tags = ["api-key"]
+
+[[rules]]
+id = "internal-api-key"
+description = "Internal API key assignment"
+regex = '''(?i)(internal[_-]?api[_-]?key)\s*[=:]\s*['"][a-zA-Z0-9_-]{20,}['"]'''
+tags = ["internal", "api-key"]
+
+[[rules]]
+id = "base64-encoded-credentials"
+description = "Base64 encoded credential blob (potential encoded secret)"
+regex = '''(?i)(password|secret|key|token|credential)\s*[=:]\s*['"][A-Za-z0-9+/]{40,}={0,2}['"]'''
+tags = ["base64", "credential"]
+
+[[rules]]
+id = "hex-encryption-key-in-source"
+description = "Hex string that looks like an encryption key directly assigned in source code (not env vars)"
+regex = '''=\s*['"][0-9a-fA-F]{64}['"]'''
+tags = ["hex", "encryption-key"]
+# Exclude env files (placeholder values) and test files
+[rules.allowlist]
+paths = [
+  '''\.env\.example''',
+  '''jest\.env\.setup\.js''',
+  '''\.env''',
+  '''secret\.template\.yaml''',
+]
+
+# ---------------------------------------------------------------------------
+# Global allowlist — patterns and paths that are known-safe
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "Known safe patterns and paths"
+
+# Regex patterns that are always safe to ignore
+regexes = [
+  # Placeholder values in .env.example (contain 'example', 'placeholder', 'your-', 'change-me')
+  '''(example|placeholder|your-|change-me|CHANGE_ME|YOUR_|<[A-Z_]+>)''',
+  # UUIDs (not secrets)
+  '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}''',
+  # Short test strings unlikely to be real secrets
+  '''test-[a-z-]+-[a-z-]+''',
+]
+
+# File paths that are always excluded from scanning
+paths = [
+  # Jest test environment setup — contains intentional test fixtures
+  '''src/__tests__/jest\.env\.setup\.js''',
+  # .env.example — placeholder values only, no real secrets
+  '''\.env\.example''',
+  # k8s secret template — uses template markers, not real values
+  '''k8s/secret\.template\.yaml''',
+  # node_modules — third-party code, not our secrets
+  '''node_modules/''',
+  # dist — compiled output
+  '''dist/''',
+  # lock files
+  '''package-lock\.json''',
+  '''yarn\.lock''',
+]

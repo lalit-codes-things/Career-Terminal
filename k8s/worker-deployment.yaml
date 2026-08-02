@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: career-terminal-worker
+  namespace: career-terminal
+  labels:
+    app: career-terminal-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: career-terminal-worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: career-terminal-worker
+    spec:
+# Use a dedicated workload identity/secret binding in each environment.
+      serviceAccountName: career-terminal-worker
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: worker
+          # Production image pinning: replace the tag with an immutable digest at
+          # deploy time using: scripts/ci/pin-k8s-images.sh <worker-digest>
+          # Example: image: ghcr.io/career-terminal/backend@sha256:<digest>
+          image: career-terminal-api:0.1.0
+          imagePullPolicy: Always
+          command: ["node", "dist/services/queue/workers/index.js"]
+          envFrom:
+            - configMapRef:
+                name: career-terminal-config
+            - secretRef:
+                name: career-terminal-resume-secret
+          env:
+            - name: WORKLOAD_IDENTITY
+              value: career-terminal-worker
+            # Deploy separate worker Deployments with a single value here to
+            # isolate queues and scale them independently.
+            - name: WORKER_QUEUES
+              value: email,resume-parsing,application-tracking
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

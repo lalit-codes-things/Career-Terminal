@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Stray local build/lint/typecheck output — never meant to be committed.
+# These go stale fast and can mislead anyone (human or agent) who trusts them.
+typecheck-errors.txt
+type-errors.txt
+lint-errors.txt
+
+# Coverage
+coverage/
+
+# Misc
+*.tsbuildinfo
+# Personal notes / local vault
+Startup/
+.obsidian/
+
+# Local caches
+.cache/
+node_modules/.cache/

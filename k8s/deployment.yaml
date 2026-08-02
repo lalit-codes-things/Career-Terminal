@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: career-terminal-api
+  namespace: career-terminal
+  labels:
+    app: career-terminal-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: career-terminal-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: career-terminal-api
+    spec:
+      serviceAccountName: career-terminal-api
+      priorityClassName: career-terminal-high-priority
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          # Production image pinning: replace the tag with an immutable digest at
+          # deploy time using: scripts/ci/pin-k8s-images.sh <api-digest>
+          # Example: image: ghcr.io/career-terminal/backend@sha256:<digest>
+          image: career-terminal-api:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+              name: http
+          envFrom:
+            - configMapRef:
+                name: career-terminal-config
+            - secretRef:
+                name: career-terminal-secrets
+          env:
+            # Epic 0.7: Workload identity — restricts secret access to API policy
+            - name: WORKLOAD_IDENTITY
+              value: "career-terminal-api"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: career-terminal-api
+  namespace: career-terminal
+  labels:
+    app: career-terminal-api

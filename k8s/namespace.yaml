@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: career-terminal
+  labels:
+    name: career-terminal
+    app.kubernetes.io/managed-by: kubectl

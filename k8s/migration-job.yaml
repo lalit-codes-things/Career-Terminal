@@ -1,0 +1,55 @@
+# Run once per deployment release from CI/CD. Do not include this Job in a
+# replica Deployment: concurrent Prisma migrations are intentionally avoided.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: career-terminal-migrate
+  namespace: career-terminal
+  labels:
+    app: career-terminal-migrate
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: career-terminal-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: career-terminal-migration
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      containers:
+        - name: migrate
+          # Publish Dockerfile target `migrator` under this distinct tag.
+          # Production image pinning: replace the tag with an immutable digest at
+          # deploy time using: scripts/ci/pin-k8s-images.sh <migrator-digest>
+          # Example: image: ghcr.io/career-terminal/backend@sha256:<digest>
+          image: career-terminal-migrator:0.1.0
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: career-terminal-config
+            - secretRef:
+                name: career-terminal-migration-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

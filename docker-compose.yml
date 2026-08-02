@@ -1,0 +1,257 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Career Terminal — Docker Compose
+#
+# ⚠️  DEVELOPMENT ONLY — DO NOT USE IN PRODUCTION
+#
+# This compose file is intended for local development and integration testing.
+# Production deployments MUST use the Kubernetes manifests in ./k8s/ or a
+# dedicated production orchestration system. Internal services (postgres,
+# pgbouncer, redis, minio) MUST NOT be publicly reachable in production.
+#
+# For production:
+#   - Use separate Redis instances with TLS + ACL authentication
+#   - Do not expose PostgreSQL, PgBouncer, Redis, or MinIO ports
+#   - Use workload-identity secrets (not environment variables)
+#   - Run separate worker processes with DATABASE_WORKER_URL
+#   - Enable TLS for all database and Redis connections
+#   - Use least-privilege PostgreSQL roles
+# ─────────────────────────────────────────────────────────────────────────────
+name: career-terminal
+
+networks:
+  career_terminal_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_queue_data:
+  redis_cache_data:
+  minio_data:
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-career-terminal}
+      POSTGRES_USER:     ${POSTGRES_USER:-career-terminal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-career-terminal} -d ${POSTGRES_DB:-career-terminal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── PgBouncer ───────────────────────────────────────────────────────────────
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_HOST:         postgres
+      POSTGRESQL_PORT:         5432
+      POSTGRESQL_DATABASE:     ${POSTGRES_DB:-career-terminal}
+      POSTGRESQL_USERNAME:     ${POSTGRES_USER:-career-terminal}
+      POSTGRESQL_PASSWORD:     ${POSTGRES_PASSWORD}
+      PGBOUNCER_DATABASE:      ${POSTGRES_DB:-career-terminal}
+      PGBOUNCER_PORT:          6432
+      PGBOUNCER_POOL_MODE:     transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 200
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20
+      PGBOUNCER_MIN_POOL_SIZE:  5
+      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U ${POSTGRES_USER:-career-terminal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    ports:
+      - "6432:6432"
+
+  # ── Redis Queue Cluster (BullMQ + worker coordination) ──────────────────────
+  # NEVER use an eviction policy that can silently drop BullMQ state.
+  # noeviction ensures writes fail loudly (OOM) rather than silently losing jobs.
+  redis-queue:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    volumes:
+      - redis_queue_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --requirepass ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "6379:6379"
+
+  # ── Redis Ephemeral Cluster (cache + rate-limiting + OAuth state) ───────────
+  # Eviction policy is acceptable here because data is disposable.
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    volumes:
+      - redis_cache_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "6380:6379"
+
+  # ── MinIO ───────────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    ports:
+      - "9000:9000"
+      - "9001:9001"   # MinIO Console
+
+  # ── MinIO bucket initializer (runs once then exits) ─────────────────────────
+  minio_init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    networks:
+      - career_terminal_net
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET:        ${MINIO_BUCKET:-career-terminal-resumes}
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+        mc mb --ignore-existing local/$$MINIO_BUCKET &&
+        mc anonymous set none local/$$MINIO_BUCKET &&
+        echo 'MinIO bucket initialised: '$$MINIO_BUCKET
+      "
+    restart: "no"
+
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    networks:
+      - career_terminal_net
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV:            production
+      PORT:                3000
+      DATABASE_APP_URL:    postgresql://${DATABASE_RUNTIME_USER:-career_terminal_runtime}:${DATABASE_RUNTIME_PASSWORD:-${DATABASE_APP_PASSWORD}}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_runtime
+      SHADOW_DATABASE_URL: postgresql://${POSTGRES_USER:-career-terminal}:${POSTGRES_PASSWORD}@postgres:5432/career-terminal-shadow?schema=public
+      DATABASE_CONNECTION_LIMIT: 5
+      # Redis Queue (BullMQ) — no eviction, separate from cache
+      REDIS_QUEUE_HOST:     redis-queue
+      REDIS_QUEUE_PORT:     6379
+      REDIS_QUEUE_PASSWORD: ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_QUEUE_DB:       0
+      # Redis Ephemeral (cache + rate-limiting + OAuth state)
+      REDIS_CACHE_HOST:     redis-cache
+      REDIS_CACHE_PORT:     6379
+      REDIS_CACHE_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_CACHE_DB:       0
+      AWS_ENDPOINT_URL_S3: http://minio:9000
+      AWS_REGION:          us-east-1
+      AWS_ACCESS_KEY_ID:   ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET:           ${MINIO_BUCKET:-career-terminal-resumes}
+      JWT_SECRET:          ${JWT_SECRET}
+      ENCRYPTION_KEY:      ${ENCRYPTION_KEY}
+      INTERNAL_API_KEY:    ${INTERNAL_API_KEY}
+      GOOGLE_CLIENT_ID:    ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      ALLOWED_ORIGINS:     ${ALLOWED_ORIGINS:-}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Workers use the identical portable image but run independently of the API.
+  # Scale this service separately; set WORKER_QUEUES to isolate a job family.
+  worker:
+    extends:
+      service: api
+    command: ["node", "dist/services/queue/workers/index.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_WORKER_URL: postgresql://${DATABASE_WORKER_USER:-career_terminal_worker}:${DATABASE_WORKER_PASSWORD:-${DATABASE_RUNTIME_PASSWORD:-${DATABASE_APP_PASSWORD}}}@pgbouncer:6432/${POSTGRES_DB:-career-terminal}?pgbouncer=true&connection_limit=5&pool_timeout=10&connect_timeout=10&options=-c+role%3Dapp_worker
+      DATABASE_CONNECTION_LIMIT: 5
+      REDIS_QUEUE_HOST:     redis-queue
+      REDIS_QUEUE_PORT:     6379
+      REDIS_QUEUE_PASSWORD: ${REDIS_QUEUE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_QUEUE_DB:       0
+      REDIS_CACHE_HOST:     redis-cache
+      REDIS_CACHE_PORT:     6379
+      REDIS_CACHE_PASSWORD: ${REDIS_CACHE_PASSWORD:-${REDIS_PASSWORD:-}}
+      REDIS_CACHE_DB:       0
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      WORKER_QUEUES: ${WORKER_QUEUES:-email,resume-parsing,application-tracking}
+    ports: []
+    healthcheck:
+      disable: true

@@ -1,0 +1,448 @@
+{
+  "audit_metadata": {
+    "codebase": "Career Terminal",
+    "root": "/workspace/cfa13b20-9b04-49f0-b061-a586fa05eb54/sessions/agent_1f2a8da4-a235-43aa-b4b4-99c4f65837e9",
+    "audit_date": "2026-07-31",
+    "files_analyzed": [
+      "src/config/index.ts",
+      "src/middleware/rls.ts",
+      "src/middleware/auth.ts",
+      "src/middleware/placement.ts",
+      "src/middleware/rate-limiter.ts",
+      "src/services/auth/token.service.ts",
+      "src/services/cell/cell.service.ts",
+      "src/services/company/company.service.ts",
+      "src/services/opportunity/opportunity.service.ts",
+      "src/services/user/user.service.ts",
+      "src/services/routing/cell-routing.service.ts",
+      "src/services/resume/resume-upload.service.ts",
+      "src/services/job-application/job-application-extractor.ts",
+      "src/services/gmail/auth/gmail-oauth.service.ts",
+      "src/services/gmail/ingestion/gmail-ingestion.service.ts",
+      "src/services/application-command/application-command.service.ts",
+      "src/services/application-query/application-query.service.ts",
+      "src/services/application-merge/application-merge.service.ts",
+      "src/services/application-timeline/application-timeline.service.ts",
+      "src/services/application-read-model/application-read-model.service.ts",
+      "src/services/ownership/ownership.guard.ts",
+      "src/services/placement/placement.service.ts",
+      "src/utils/user-ownership.ts",
+      "src/config/database.ts",
+      "prisma/schema.prisma"
+    ]
+  },
+  "architectural_patterns": {
+    "positive": [
+      "AsyncLocalStorage-based RLS context — request-scoped identity passed through AsyncLocalStorage (not process globals). Found in src/middleware/rls.ts:45-49.",
+      "Transaction-scoped GUC for PgBouncer safety — Production RLS uses TRANSACTION-scoped set_app_user_id() inside transactions, not SESSION-scoped. Found in src/middleware/rls.ts:236-278.",
+      "Ownership Guard pattern — Centralized ownership checks in src/services/ownership/ownership.guard.ts with explicit methods for each resource type (application, timeline, company, recruiter, extractionRun, fact, provenance, canonicalIntelligence).",
+      "userOwnershipFilter() dual-matching — Handles legacy-to-UUID migration by matching both userId (FK) and legacyUserId (string) in OR clauses. Found in src/utils/user-ownership.ts:14-25.",
+      "Idempotency service for email processing — 2-phase claim/commit pattern prevents duplicate application creation from email processing. Found in src/services/application-command/application-command.service.ts:141-397.",
+      "Layered placement caching — In-process TTL (1 min) -> Redis (5 min) -> DB. Deterministic shard key computation avoids DB reads for shard resolution. Found in src/services/placement/placement.service.ts:154-360.",
+      "Role-segregated database connections — config/index.ts validates production credentials with least-privilege roles (app_runtime, app_worker, app_migration, app_readonly, app_admin). src/config/database.ts:93-104.",
+      "Dual-Redis architecture — Separate RedisQueue (BullMQ/job state) and RedisCache (cache/rate-limiting/OAuth state). Found in src/config/index.ts:62-98.",
+      "Content-addressed resume storage — SHA-256 hash deduplication with quarantine->clean bucket promotion. Found in src/services/resume/resume-upload.service.ts:109-289.",
+      "Durable checkpoint service — Atomic checkpoint advancement with optimistic locking for Gmail sync resumability. Found in src/services/gmail/ingestion/gmail-ingestion.service.ts.",
+      "Singleton pattern with dependency injection support — Services accept dependencies via constructor for testability while exporting singletons for production use (e.g., cellService, opportunityService)."
+    ],
+    "negative": [
+      "Global Prisma client stash — globalThis.prisma and globalThis.prismaReplica used for hot-reload safety in dev, persist in production. src/config/database.ts:47-50, 134-138, 146-161.",
+      "Legacy dual-ID field pollution — Every user-scoped table has both userId (UUID FK) and legacyUserId (string). Doubles ownership check surface area and creates divergence risk during migration transitions.",
+      "Company is global, not user-scoped — Company records are global/shared across users. Ownership derived via application relationships. src/services/company/company.service.ts:190-233.",
+      "Opportunity is global, not user-scoped — Opportunities live in a global table keyed by (company, title, location). Multiple users applying to the same role share the same opportunity record. src/services/opportunity/opportunity.service.ts:1-27.",
+      "RLS middleware is a no-op in production — The Prisma interceptor in attachRlsMiddleware uses SESSION-scoped GUC which is discarded under PgBouncer transaction pooling. Production relies on callers remembering to wrap in withRlsTransaction(). src/middleware/rls.ts:184-220.",
+      "In-process placement cache is process-global state — PlacementService maintains a Map<string, InProcessEntry> (up to 4096 entries) not shared across processes. src/services/placement/placement.service.ts:154-157, 287-308.",
+      "Feature flag stuck at false — features.asyncEmailProcessing hardcoded false, rendering async email processing path dead code in production. src/config/features.ts:1-3.",
+      "JobApplication.findMany() without user filter at merge layer — ApplicationMergeService.findMatch loads all applications for user without application-level ownership pre-filter. Relies on caller passing correct userId. src/services/application-merge/application-merge.service.ts:33-35.",
+      "TokenService singleton instantiated at module load — tokenService created as singleton at module top-level. If config.jwtSecret missing, module fails to load. src/services/auth/token.service.ts:199-200.",
+      "Bulk in-memory merge scanning — Application merge loads all applications for user into memory for confidence scoring. Bounded per-user but won't scale indefinitely. src/services/application-merge/application-merge.service.ts:30-33."
+    ]
+  },
+  "security_findings": {
+    "process_env_direct_usage_in_business_logic": {
+      "severity": "MEDIUM",
+      "description": "Found 14 instances of process.env usage directly in business logic (not through config). Most are in test files, but src/utils/encryption.ts and src/infrastructure/crypto/crypto-service.ts reference process.env.ACTIVE_ENCRYPTION_KEY_VERSION and process.env.CRYPTO_BACKEND directly.",
+      "files": [
+        "src/utils/encryption.ts:95",
+        "src/infrastructure/crypto/crypto-service.ts:203, 412",
+        "src/middleware/internal-api.ts:37"
+      ],
+      "recommendation": "All env var access should route through src/config/index.ts to ensure consistent validation and allow mocking."
+    },
+    "any_type_usage_in_production_code": {
+      "severity": "LOW",
+      "count": 8,
+      "instances": [
+        {
+          "file": "src/services/gmail/ingestion/gmail-ingestion.service.ts:274",
+          "usage": "resumeInterruptedBatch parameter type any"
+        },
+        {
+          "file": "src/services/status-engine/status-engine.service.ts:423",
+          "usage": "metadata field typed any"
+        },
+        {
+          "file": "src/services/candidate-intelligence/canonical-intelligence.service.ts:501",
+          "usage": "row parameter typed any"
+        },
+        {
+          "file": "src/services/gmail/ingestion/normalizer.ts:14",
+          "usage": "recipients field typed any"
+        },
+        {
+          "file": "src/services/outcome.service.ts:13",
+          "usage": "sourceData field typed any"
+        },
+        {
+          "file": "src/infrastructure/security/middleware.ts:59",
+          "usage": "obj parameter typed any"
+        },
+        {
+          "file": "src/types/googleapis-shim.ts:1",
+          "usage": "Module-level export typed any (external shim)"
+        }
+      ],
+      "recommendation": "Replace any with proper Prisma.JsonValue or domain types."
+    },
+    "rls_middleware_noop_in_production": {
+      "severity": "HIGH",
+      "description": "The attachRlsMiddleware Prisma interceptor uses set_app_user_id_session() which is SESSION-scoped and gets reset under PgBouncer transaction pooling. In production this becomes a no-op unless callers explicitly wrap in withRlsTransaction(). Each service method must be audited to ensure every user-scoped query uses withRlsTransaction or withRequestContextTransaction.",
+      "files": [
+        "src/middleware/rls.ts:184-220"
+      ],
+      "services_using_raw_prisma_without_rls_wrap": [
+        "src/services/resume/resume-upload.service.ts:180-184 (getActiveResumeRow uses raw prisma, no transaction)",
+        "src/services/resume/resume-upload.service.ts:340-361 (listVersions uses raw prisma)",
+        "src/services/resume/resume-upload.service.ts:427-441 (getApplicationResume uses raw prisma, no RLS)",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:314-332 (setupClient findFirst on userEmailConnection, no RLS)",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:336-344 (ensureUserIsActive uses raw prisma)",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:372-401 (processAndSaveBatch upsert uses raw prisma, no RLS)",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:466-485 (updateBackwardCompatState uses raw prisma)",
+        "src/services/company/company.service.ts:196-233 (listCompanies uses raw prisma, no RLS)"
+      ],
+      "recommendation": "Either enforce mandatory RLS transaction wrapping via a custom $extends wrapper, or add fail-closed logging in attachRlsMiddleware for production that breaks requests when SESSION GUC fails."
+    },
+    "direct_raw_sql_execution": {
+      "severity": "MEDIUM",
+      "instances": [
+        {
+          "file": "src/middleware/rls.ts:200",
+          "query": "SELECT set_app_user_id_session($1) — session-scoped, no-op under PgBouncer"
+        },
+        {
+          "file": "src/middleware/rls.ts:246",
+          "query": "SELECT set_app_user_id($1) — transaction-scoped, production-safe"
+        },
+        {
+          "file": "src/middleware/rls.ts:295",
+          "query": "SELECT set_app_user_id('SYSTEM') — privileged transaction"
+        },
+        {
+          "file": "src/middleware/rls.ts:333",
+          "query": "SELECT set_app_user_id(NULL) — anonymous fallback"
+        }
+      ],
+      "recommendation": "All raw SQL is currently limited to RLS GUC setting which is acceptable. No other raw SQL patterns found."
+    },
+    "test_environment_auth_bypass": {
+      "severity": "MEDIUM",
+      "description": "requireAuth middleware accepts x-user-id header bypassing JWT verification when NODE_ENV=test. Guarded by environment check. src/middleware/auth.ts:59-67.",
+      "recommendation": "Ensure NODE_ENV=test is never deployed to production. Add CI gate that fails if NODE_ENV=test references appear in Dockerfile or deployment configs."
+    },
+    "race_condition_mitigation_present": {
+      "severity": "POSITIVE",
+      "description": "User creation handles P2002 unique constraint violations by retrying findUnique. src/services/user/user.service.ts:94-99. Resume upload handles hash collision race condition. src/services/resume/resume-upload.service.ts:153-169.",
+      "recommendation": "Continue pattern. Consider adding database-level retry helpers for other upsert paths."
+    }
+  },
+  "data_integrity_findings": {
+    "denormalized_fields": [
+      {
+        "field": "companyName + companyDomain on JobApplication",
+        "tables": ["job_applications"],
+        "risk": "MEDIUM",
+        "description": "JobApplication denormalizes companyName and companyDomain even though it has companyId FK. If Company.name changes, existing JobApplication rows retain stale denormalized data. application-command.service.ts:268-269 updates these on merge but not on initial create from companyService.resolveCompany which may return canonical name different from input."
+      },
+      {
+        "field": "roleTitle + roleDepartment on JobApplication",
+        "tables": ["job_applications"],
+        "risk": "LOW",
+        "description": "Role data is denormalized from Opportunity. If Opportunity.title changes, JobApplication retains old value. May be intentional snapshot semantics but should be documented."
+      },
+      {
+        "field": "location + employmentType on JobApplication",
+        "tables": ["job_applications"],
+        "risk": "LOW",
+        "description": "Same pattern - opportunity-level fields denormalized to application level. Opportunity changes do not propagate."
+      },
+      {
+        "field": "shardKey + region on User",
+        "tables": ["users"],
+        "risk": "LOW",
+        "description": "placementService reads user.region and user.shardKey from DB. Set at creation time. If user updates region via setUserRegion, DB values update atomically. The in-process cache for these has 1-minute TTL which could serve stale values during region change."
+      }
+    ],
+    "missing_unique_constraints": [
+      {
+        "constraint": "Opportunity (companyId, normalizedTitle, normalizedLocation)",
+        "risk": "HIGH",
+        "description": "Opportunity resolution uses fuzzy text matching (normalizeTitle, titlesAreSimilar, normalizeLocation) rather than DB unique constraints. The Opportunity table has @@index([companyId]) and @@index([title]) but no composite unique constraint on (companyId, title, location). Concurrent resolution of the same opportunity can create duplicates before the mutex acquires. The application-level mutex (line 156 of opportunity.service.ts) mitigates this but is not a database guarantee.",
+        "code_path": "src/services/opportunity/opportunity.service.ts:158-220",
+        "recommendation": "Add a normalized_title + normalized_location computed column with unique index on (companyId, normalized_title, normalized_location) to prevent duplicates at the DB level."
+      },
+      {
+        "constraint": "EmailMessage (legacyUserId, providerMessageId) — EXISTS",
+        "status": "OK",
+        "description": "Schema has @@unique([legacyUserId, providerMessageId], name: unique_user_message). Used correctly in gmail-ingestion.service.ts for deduplication."
+      },
+      {
+        "constraint": "UserEmailConnection (legacyUserId, provider, emailAddress) — EXISTS",
+        "status": "OK",
+        "description": "Schema has @@unique([legacyUserId, provider, emailAddress], name: unique_user_provider_email)."
+      },
+      {
+        "constraint": "IdempotencyRecord (key) — EXISTS",
+        "status": "OK",
+        "description": "Schema has @@unique on key. Used for idempotency gate."
+      }
+    ],
+    "redis_only_business_state": [
+      {
+        "service": "TokenService",
+        "state": "Refresh tokens stored in Redis with 7-day TTL",
+        "risk": "MEDIUM",
+        "description": "All refresh tokens are Redis-only. If Redis loses data (flush, restart without persistence), ALL users are simultaneously logged out.",
+        "file": "src/services/auth/token.service.ts:107-111",
+        "recommendation": "Consider storing refresh tokens in DB with Redis as cache layer for revocation checks."
+      },
+      {
+        "service": "OAuthStateService",
+        "state": "CSRF state tokens stored in Redis",
+        "risk": "LOW",
+        "description": "OAuth flow state stored ephemerally in Redis. Short TTL, low blast radius if lost."
+      },
+      {
+        "service": "IdempotencyService",
+        "state": "Idempotency claims stored in Redis",
+        "risk": "MEDIUM",
+        "description": "If Redis loses idempotency records between claim and commit, duplicate processing can occur. The 60-day TTL in DB provides backstop.",
+        "file": "src/services/application-command/application-command.service.ts:434-438",
+        "recommendation": "Consider dual-write idempotency claims to DB on claim, with Redis as cache."
+      },
+      {
+        "service": "PlacementService in-process cache",
+        "state": "In-process Map<string, InProcessEntry> with 1-minute TTL",
+        "risk": "LOW",
+        "description": "Non-durable, process-local state. In multi-worker deployments, workers may serve stale placement for up to 1 minute after region change."
+      }
+    ],
+    "cross_user_access_patterns": [
+      {
+        "pattern": "Shared global Company records",
+        "risk": "BY_DESIGN",
+        "description": "Company records are user-shared. Ownership checked via application-company relationship. Company details can change and affect all users.",
+        "files": ["src/services/company/company.service.ts:158-187"]
+      },
+      {
+        "pattern": "Shared global Opportunity records",
+        "risk": "BY_DESIGN",
+        "description": "Opportunity records resolve across users. Enriching an opportunity benefits all users pointing to it.",
+        "files": ["src/services/opportunity/opportunity.service.ts:241-309"],
+        "recommendation": "Ensure opportunity mutations are idempotent and non-destructive (only enrich, never replace)."
+      },
+      {
+        "pattern": "Application merge confidence scoring",
+        "risk": "LOW",
+        "description": "ApplicationMergeService only processes applications for the current user (filtered by userOwnershipFilter). No cross-user merge possible.",
+        "files": ["src/services/application-merge/application-merge.service.ts:33"]
+      }
+    ],
+    "non_idempotent_operations": [
+      {
+        "operation": "Opportunity.recordObservation — supersede logic",
+        "risk": "LOW",
+        "description": "Each observation call creates a new OpportunityObservation and supersedes ALL previous current observations. If called twice with same input, two new observations are created. Idempotent in effect (only one current) but creates duplicate rows.",
+        "file": "src/services/opportunity/opportunity.service.ts:345-389",
+        "mitigation": "Idempotency keyed by sourceEmailId via application-command.service.ts preflight check."
+      },
+      {
+        "operation": "applicationCommandService.processEmailForJobApplication",
+        "risk": "IDEMPOTENT",
+        "description": "Uses 2-phase claim/commit idempotency pattern. Produces exactly one application per email.",
+        "file": "src/services/application-command/application-command.service.ts:141-397"
+      },
+      {
+        "operation": "Resume upload hash deduplication",
+        "risk": "IDEMPOTENT",
+        "description": "SHA-256 content hash with P2002 race condition handling. Multiple identical uploads produce one resumeHash and one userResume.",
+        "file": "src/services/resume/resume-upload.service.ts:109-175"
+      }
+    ],
+    "missing_ownership_checks": [
+      {
+        "service": "ResumeUploadService.getActiveResume",
+        "file": "src/services/resume/resume-upload.service.ts:300-319",
+        "check": "userOwnershipFilter(userId) applied",
+        "status": "PRESENT"
+      },
+      {
+        "service": "ResumeUploadService.getApplicationResume",
+        "file": "src/services/resume/resume-upload.service.ts:427-441",
+        "check": "NO ownership check on applicationId",
+        "status": "MISSING",
+        "risk": "HIGH",
+        "description": "getApplicationResume queries ApplicationResume by applicationId without verifying the requesting user owns the application. Any authenticated user who knows an applicationId can read associated resume metadata.",
+        "recommendation": "Add ownershipGuard.ensureApplicationAccess(userId, applicationId) or userOwnershipFilter on the query."
+      },
+      {
+        "service": "ResumeUploadService.linkApplicationResume",
+        "file": "src/services/resume/resume-upload.service.ts:383-416",
+        "check": "No userId parameter; ownership not verified",
+        "status": "PARTIAL",
+        "risk": "MEDIUM",
+        "description": "linkApplicationResume does not accept a userId parameter and does not verify ownership of the application or resume. Called from application-command.service.ts with transaction context, so ownership assumed from caller.",
+        "recommendation": "Add userId parameter and verify ownership of both application and active resume row within the transaction."
+      },
+      {
+        "service": "GmailOAuthService.refreshAccessToken",
+        "file": "src/services/gmail/auth/gmail-oauth.service.ts:128-179",
+        "check": "No userId verification; connectionId trusted alone",
+        "status": "PARTIAL",
+        "risk": "MEDIUM",
+        "description": "refreshAccessToken and getValidAccessToken accept connectionId without verifying requesting user owns that connection. TokenService.rotateTokenPair also accepts userId without verifying it matches refresh token.",
+        "recommendation": "Verify userId owns the connectionId when called from user-facing endpoints."
+      }
+    ]
+  },
+  "scalability_findings": {
+    "full_table_scans": [
+      {
+        "service": "ApplicationMergeService.findMatch",
+        "query": "prisma.jobApplication.findMany({ where: userOwnershipFilter(userId) })",
+        "risk": "MEDIUM",
+        "description": "Loads ALL applications for a user into memory for confidence scoring. Bounded per-user but unbounded system-wide if users have large application sets.",
+        "file": "src/services/application-merge/application-merge.service.ts:33-35",
+        "recommendation": "Add companyId filter or paginate candidates. For users with 1000+ applications, this becomes expensive."
+      },
+      {
+        "service": "CompanyService.listCompanies",
+        "query": "prisma.company.findMany with applications: { some: userOwnershipFilter }",
+        "risk": "LOW",
+        "description": "Joins through applications to filter by user ownership. For users with thousands of applications across many companies, could produce large intermediate result sets.",
+        "file": "src/services/company/company.service.ts:196-233"
+      },
+      {
+        "service": "OpportunityService.resolve",
+        "query": "tx.opportunity.findMany with title contains filter",
+        "risk": "LOW",
+        "description": "Pre-filters candidates by companyId + title contains, bounded by company opportunity count. Mutex prevents concurrency storms.",
+        "file": "src/services/opportunity/opportunity.service.ts:174-188"
+      }
+    ],
+    "in_memory_merge_loops": [
+      {
+        "service": "ApplicationMergeService",
+        "algorithm": "O(n*m) confidence scoring across all user applications",
+        "risk": "MEDIUM",
+        "description": "For each incoming email, iterates all user applications computing text similarity. Linear scaling with application count.",
+        "file": "src/services/application-merge/application-merge.service.ts:41-57"
+      }
+    ],
+    "bounded_batch_processing": [
+      {
+        "service": "GmailIngestionService",
+        "limit": "MAX_INITIAL_SYNC = 1000 emails",
+        "status": "OK",
+        "description": "Initial sync capped at 1000 messages to prevent runaway processing. Incremental syncs bounded by Gmail API history pages.",
+        "file": "src/services/gmail/ingestion/gmail-ingestion.service.ts:103"
+      }
+    ],
+    "placement_cache_sizing": [
+      {
+        "service": "PlacementService",
+        "limit": "In-process LRU capped at 4096 entries",
+        "risk": "LOW",
+        "description": "In multi-worker deployments, each worker maintains its own cache. User hitting different workers may experience cache misses.",
+        "file": "src/services/placement/placement.service.ts:154-157, 303-307"
+      }
+    ]
+  },
+  "compatibility_audit": {
+    "cell_awareness": {
+      "cell_routing_integration": "CellRoutingService.resolveUserRouting combines placementService + cellService. CellService.getDeterministicCellId uses computeShardKey + region to build cellId. src/services/cell/cell.service.ts:29-32.",
+      "rls_cell_id_source": "RLS context gets cellId from req (set by placement middleware), NOT from AsyncLocalStorage RLS context directly. src/middleware/rls.ts:96. This means cellId is request-header-derived, not computed server-side from placementService.",
+      "risk": "MEDIUM — If placement middleware computes a cellId that differs from placementService's authoritative resolution (due to cache stale or hint mismatch), the cellId in RLS context could diverge from the actual home cell."
+    },
+    "ownership_check_consistency": {
+      "guard_methods": [
+        "ensureApplicationAccess — uses userOwnershipFilter(userId)",
+        "ensureTimelineAccess — uses application.userId ownership",
+        "ensureCompanyAccess — uses applications.some(userOwnershipFilter)",
+        "ensureRecruiterAccess — uses applications.some(userOwnershipFilter)",
+        "ensureCellAccess — delegates to cellRoutingService",
+        "ensureExtractionRunAccess — direct userId comparison",
+        "ensureProvenanceAccess — direct userId comparison",
+        "ensureFactAccess — direct userId comparison",
+        "ensureCanonicalIntelligenceAccess — direct userId comparison"
+      ],
+      "inconsistency": "Some guards use OR filters (userOwnershipFilter) which match both userId AND legacyUserId. Others use direct userId comparison. During the legacy migration window, a user could have rows where userId is set but legacyUserId is different, or vice versa.",
+      "recommendation": "Standardize all guards to use userOwnershipFilter() for consistency."
+    },
+    "transaction_management": {
+      "with_rls_transaction_usage": [
+        "src/services/resume/resume-upload.service.ts — upload() uses db.$transaction + setRlsUserIdInTransaction",
+        "src/services/application-command/application-command.service.ts — updateApplicationStatus uses executeWithTransientRetry with transaction",
+        "src/services/application-command/application-command.service.ts — processEmailForJobApplication uses executeWithTransientRetry with transaction"
+      ],
+      "raw_prisma_without_transaction": [
+        "src/services/resume/resume-upload.service.ts:180-184",
+        "src/services/resume/resume-upload.service.ts:340-361",
+        "src/services/resume/resume-upload.service.ts:427-441",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:314-332",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:336-344",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:372-401",
+        "src/services/gmail/ingestion/gmail-ingestion.service.ts:466-485",
+        "src/services/company/company.service.ts:196-233"
+      ]
+    }
+  },
+  "findings_summary": {
+    "critical": 0,
+    "high": [
+      "ResumeUploadService.getApplicationResume missing ownership check — allows cross-user data access",
+      "RLS interceptor is no-op in production under PgBouncer — multiple services use raw prisma without transaction wrapping"
+    ],
+    "medium": [
+      "process.env direct usage in business logic bypasses config layer",
+      "GmailOAuthService accepts connectionId without userId ownership verification",
+      "linkApplicationResume lacks userId ownership verification",
+      "Opportunity resolution lacks DB-level unique constraint for fuzzy matches",
+      "Raw SQL limited to RLS GUC (acceptable but worth monitoring)"
+    ],
+    "low": [
+      "8 instances of any type in production code",
+      "In-process placement cache not shared across workers",
+      "Denormalized company/role fields can drift",
+      "Bulk in-memory merge scanning for large application sets"
+    ],
+    "positive": [
+      "Comprehensive OwnershipGuard with 8 explicit methods",
+      "2-phase idempotency for email processing",
+      "Race condition handling in user creation and resume upload",
+      "Layered caching with deterministic shard keys",
+      "Role-segregated DB connections with production validation",
+      "Dual-Redis architecture for isolation"
+    ]
+  },
+  "conclusion": {
+    "overall_assessment": "STRONG with concerns",
+    "summary": "The codebase demonstrates sophisticated architectural patterns including AsyncLocalStorage-based RLS context management, transaction-scoped GUC for PgBouncer safety, idempotency services, layered caching, and a comprehensive ownership guard system. Primary concerns are: (1) RLS is not enforced at the database interceptor layer in production — each service must remember to wrap in transactions, (2) several endpoints bypass ownership checks (notably getApplicationResume), (3) process-global state exists for Prisma clients and placement caching, and (4) shadow duplicate IDs (legacyUserId + userId) create ongoing audit complexity. These are mitigable concerns rather than fundamental architectural failures.",
+    "priority_recommendations": [
+      "Wrap ALL user-scoped Prisma queries in withRlsTransaction() or withRequestContextTransaction() — or use a Prisma $extends wrapper that enforces this automatically.",
+      "Add ownership check to ResumeUploadService.getApplicationResume() — currently allows reading any application resume by ID without verifying ownership.",
+      "Add unique index on Opportunity (companyId, normalized_title, normalized_location) to prevent fuzzy-match duplicates at DB level.",
+      "Audit all globalThis stashes for production persistence concerns.",
+      "Migrate refresh tokens from Redis-only to DB-durable storage with Redis cache layer."
+    ]
+  }
+}
