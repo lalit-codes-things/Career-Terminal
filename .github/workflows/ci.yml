@@ -68,6 +68,9 @@ jobs:
       - name: Prisma generate
         run: npm run db:generate
 
+      - name: Prisma schema and migration check
+        run: npm run db:check
+
       - name: Run typecheck
         run: npm run typecheck
 
