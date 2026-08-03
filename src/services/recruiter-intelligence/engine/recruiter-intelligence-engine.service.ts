@@ -4,7 +4,24 @@ import { ExtractionPipeline } from '../ai/extraction-pipeline';
 import type { RecruiterEntityFact } from '../extraction/recruiter-entity-extraction.service';
 import type { RecruiterReasoningResult } from '../reasoning/recruiter-reasoning-enrichment.service';
 import type { GraphPopulationResult, KgEdge, KgNode } from '../graph/knowledge-graph-population.service';
-import type { RecruiterMemoryFact } from '../memory/recruiter-memory.service';
+
+/**
+ * Engine-local memory record type. Uses string for factType so it is compatible
+ * with both RecruiterEntityFieldType and inferred attribute names without
+ * depending on the narrow RecruiterFactType union from the legacy memory service.
+ */
+export interface EngineMemoryRecord {
+  id: string;
+  recruiterId: string;
+  factType: string;
+  value: Record<string, unknown>;
+  confidence: number;
+  evidence: { messageId: string; excerpt: string };
+  provenance: { extractor: string; method: string; sourceProvider: string };
+  observedAt: Date;
+  validFrom: Date;
+  validTo?: Date;
+}
 
 // ─── Profile types ─────────────────────────────────────────────────────────────
 
@@ -115,7 +132,7 @@ export interface ProfileEvidenceRef {
 
 export interface MemoryUpdatePlan {
   recruiterId: string;
-  factsToWrite: RecruiterMemoryFact[];
+  factsToWrite: EngineMemoryRecord[];
   factsToSupersede: string[];
   reason: string;
 }
@@ -601,7 +618,7 @@ export class RecruiterIntelligenceEngineService {
   ): MemoryUpdatePlan {
     const now = new Date();
 
-    const factsToWrite: RecruiterMemoryFact[] = facts.map((fact) => ({
+    const factsToWrite: EngineMemoryRecord[] = facts.map((fact) => ({
       id: fact.factId,
       recruiterId,
       factType: fact.fieldType,
@@ -617,7 +634,7 @@ export class RecruiterIntelligenceEngineService {
       validFrom: fact.observedAt,
     }));
 
-    // Add inferences as memory facts
+    // Add inferences as memory records
     for (const inference of reasoning.inferences) {
       factsToWrite.push({
         id: inference.inferenceId,
@@ -712,8 +729,8 @@ export class RecruiterIntelligenceEngineService {
 
   buildGraphUpdatePlan(
     recruiterId: string,
-    facts: RecruiterEntityFact[],
-    reasoning: RecruiterReasoningResult,
+    _facts: RecruiterEntityFact[],
+    _reasoning: RecruiterReasoningResult,
     graphResult: GraphPopulationResult,
   ): GraphUpdatePlan {
     const nodesToUpsert = graphResult.delta.addedNodes.map((n: KgNode) => ({
