@@ -785,6 +785,129 @@ model RecruiterFact {
   @@map("recruiter_facts")
 }
 
+model RecruiterConversation {
+  id                String   @id @default(uuid()) @db.Uuid
+  recruiterId       String?  @map("recruiter_id") @db.Uuid
+  userId            String?  @map("user_id") @db.Uuid
+  provider          String
+  providerThreadId  String   @map("provider_thread_id")
+  firstContactAt    DateTime @map("first_contact_at") @db.Timestamptz
+  latestContactAt   DateTime @map("latest_contact_at") @db.Timestamptz
+  responseLatencyMs Int?     @map("response_latency_ms")
+  followUpCount     Int      @default(0) @map("follow_up_count")
+  metadata          Json     @default("{}")
+  evidenceJson      Json     @default("[]") @map("evidence_json")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+
+  @@unique([provider, providerThreadId], name: "recruiter_conversation_provider_thread_unique")
+  @@index([recruiterId])
+  @@index([userId])
+  @@index([latestContactAt])
+  @@map("recruiter_conversations")
+}
+
+model RecruiterCommunicationMessage {
+  id               String   @id @default(uuid()) @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  recruiterId      String?  @map("recruiter_id") @db.Uuid
+  provider         String
+  providerMessageId String  @map("provider_message_id")
+  direction        String
+  subject          String?
+  snippet          String?  @db.Text
+  sentAt           DateTime @map("sent_at") @db.Timestamptz
+  participantsJson Json     @default("[]") @map("participants_json")
+  metadata         Json     @default("{}")
+  evidenceJson     Json     @default("[]") @map("evidence_json")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([provider, providerMessageId], name: "recruiter_message_provider_message_unique")
+  @@index([conversationId])
+  @@index([recruiterId])
+  @@index([sentAt])
+  @@map("recruiter_communication_messages")
+}
+
+model RecruiterResolutionDecision {
+  id                  String   @id @default(uuid()) @db.Uuid
+  sourceRecruiterId   String?  @map("source_recruiter_id") @db.Uuid
+  candidateRecruiterId String? @map("candidate_recruiter_id") @db.Uuid
+  decisionType        String   @map("decision_type")
+  confidence          Float    @default(0.5)
+  requiresHumanReview Boolean  @default(false) @map("requires_human_review")
+  explanation         String   @db.Text
+  evidenceJson        Json     @default("[]") @map("evidence_json")
+  provenanceJson      Json     @default("{}") @map("provenance_json")
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([sourceRecruiterId])
+  @@index([candidateRecruiterId])
+  @@index([requiresHumanReview])
+  @@map("recruiter_resolution_decisions")
+}
+
+model RecruiterMemoryObservation {
+  id              String   @id @default(uuid()) @db.Uuid
+  recruiterId     String   @map("recruiter_id") @db.Uuid
+  factType        String   @map("fact_type")
+  factValue       Json     @map("fact_value")
+  confidence      Float    @default(0.5)
+  validFrom       DateTime @map("valid_from") @db.Timestamptz
+  validTo         DateTime? @map("valid_to") @db.Timestamptz
+  supersededById  String?  @map("superseded_by_id") @db.Uuid
+  supersededAt    DateTime? @map("superseded_at") @db.Timestamptz
+  provenanceJson  Json     @default("{}") @map("provenance_json")
+  evidenceJson    Json     @default("[]") @map("evidence_json")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  version         Int      @default(1)
+
+  @@index([recruiterId])
+  @@index([factType])
+  @@index([validFrom, validTo])
+  @@index([supersededAt])
+  @@map("recruiter_memory_observations")
+}
+
+model RecruiterGraphNode {
+  id        String   @id @default(uuid()) @db.Uuid
+  nodeType  String   @map("node_type")
+  externalKey String? @map("external_key")
+  label     String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version   Int      @default(1)
+
+  @@unique([nodeType, externalKey], name: "recruiter_graph_node_key_unique")
+  @@index([nodeType])
+  @@map("recruiter_graph_nodes")
+}
+
+model RecruiterGraphEdge {
+  id               String   @id @default(uuid()) @db.Uuid
+  fromNodeId       String   @map("from_node_id") @db.Uuid
+  toNodeId         String   @map("to_node_id") @db.Uuid
+  relationshipType String   @map("relationship_type")
+  confidence       Float    @default(0.5)
+  validFrom        DateTime @map("valid_from") @db.Timestamptz
+  validTo          DateTime? @map("valid_to") @db.Timestamptz
+  evidenceJson     Json     @default("[]") @map("evidence_json")
+  provenanceJson   Json     @default("{}") @map("provenance_json")
+  metadata         Json     @default("{}")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version          Int      @default(1)
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@index([relationshipType])
+  @@index([validFrom, validTo])
+  @@map("recruiter_graph_edges")
+}
+
 model Opportunity {
   id                String           @id @default(uuid()) @db.Uuid
   companyId         String           @map("company_id") @db.Uuid

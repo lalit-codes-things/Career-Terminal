@@ -28,6 +28,7 @@ import { logger } from './lib/logger';
 import { initTracing, shutdownTracing } from './infrastructure/telemetry/tracing';
 import { initMetrics, metrics } from './infrastructure/telemetry/metrics';
 import { healthService } from './infrastructure/health/health.service';
+import { runStartupValidation } from './services/recruiter-intelligence/migration/startup-validation';
 import blocked from 'blocked-at';
 import { createHttpTerminator } from 'http-terminator';
 import {
@@ -67,6 +68,19 @@ async function runStartupDiagnostics(): Promise<void> {
     gitCommit: config.gitCommit,
     buildTimestamp: config.buildTimestamp,
   });
+
+  // Validate Prisma schema/client and migration state before accepting traffic.
+  try {
+    runStartupValidation();
+    logger.info('Prisma startup validation successful');
+  } catch (err) {
+    logger.error('Prisma startup validation failed — refusing to start', {
+      message: err instanceof Error ? err.message : String(err),
+    });
+    isAppReady = false;
+    healthService.setReady(false);
+    process.exit(1);
+  }
 
   // Test database connection
   try {
