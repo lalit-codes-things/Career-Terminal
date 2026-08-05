@@ -127,7 +127,7 @@ export class RecruiterReputationTrustEngine {
   // ─── Deterministic signal inference ────────────────────────────────────────
 
   private inferDeterministicSignals(
-    recruiterId: string,
+    _recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
     behaviorProfile?: BehaviorProfile,
@@ -316,7 +316,7 @@ export class RecruiterReputationTrustEngine {
       requestedAt: new Date(),
     };
 
-    const output = await this.pipeline.extract(input, 'recruiter-reputation-trust');
+    const output = await this.pipeline.extract('recruiter-reputation-trust', input, {});
     const now = new Date();
 
     return output.fields.map((f) => ({
@@ -350,7 +350,7 @@ export class RecruiterReputationTrustEngine {
   private computeTrustScore(
     recruiterId: string,
     signals: TrustSignal[],
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
   ): TrustScore {
     let weightedSum = 0;
     let totalWeight = 0;
@@ -447,9 +447,9 @@ export class RecruiterReputationTrustEngine {
   // ─── Risk factors ───────────────────────────────────────────────────────────
 
   private buildRiskFactors(
-    recruiterId: string,
+    _recruiterId: string,
     signals: TrustSignal[],
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
   ): RiskFactor[] {
     const risks: RiskFactor[] = [];
 
@@ -498,9 +498,9 @@ export class RecruiterReputationTrustEngine {
   // ─── Indicators ─────────────────────────────────────────────────────────────
 
   private buildIndicators(
-    recruiterId: string,
+    _recruiterId: string,
     signals: TrustSignal[],
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
   ): { positive: TrustIndicator[]; negative: TrustIndicator[] } {
     const positive: TrustIndicator[] = [];
     const negative: TrustIndicator[] = [];

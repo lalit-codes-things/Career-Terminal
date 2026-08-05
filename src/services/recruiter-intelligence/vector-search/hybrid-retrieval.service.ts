@@ -2,6 +2,7 @@ import type { EmbeddingProvider } from '../../../domain/recruiter-intelligence/s
 import type {
   HybridQuery,
   HybridSearchResult,
+  VectorSearchResult,
   VectorStore,
 } from '../../../domain/recruiter-intelligence/vector-search/contracts';
 
@@ -26,7 +27,7 @@ export class HybridRetrievalService {
     const vectorWeight = query.weights?.vector ?? 0.7;
     const topK = query.vectorQuery?.topK ?? 10;
 
-    let vectorResults: Array<{ entityId: string; score: number; text: string; metadata: any; entityType: string }> = [];
+    let vectorResults: VectorSearchResult[] = [];
 
     // 1. Vector Search
     if (query.vectorQuery) {

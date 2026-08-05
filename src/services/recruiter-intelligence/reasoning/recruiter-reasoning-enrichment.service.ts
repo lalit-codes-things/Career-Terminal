@@ -275,10 +275,11 @@ export class RecruiterReasoningEnrichmentService {
       recruiterId,
       attribute: f.field,
       value: f.value,
-      reasoning: String(
-        (f.value as Record<string, unknown> | null)?.['reasoning'] ??
-          `AI inferred from ${output.fields.length} signals`,
-      ),
+      reasoning: f.reasoning ??
+        String(
+          (f.value as Record<string, unknown> | null)?.['reasoning'] ??
+            `AI inferred from ${output.fields.length} signals`,
+        ),
       confidence: f.confidence,
       confidenceBand: f.confidenceBand,
       supportingEvidence: {
@@ -314,6 +315,9 @@ export class RecruiterReasoningEnrichmentService {
       if (!existing || inf.confidence >= existing.confidence) {
         byAttr.set(inf.attribute, {
           ...inf,
+          // Prefer deterministic reasoning (grounded in observed signals) while
+          // retaining the AI inference's confidence and value.
+          reasoning: existing?.reasoning ?? inf.reasoning,
           // Merge evidence from both sources
           supportingEvidence: {
             sourceFactIds: [

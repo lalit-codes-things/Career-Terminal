@@ -1,4 +1,4 @@
-import type { EvidenceRef, RecruiterId, TemporalFact } from '../shared-kernel/types';
+import type { RecruiterId, TemporalFact } from '../shared-kernel/types';
 
 // ─── Trust & Reputation Scoring ───────────────────────────────────────────────
 

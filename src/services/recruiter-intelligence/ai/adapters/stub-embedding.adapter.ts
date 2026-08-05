@@ -1,4 +1,4 @@
-import type { EmbeddingDimensions, EmbeddingProvider } from '../../../domain/recruiter-intelligence/semantic-representation/contracts';
+import type { EmbeddingDimensions, EmbeddingProvider } from '../../../../domain/recruiter-intelligence/semantic-representation/contracts';
 
 /**
  * StubEmbeddingAdapter — Prompt 21 implementation.

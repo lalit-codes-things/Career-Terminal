@@ -11,7 +11,6 @@ import type {
   BehaviorEvolution,
   BehaviorProfile,
   BehaviorSummary,
-  BehaviorTimeline,
   BehaviorTimelineEvent,
   BehavioralDimension,
   BehavioralIntelligenceResult,
@@ -41,11 +40,6 @@ function groupFacts(facts: RecruiterEntityFact[]): FactsByType {
     map.set(f.fieldType, arr);
   }
   return map;
-}
-
-function avgConfidence(facts: RecruiterEntityFact[]): number {
-  if (!facts.length) return 0.5;
-  return facts.reduce((s, f) => s + f.confidence, 0) / facts.length;
 }
 
 function toConfidenceBand(c: number): 'low' | 'medium' | 'high' | 'critical' {
@@ -101,9 +95,9 @@ export class RecruiterBehavioralIntelligenceService {
     recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
-    engineResult?: IntelligenceEngineResult,
+    _engineResult?: IntelligenceEngineResult,
     priorProfile?: BehaviorProfile,
-    messageHistory?: BehaviorEvidence[],
+    _messageHistory?: BehaviorEvidence[],
   ): Promise<BehavioralIntelligenceResult> {
     const resultId = randomUUID();
     const byType = groupFacts(facts);
@@ -143,13 +137,12 @@ export class RecruiterBehavioralIntelligenceService {
   // ─── Deterministic inference ────────────────────────────────────────────────
 
   private inferDeterministic(
-    recruiterId: string,
+    _recruiterId: string,
     byType: FactsByType,
     reasoning: RecruiterReasoningResult,
   ): Partial<BehaviorProfile> {
     const urgency = reasoning.urgency.value;
     const intent = reasoning.communicationIntent.value;
-    const followUpFacts = byType.get('recruiter_responsibility') ?? [];
 
     // ─ Communication style ─
     let style: CommunicationStyle = 'unknown';
@@ -221,7 +214,7 @@ export class RecruiterBehavioralIntelligenceService {
       hiringUrgency: makeDimension<HiringUrgencyLevel>(
         'hiringUrgency', hiringUrgency, reasoning.urgency.confidence,
         `Urgency inference: ${urgency} derived from AI reasoning.`,
-        reasoning.urgency.supportingEvidence, reasoning.urgency.supportingEvidence.map(() => randomUUID()),
+        reasoning.urgency.supportingEvidence.excerpts, reasoning.urgency.supportingEvidence.sourceFactIds,
       ),
       recruiterEngagement: makeDimension<EngagementLevel>(
         'recruiterEngagement', engagement, Math.min(0.75, 0.4 + factCount * 0.05),
@@ -289,12 +282,12 @@ export class RecruiterBehavioralIntelligenceService {
       requestedAt: new Date(),
     };
 
-    const output = await this.pipeline.extract(input, 'recruiter-behavioral-intelligence');
+    const output = await this.pipeline.extract('recruiter-behavioral-intelligence', input, {});
     return this.parseAiBehaviorOutput(recruiterId, output.fields);
   }
 
   private parseAiBehaviorOutput(
-    recruiterId: string,
+    _recruiterId: string,
     fields: Array<{ field: string; value: unknown; confidence: number; evidence: Array<{ excerpt: string }> }>,
   ): Partial<BehaviorProfile> {
     const result: Partial<BehaviorProfile> = {};
@@ -553,7 +546,7 @@ export class RecruiterBehavioralIntelligenceService {
   private buildSummary(
     recruiterId: string,
     profile: BehaviorProfile,
-    reasoning: RecruiterReasoningResult,
+    _reasoning: RecruiterReasoningResult,
   ): BehaviorSummary {
     const urgency = profile.hiringUrgency.value;
     const style = profile.communicationStyle.value;

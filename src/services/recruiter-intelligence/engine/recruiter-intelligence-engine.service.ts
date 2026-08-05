@@ -229,7 +229,7 @@ export class RecruiterIntelligenceEngineService {
     recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
-    graphResult: GraphPopulationResult,
+    _graphResult: GraphPopulationResult,
   ): RecruiterProfile {
     const byType = this.groupFacts(facts);
     const evidenceRefs = this.buildEvidenceRefs(facts);

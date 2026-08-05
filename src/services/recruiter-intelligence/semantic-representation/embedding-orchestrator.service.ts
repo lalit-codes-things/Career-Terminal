@@ -69,8 +69,8 @@ export class EmbeddingOrchestratorService {
       const embeddingsToStore: Embedding[] = [];
 
       for (let i = 0; i < requests.length; i++) {
-        const req = requests[i];
-        const vector = vectors[i];
+        const req = requests[i]!;
+        const vector = vectors[i]!;
         if (vector) {
           const embedding: Embedding = {
             embeddingId: randomUUID(),

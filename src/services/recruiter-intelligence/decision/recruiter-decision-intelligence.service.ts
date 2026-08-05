@@ -117,7 +117,7 @@ export class RecruiterDecisionIntelligenceService {
   // ─── Deterministic predictions ──────────────────────────────────────────────
 
   private inferDeterministic(
-    recruiterId: string,
+    _recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
     behaviorProfile?: BehaviorProfile,
@@ -284,7 +284,7 @@ export class RecruiterDecisionIntelligenceService {
       requestedAt: new Date(),
     };
 
-    const output = await this.pipeline.extract(input, 'recruiter-decision-intelligence');
+    const output = await this.pipeline.extract('recruiter-decision-intelligence', input, {});
     const result: Partial<Record<DecisionDimension, DecisionPrediction>> = {};
 
     for (const f of output.fields) {
@@ -421,9 +421,9 @@ export class RecruiterDecisionIntelligenceService {
   // ─── Supporting evidence ─────────────────────────────────────────────────────
 
   private buildEvidence(
-    recruiterId: string,
+    _recruiterId: string,
     predictions: Record<DecisionDimension, DecisionPrediction>,
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
   ): DecisionEvidence[] {
     return Object.values(predictions).map((p) => ({
       evidenceId: randomUUID(),

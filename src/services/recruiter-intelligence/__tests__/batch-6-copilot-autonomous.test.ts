@@ -9,7 +9,6 @@ import { RecruiterCopilotService } from '../copilot/recruiter-copilot.service';
 import { AutonomousIntelligenceService } from '../autonomous/autonomous-intelligence.service';
 import { ExtractionPipeline } from '../ai/extraction-pipeline';
 import { StubAiAdapter } from '../ai/adapters/stub.adapter';
-import { PromptManager } from '../ai/prompt-manager';
 import type { CopilotConversation } from '../../../domain/recruiter-intelligence/copilot/contracts';
 import type { ContinuousIntelligenceEvent } from '../../../domain/recruiter-intelligence/autonomous-intelligence/contracts';
 

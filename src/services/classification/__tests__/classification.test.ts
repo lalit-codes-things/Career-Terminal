@@ -67,7 +67,7 @@ describe('Global Classification Framework', () => {
       const importer = ImporterFactory.create('json');
       const data = [{ code: 'test', name: 'test name' }];
       const parsed = await importer.parse(Buffer.from(JSON.stringify(data)));
-      expect(parsed[0].code).toBe('test');
+      expect(parsed[0]!.code).toBe('test');
     });
   });
 });

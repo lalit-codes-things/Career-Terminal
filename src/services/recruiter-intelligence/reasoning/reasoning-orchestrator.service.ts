@@ -51,7 +51,7 @@ export class ReasoningOrchestratorService {
         };
 
         // Execute via pipeline (handles provider routing internally if extended)
-        const extractionResult = await this.pipeline.extract(input, 'recruiter-insights-engine'); // using insights as proxy template for now
+        const extractionResult = await this.pipeline.extract('recruiter-insights-engine', input, {}); // using insights as proxy template for now
 
         const latencyMs = Date.now() - stepStartTime;
         

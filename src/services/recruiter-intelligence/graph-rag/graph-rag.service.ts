@@ -100,7 +100,7 @@ export class GraphRagService {
       const aiInput: ExtractionInput = {
         extractionId: randomUUID(),
         tenantId: request.tenantId,
-        sourceType: 'conversation',
+        sourceType: 'document',
         sourceId: randomUUID(),
         content: JSON.stringify({
           query: request.queryText,
@@ -113,7 +113,7 @@ export class GraphRagService {
         requestedAt: new Date(),
       };
 
-      const aiResult = await this.pipeline.extract(aiInput, 'recruiter-insights-engine'); // using insights engine as fallback template
+      const aiResult = await this.pipeline.extract('recruiter-insights-engine', aiInput, {}); // using insights engine as fallback template
       if (aiResult.fields.length > 0) {
         answerText = String(aiResult.fields[0]?.value ?? answerText);
         confidence = aiResult.fields[0]?.confidence ?? 0.5;

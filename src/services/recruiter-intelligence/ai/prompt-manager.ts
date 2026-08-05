@@ -252,14 +252,13 @@ export function buildDefaultTemplates(): PromptTemplate[] {
         ],
       },
       maxTokens: 3000,
-        '    {"field": "<insight_title>", "value": "<insight_text>", "confidence": <0.0-1.0>, "evidence": [{"excerpt": "<source>"}]}',
-        '  ]',
-        '}',
-      ].join('\n'),
-      outputSchema: {
-        type: 'object',
-        required: ['fields'],
-        properties: { fields: { type: 'array' } },
+      temperature: 0.15,
+      createdAt: now,
+    },
+    // ─── Batch 4: Prompt 16 — Behavioral Intelligence ───────────────────────────
+    {
+      templateId: 'recruiter-behavioral-intelligence',
+      name: 'Recruiter Behavioral Intelligence',
       version: '1.0.0',
       tier: 'powerful',
       systemPrompt: [

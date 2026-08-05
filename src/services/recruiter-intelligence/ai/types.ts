@@ -96,6 +96,7 @@ export interface ExtractedField<T = unknown> {
   evidence: ExtractionEvidence[];
   provenance: Provenance;
   normalizedValue?: T;
+  reasoning?: string;
 }
 
 export interface ExtractionOutput {

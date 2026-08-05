@@ -328,6 +328,7 @@ export class ExtractionPipeline {
           rawValue: String(i['value'] ?? ''),
           confidence,
           confidenceBand: toConfidenceBand(confidence),
+          reasoning: typeof i['reasoning'] === 'string' ? i['reasoning'] : undefined,
           evidence: ((i['supportingEvidence'] as string[] | undefined) ?? []).map((exc) => ({
             sourceId: input.sourceId,
             excerpt: exc,

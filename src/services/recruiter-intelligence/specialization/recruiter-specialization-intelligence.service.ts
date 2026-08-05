@@ -29,7 +29,7 @@ function makeDim<T>(
   confidence: number,
   reasoning: string,
   factIds: string[],
-  method: 'deterministic' | 'ai_assisted' = 'deterministic',
+  _method: 'deterministic' | 'ai_assisted' = 'deterministic',
 ): ExpertiseDimension<T> {
   const confidenceBand: ExpertiseDimension<T>['confidenceBand'] =
     confidence >= 0.85 ? 'critical'
@@ -164,7 +164,7 @@ export class RecruiterSpecializationIntelligenceService {
     recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
-    engineResult?: IntelligenceEngineResult,
+    _engineResult?: IntelligenceEngineResult,
   ): RecruiterExpertiseProfile {
     const allFactIds = facts.map((f) => f.factId);
 
@@ -340,7 +340,7 @@ export class RecruiterSpecializationIntelligenceService {
       requestedAt: new Date(),
     };
 
-    const output = await this.pipeline.extract(input, 'recruiter-specialization-intelligence');
+    const output = await this.pipeline.extract('recruiter-specialization-intelligence', input, {});
     const result: Partial<RecruiterExpertiseProfile> = {};
 
     for (const f of output.fields) {
@@ -366,10 +366,10 @@ export class RecruiterSpecializationIntelligenceService {
   // ─── Merge ──────────────────────────────────────────────────────────────────
 
   private mergeProfiles(
-    recruiterId: string,
+    _recruiterId: string,
     deterministic: RecruiterExpertiseProfile,
     ai: Partial<RecruiterExpertiseProfile>,
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
     prior?: RecruiterExpertiseProfile,
   ): RecruiterExpertiseProfile {
     const pick = <T>(

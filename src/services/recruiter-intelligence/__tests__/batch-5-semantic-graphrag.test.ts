@@ -8,7 +8,6 @@ import { ContextOrchestratorService } from '../context-orchestration/context-orc
 import { ReasoningOrchestratorService } from '../reasoning/reasoning-orchestrator.service';
 import { ExtractionPipeline } from '../ai/extraction-pipeline';
 import { StubAiAdapter } from '../ai/adapters/stub.adapter';
-import { PromptManager } from '../ai/prompt-manager';
 import type { ContextItem, ContextOrchestrationRequest } from '../../../domain/recruiter-intelligence/context-orchestration/contracts';
 import type { ReasoningWorkflow } from '../../../domain/recruiter-intelligence/reasoning-orchestrator/contracts';
 import type { RecruiterEntityFact } from '../extraction/recruiter-entity-extraction.service';
@@ -52,7 +51,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       
       const searchRes = await vectorStore.search({ vector: embedding.vector, topK: 1 });
       expect(searchRes.length).toBe(1);
-      expect(searchRes[0].entityId).toBe(entityId);
+      expect(searchRes[0]!.entityId).toBe(entityId);
     });
 
     it('should embed in batches', async () => {
@@ -83,7 +82,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       });
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].vectorScore).toBeGreaterThan(0);
+      expect(results[0]!.vectorScore).toBeGreaterThan(0);
     });
 
     it('should perform hybrid search combining text and vector', async () => {
@@ -96,8 +95,8 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       });
 
       expect(results.length).toBe(2);
-      expect(results[0].hybridScore).toBeGreaterThan(0);
-      expect(results[0].textScore).toBeGreaterThanOrEqual(0); // Keyword score
+      expect(results[0]!.hybridScore).toBeGreaterThan(0);
+      expect(results[0]!.textScore).toBeGreaterThanOrEqual(0); // Keyword score
     });
   });
 
@@ -114,15 +113,27 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       const structuredFacts: RecruiterEntityFact[] = [
         {
           factId: randomUUID(),
-          tenantId: 't1',
           recruiterId: 'rec-1',
+          sourceMessageId: 'msg1',
           fieldType: 'compensation_mention',
           rawValue: '$200k base',
           normalizedValue: '200000',
+          structuredValue: { amount: 200000, currency: 'USD' },
           confidence: 0.9,
+          confidenceBand: 'high',
           evidence: { messageId: 'msg1', excerpt: 'Base salary is $200k' },
-          provenance: { extractor: 'test', modelVersion: 'v1' },
+          provenance: {
+            extractor: 'test',
+            method: 'deterministic',
+            provider: 'none',
+            model: 'regex',
+            templateId: 'test',
+            templateVersion: '1.0.0',
+            sourceProvider: 'gmail',
+            extractedAt: new Date(),
+          },
           observedAt: new Date(),
+          requiresHumanReview: false,
         }
       ];
 
@@ -186,8 +197,8 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       const result = await reasoningOrchestrator.executeWorkflow(workflow, { tenantId: 't1', someFact: 'test' });
 
       expect(result.stepResults.length).toBe(2);
-      expect(result.stepResults[0].stepId).toBe('step-1');
-      expect(result.stepResults[1].stepId).toBe('step-2');
+      expect(result.stepResults[0]!.stepId).toBe('step-1');
+      expect(result.stepResults[1]!.stepId).toBe('step-2');
       expect(result.overallConfidence).toBeGreaterThan(0);
       expect(result.totalLatencyMs).toBeGreaterThan(0);
       expect(result.finalOutput).toBeDefined();

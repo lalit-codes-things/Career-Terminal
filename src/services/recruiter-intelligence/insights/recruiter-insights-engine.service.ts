@@ -93,12 +93,11 @@ export class RecruiterInsightsEngine {
     trustResult?: TrustReputationResult,
     specializationResult?: SpecializationIntelligenceResult,
     decisionResult?: DecisionIntelligenceResult,
-    memoryContext?: MemoryContext,
-    timelineContext?: TimelineContext,
-    graphContext?: GraphContext,
+    _memoryContext?: MemoryContext,
+    _timelineContext?: TimelineContext,
+    _graphContext?: GraphContext,
   ): Promise<RecruiterInsightsResult> {
     const resultId = randomUUID();
-    const allFactIds = facts.map((f) => f.factId);
 
     // ─ Multi-turn reasoning chain ─
     const reasoningChain = this.buildReasoningChain(
@@ -208,11 +207,11 @@ export class RecruiterInsightsEngine {
 
   private buildReasoningChain(
     facts: RecruiterEntityFact[],
-    reasoning: RecruiterReasoningResult,
-    engineResult?: IntelligenceEngineResult,
+    _reasoning: RecruiterReasoningResult,
+    _engineResult?: IntelligenceEngineResult,
     behavioralResult?: BehavioralIntelligenceResult,
     trustResult?: TrustReputationResult,
-    specializationResult?: SpecializationIntelligenceResult,
+    _specializationResult?: SpecializationIntelligenceResult,
     decisionResult?: DecisionIntelligenceResult,
   ): ReasoningStep[] {
     const steps: ReasoningStep[] = [];
@@ -283,7 +282,7 @@ export class RecruiterInsightsEngine {
     recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
-    engineResult?: IntelligenceEngineResult,
+    _engineResult?: IntelligenceEngineResult,
     behavioralResult?: BehavioralIntelligenceResult,
     trustResult?: TrustReputationResult,
     specializationResult?: SpecializationIntelligenceResult,
@@ -330,7 +329,7 @@ export class RecruiterInsightsEngine {
   private buildCommunicationSummary(
     recruiterId: string,
     facts: RecruiterEntityFact[],
-    reasoning: RecruiterReasoningResult,
+    _reasoning: RecruiterReasoningResult,
     behavioralResult?: BehavioralIntelligenceResult,
   ): CommunicationSummaryInsight {
     const profile = behavioralResult?.profile;
@@ -356,11 +355,10 @@ export class RecruiterInsightsEngine {
     recruiterId: string,
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
-    engineResult?: IntelligenceEngineResult,
+    _engineResult?: IntelligenceEngineResult,
     decisionResult?: DecisionIntelligenceResult,
   ): HiringSummaryInsight {
     const hasInterview = facts.some((f) => f.fieldType === 'interview_stage');
-    const hasComp = facts.some((f) => f.fieldType === 'compensation_mention');
     const urgency = reasoning.urgency.value;
     const domainFacts = facts.filter((f) => f.fieldType === 'hiring_domain');
     const roles = domainFacts.map((f) => f.rawValue);
@@ -443,7 +441,7 @@ export class RecruiterInsightsEngine {
   private buildCandidateRecommendations(
     recruiterId: string,
     facts: RecruiterEntityFact[],
-    reasoning: RecruiterReasoningResult,
+    _reasoning: RecruiterReasoningResult,
     decisionResult?: DecisionIntelligenceResult,
     specializationResult?: SpecializationIntelligenceResult,
   ): CandidateRecommendation[] {
@@ -525,7 +523,7 @@ export class RecruiterInsightsEngine {
   private buildCommunicationRecommendations(
     recruiterId: string,
     behavioralResult?: BehavioralIntelligenceResult,
-    trustResult?: TrustReputationResult,
+    _trustResult?: TrustReputationResult,
   ): CommunicationRecommendation[] {
     const style = behavioralResult?.profile.communicationStyle.value ?? 'unknown';
     const channel = behavioralResult?.profile.preferredCommunicationChannels.value[0]?.toString() ?? 'email';
@@ -582,7 +580,7 @@ export class RecruiterInsightsEngine {
   private buildRelationshipRecommendations(
     recruiterId: string,
     trustResult?: TrustReputationResult,
-    behavioralResult?: BehavioralIntelligenceResult,
+    _behavioralResult?: BehavioralIntelligenceResult,
     decisionResult?: DecisionIntelligenceResult,
   ): RelationshipRecommendation[] {
     const trust = trustResult?.trustScore.score ?? 0.55;
@@ -620,7 +618,7 @@ export class RecruiterInsightsEngine {
     recruiterId: string,
     trustResult?: TrustReputationResult,
     behavioralResult?: BehavioralIntelligenceResult,
-    decisionResult?: DecisionIntelligenceResult,
+    _decisionResult?: DecisionIntelligenceResult,
   ): RecruiterRiskAlert[] {
     const alerts: RecruiterRiskAlert[] = [];
 
@@ -680,7 +678,7 @@ export class RecruiterInsightsEngine {
     facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
     decisionResult?: DecisionIntelligenceResult,
-    trustResult?: TrustReputationResult,
+    _trustResult?: TrustReputationResult,
   ): OpportunityAlert[] {
     const alerts: OpportunityAlert[] = [];
     const factIds = facts.map((f) => f.factId).slice(0, 3);
@@ -740,7 +738,7 @@ export class RecruiterInsightsEngine {
 
   private async generateAiInsights(
     recruiterId: string,
-    facts: RecruiterEntityFact[],
+    _facts: RecruiterEntityFact[],
     reasoning: RecruiterReasoningResult,
     behavioralResult?: BehavioralIntelligenceResult,
     trustResult?: TrustReputationResult,
@@ -765,7 +763,7 @@ export class RecruiterInsightsEngine {
       requestedAt: new Date(),
     };
 
-    const output = await this.pipeline.extract(input, 'recruiter-insights-engine');
+    const output = await this.pipeline.extract('recruiter-insights-engine', input, {});
     const now = new Date();
 
     return output.fields.map((f) => ({

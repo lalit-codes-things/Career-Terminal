@@ -16,7 +16,7 @@ import type { GraphRagRequest } from '../../../domain/recruiter-intelligence/gra
 export class RecruiterCopilotService {
   constructor(
     private readonly graphRag: GraphRagService,
-    private readonly contextOrchestrator: ContextOrchestratorService,
+    _contextOrchestrator: ContextOrchestratorService,
     private readonly reasoningOrchestrator: ReasoningOrchestratorService,
   ) {}
 

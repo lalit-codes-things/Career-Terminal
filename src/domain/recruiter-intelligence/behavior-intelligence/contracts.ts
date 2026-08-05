@@ -1,4 +1,4 @@
-import type { EvidenceRef, RecruiterId, TemporalFact } from '../shared-kernel/types';
+import type { EvidenceRef, RecruiterId } from '../shared-kernel/types';
 
 // ─── Behavioral Dimension Enums ───────────────────────────────────────────────
 
