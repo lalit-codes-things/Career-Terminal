@@ -17,7 +17,7 @@ describe('Recruiter data foundation', () => {
     const result = validateRecruiterCreate({
       canonicalName: '',
       source: 'crm',
-    } as never);
+    });
 
     expect(result.isValid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
@@ -38,7 +38,7 @@ describe('Recruiter data foundation', () => {
       alias: '',
       normalizedAlias: 'alicia',
       source: 'crm',
-    } as never);
+    });
 
     expect(result.isValid).toBe(false);
   });

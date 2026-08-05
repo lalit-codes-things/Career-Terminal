@@ -65,7 +65,7 @@ describe('DashboardService', () => {
         metadata: null,
         description: 'Interview scheduled',
         application: {
-          companyName: 'Stripe',
+          companyName: 'example-organization',
           roleTitle: 'Engineer',
         },
       },
@@ -74,7 +74,7 @@ describe('DashboardService', () => {
     const activity = await dashboardService.getActivity('user-1', 5, prisma);
 
     expect(activity).toHaveLength(1);
-    expect(activity[0]?.companyName).toBe('Stripe');
+    expect(activity[0]?.companyName).toBe('example-organization');
     expect(activity[0]?.eventType).toBe(ApplicationTimelineEventType.INTERVIEW);
     expect(mockPrisma.applicationTimeline.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

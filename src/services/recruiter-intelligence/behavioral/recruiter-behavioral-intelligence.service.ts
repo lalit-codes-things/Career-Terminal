@@ -447,9 +447,9 @@ export class RecruiterBehavioralIntelligenceService {
     if (!priorProfile) {
       // First observation — all dimensions are "first_observed"
       const dims: Array<[string, BehavioralDimension<unknown>]> = [
-        ['communicationStyle', profile.communicationStyle as BehavioralDimension<unknown>],
-        ['hiringUrgency', profile.hiringUrgency as BehavioralDimension<unknown>],
-        ['recruiterEngagement', profile.recruiterEngagement as BehavioralDimension<unknown>],
+        ['communicationStyle', profile.communicationStyle],
+        ['hiringUrgency', profile.hiringUrgency],
+        ['recruiterEngagement', profile.recruiterEngagement],
       ];
       for (const [dim, d] of dims) {
         events.push({
@@ -469,13 +469,13 @@ export class RecruiterBehavioralIntelligenceService {
       const checks: Array<[string, BehavioralDimension<unknown>, BehavioralDimension<unknown>]> = [
         [
           'hiringUrgency',
-          priorProfile.hiringUrgency as BehavioralDimension<unknown>,
-          profile.hiringUrgency as BehavioralDimension<unknown>,
+          priorProfile.hiringUrgency,
+          profile.hiringUrgency,
         ],
         [
           'recruiterEngagement',
-          priorProfile.recruiterEngagement as BehavioralDimension<unknown>,
-          profile.recruiterEngagement as BehavioralDimension<unknown>,
+          priorProfile.recruiterEngagement,
+          profile.recruiterEngagement,
         ],
       ];
       for (const [dim, prev, curr] of checks) {

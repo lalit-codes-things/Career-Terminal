@@ -5,10 +5,8 @@ import type {
   CrossEpicIntelligenceMessage,
   CrossEpicQuery,
   CrossEpicQueryResult,
-  CrossEpicIntegrationConfig,
   EpicId,
-  IntelligenceDomain,
-} from '../../domain/recruiter-intelligence/cross-epic/contracts';
+} from '../../../domain/recruiter-intelligence/cross-epic/contracts';
 
 export interface IntelligenceBrokerConfig {
   maxHops: number;
@@ -88,7 +86,7 @@ export class IntelligenceBrokerService {
         hop: 0,
         sourceEpic: link.sourceEpic,
         sourceEntityId: link.sourceEntityId,
-        intelligenceType: link.intelligence as string,
+        intelligenceType: link.intelligenceType,
         confidence: link.confidence,
         reasoning: `Direct link from ${link.sourceEpic}:${link.sourceEntityId} to ${link.targetEpic}:${link.targetEntityId} in domain ${link.domain}`,
         evidenceExcerpt: link.evidence[0]?.excerpt ?? 'No evidence excerpt available',
@@ -297,8 +295,9 @@ export class IntelligenceBrokerService {
           targetEpic: msg.targetEpic,
           sourceEntityId: msg.sourceEntityId,
           targetEntityId: msg.targetEntityId,
-          domain: msg.domain as IntelligenceDomain,
+          domain: msg.domain,
           direction: 'bidirectional',
+          intelligenceType: 'memory_lookup',
           intelligence: msg.intelligence,
           confidence: memoryConfidence,
           evidence: msg.evidence.map((e) => ({
@@ -373,8 +372,9 @@ export class IntelligenceBrokerService {
           targetEpic: msg.targetEpic,
           sourceEntityId: msg.sourceEntityId,
           targetEntityId: msg.targetEntityId,
-          domain: msg.domain as IntelligenceDomain,
+          domain: msg.domain,
           direction: 'bidirectional',
+          intelligenceType: 'timeline_lookup',
           intelligence: { ...msg.intelligence, timelineEnriched: true },
           confidence: timelineConfidence,
           evidence: msg.evidence.map((e) => ({

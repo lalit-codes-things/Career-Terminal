@@ -1,4 +1,12 @@
-export type EpicId = 'user-intelligence' | 'opportunity-intelligence' | 'application-intelligence' | 'resume-intelligence' | 'company-intelligence' | 'recruiter-intelligence';
+export type EpicId =
+  | 'user-intelligence'
+  | 'opportunity-intelligence'
+  | 'application-intelligence'
+  | 'resume-intelligence'
+  | 'company-intelligence'
+  | 'recruiter-intelligence'
+  | 'skills'
+  | 'communication-intelligence';
 
 export type IntelligenceDirection = 'publish' | 'consume' | 'bidirectional';
 
@@ -13,6 +21,7 @@ export interface CrossEpicIntelligenceLink {
   domain: IntelligenceDomain;
   direction: IntelligenceDirection;
   intelligenceType: string;
+  intelligence: Record<string, unknown>;
   confidence: number;
   evidence: CrossEpicEvidence[];
   provenance: CrossEpicProvenance;
@@ -31,7 +40,7 @@ export interface CrossEpicEvidence {
 
 export interface CrossEpicProvenance {
   extractor: string;
-  method: 'deterministic' | 'ai_assisted' | 'hybrid' | 'graph_traversal' | 'semantic_match';
+   method: 'deterministic' | 'ai_assisted' | 'hybrid' | 'graph_traversal' | 'semantic_match' | 'memory_lookup' | 'timeline_lookup';
   sourceProvider: string;
   model?: string;
   templateId?: string;
@@ -105,3 +114,5 @@ export interface CrossEpicStats {
   messagesProcessed: number;
   lastUpdatedAt: Date;
 }
+
+export type CrossEpicIntelligenceStats = CrossEpicStats;

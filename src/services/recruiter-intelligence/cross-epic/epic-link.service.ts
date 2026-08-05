@@ -4,12 +4,12 @@ import type {
   CrossEpicIntelligenceMessage,
   CrossEpicQuery,
   CrossEpicQueryResult,
-  CrossEpicIntegrationConfig,
   EpicId,
   IntelligenceDomain,
-} from '../../domain/recruiter-intelligence/cross-epic/contracts';
+} from '../../../domain/recruiter-intelligence/cross-epic/contracts';
 
 export interface EpicLinkConfig {
+  enabled: boolean;
   maxLinksPerEntity: number;
   maxMessagesPerEntity: number;
   defaultTtlMs: number;
@@ -20,6 +20,7 @@ export interface EpicLinkConfig {
 }
 
 const DEFAULT_EPIC_LINK_CONFIG: EpicLinkConfig = {
+  enabled: true,
   maxLinksPerEntity: 50,
   maxMessagesPerEntity: 200,
   defaultTtlMs: 7 * 24 * 60 * 60 * 1000,
@@ -77,9 +78,9 @@ export class EpicLinkService {
       if (existing && existing.confidence >= confidence) {
         return existing;
       }
-      this.links.delete(linkId!);
-      this.removeEntityLink(sourceEpic, sourceEntityId, linkId!);
-      this.removeEntityLink(targetEpic, targetEntityId, linkId!);
+      this.links.delete(linkId);
+      this.removeEntityLink(sourceEpic, sourceEntityId, linkId);
+      this.removeEntityLink(targetEpic, targetEntityId, linkId);
     }
 
     const link = this.createLink(sourceEpic, sourceEntityId, targetEpic, targetEntityId, domain, intelligence, confidence, evidence, provenance);
@@ -214,7 +215,6 @@ export class EpicLinkService {
   }
 
   removeExpiredLinks(): number {
-    const now = Date.now();
     let removed = 0;
     for (const [linkId, link] of this.links.entries()) {
       if (this.isExpired(link)) {
@@ -246,6 +246,7 @@ export class EpicLinkService {
       targetEntityId,
       domain,
       direction: 'bidirectional',
+      intelligenceType: JSON.stringify(intelligence),
       intelligence,
       confidence: Math.max(0, Math.min(1, confidence)),
       evidence: evidence.map((e) => ({

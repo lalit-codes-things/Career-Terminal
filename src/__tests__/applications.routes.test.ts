@@ -62,7 +62,7 @@ describe('Applications routes', () => {
       {
         id: APP_ID,
         userId: USER_ID,
-        company: { name: 'Stripe', domain: 'stripe.com' },
+        company: { name: 'example-organization', domain: 'example-organization.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'APPLIED',
         appliedDate: '2026-01-01T00:00:00.000Z',
@@ -72,7 +72,7 @@ describe('Applications routes', () => {
     ]);
 
     const response = await request(app)
-      .get('/applications?status=APPLIED&company=Stripe&role=Engineer')
+      .get('/applications?status=APPLIED&company=example-organization&role=Engineer')
       .set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
@@ -82,7 +82,7 @@ describe('Applications routes', () => {
       USER_ID,
       {
         status: 'APPLIED',
-        company: 'Stripe',
+        company: 'example-organization',
         role: 'Engineer',
         date: undefined,
       },
@@ -98,7 +98,7 @@ describe('Applications routes', () => {
       application: {
         id: APP_ID,
         userId: USER_ID,
-        company: { name: 'Stripe', domain: 'stripe.com' },
+        company: { name: 'example-organization', domain: 'example-organization.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'APPLIED',
         appliedDate: '2026-01-01T00:00:00.000Z',
@@ -195,7 +195,7 @@ describe('Applications routes', () => {
       application: {
         id: APP_ID,
         userId: USER_ID,
-        company: { name: 'Stripe', domain: 'stripe.com' },
+        company: { name: 'example-organization', domain: 'example-organization.com' },
         role: { title: 'Engineer', department: 'Engineering' },
         status: 'INTERVIEW',
         appliedDate: '2026-01-01T00:00:00.000Z',
@@ -260,7 +260,7 @@ describe('Applications routes', () => {
       recruiter: {
         id: REC_ID,
         companyId: COMPANY_ID,
-        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
+        company: { id: COMPANY_ID, name: 'example-organization', domain: 'example-organization.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',

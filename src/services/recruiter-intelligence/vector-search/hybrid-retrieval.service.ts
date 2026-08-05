@@ -21,15 +21,14 @@ import { StubEmbeddingAdapter } from '../ai/adapters/stub-embedding.adapter';
 /**
  * Build a default instance wired to pgvector + stub embeddings.
  * In production replace StubEmbeddingAdapter with a real embedding adapter
- * (e.g. DeepSeek text-embedding-v1 once that endpoint is stable, or
- * OpenRouter's embedding proxy).
+ * (e.g. OpenRouter's embedding proxy).
  */
 export function createHybridRetrievalService(
   provider?: EmbeddingProvider,
   vectorStore?: VectorStore,
 ): HybridRetrievalService {
   return new HybridRetrievalService(
-    provider ?? new StubEmbeddingAdapter('deepseek-embedding', 'text-embedding-v1', 1536),
+    provider ?? new StubEmbeddingAdapter('openrouter-embedding', 'text-embedding-v1', 1536),
     vectorStore ?? pgVectorStore,
   );
 }
@@ -71,7 +70,7 @@ export class HybridRetrievalService {
         vector: queryVector,
         topK,
         minSimilarity: 0.3,
-        metadataFilters: query.vectorQuery?.metadataFilters,
+        metadataFilters: undefined,
       });
     }
 

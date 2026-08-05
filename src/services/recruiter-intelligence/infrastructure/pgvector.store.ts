@@ -17,7 +17,7 @@ import { prisma } from '../../../config/database';
 import type { Embedding } from '../../../domain/recruiter-intelligence/semantic-representation/contracts';
 import type { VectorQuery, VectorSearchResult, VectorStore } from '../../../domain/recruiter-intelligence/vector-search/contracts';
 
-const DEFAULT_EMBEDDING_MODEL_ID = 'deepseek-text-embedding-v1';
+const DEFAULT_EMBEDDING_MODEL_ID = 'openrouter:text-embedding-v1';
 const DEFAULT_CELL_ID = 'default';
 
 type EmbeddingRow = {
@@ -129,9 +129,9 @@ export class PgVectorStore implements VectorStore {
     const filtered = query.metadataFilters
       ? allRows.filter((row) => {
           for (const [k, v] of Object.entries(query.metadataFilters!)) {
-            const rowVal = (row.metadata as Record<string, unknown>)[k];
+            const rowVal = row.metadata[k];
             if (Array.isArray(v)) {
-              if (!v.includes(rowVal)) return false;
+              if (!v.map(String).includes(String(rowVal))) return false;
             } else if (rowVal !== v) {
               return false;
             }
@@ -147,8 +147,9 @@ export class PgVectorStore implements VectorStore {
         entityId: row.entity_id,
         entityType: (row.entity_type ?? 'recruiter_profile') as VectorSearchResult['entityType'],
         score: row.score,
-        text: String((row.metadata as Record<string, unknown>)['text'] ?? ''),
-        metadata: row.metadata as Record<string, unknown>,
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
+        text: String((row.metadata)['text'] ?? ''),
+        metadata: row.metadata,
       }));
   }
 

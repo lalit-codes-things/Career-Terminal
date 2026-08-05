@@ -31,7 +31,10 @@ import {
   verifyCapability,
 } from './capabilities';
 import type { CapabilityInput, CapabilityResult } from './capabilities/types';
+import { CapabilityBase } from './capabilities/capability.base';
 import { withAiSpan, recordAiAttributes } from '../infrastructure/telemetry/ai-spans';
+
+type Capability = CapabilityBase;
 
 export type PlannerIntent =
   | 'understand'
@@ -49,8 +52,8 @@ export interface PlannerRequest {
   content: string;
   intent?: PlannerIntent;
   context?: Record<string, string>;
-  /** Already-resolved intent keywords from caller; used when intent is ambiguous */
   intentHints?: string[];
+  plannerContext?: Record<string, unknown>;
 }
 
 export interface PlannerResult {
@@ -64,7 +67,7 @@ export interface PlannerResult {
 }
 
 // Capability chains per intent
-const INTENT_CHAINS: Record<PlannerIntent, Array<typeof understandCapability>> = {
+const INTENT_CHAINS: Record<PlannerIntent, Capability[]> = {
   understand:  [understandCapability],
   extract:     [extractCapability],
   infer:       [extractCapability, inferCapability],
@@ -105,7 +108,7 @@ export class Planner {
       // Record the planner decision as a Prediction row
       const planPrediction = await prisma.prediction.create({
         data: {
-          modelId: 'deepseek-chat',
+          modelId: 'deepseek/deepseek-chat',
           userId: req.userId,
           recruiterId: req.entityType === 'recruiter' ? req.entityId : undefined,
           applicationId: req.entityType === 'application' ? req.entityId : undefined,
@@ -145,7 +148,7 @@ export class Planner {
         } catch {
           await prisma.prediction.create({
             data: {
-              modelId: 'deepseek-chat',
+              modelId: 'deepseek/deepseek-chat',
               userId: req.userId,
               predictionType: `CAPABILITY_${capability.name.toUpperCase()}_ERROR`,
               capability: capability.name,

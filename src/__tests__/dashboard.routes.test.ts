@@ -64,7 +64,7 @@ describe('Dashboard routes', () => {
       {
         id: 'evt-1',
         applicationId: 'app-1',
-        companyName: 'Stripe',
+        companyName: 'example-organization',
         roleTitle: 'Engineer',
         eventType: 'INTERVIEW',
         timestamp: '2026-07-16T10:00:00.000Z',

@@ -29,6 +29,7 @@ export function normalizeText(value: unknown): string {
     if (typeof obj['name'] === 'string') return obj['name'].trim().toLowerCase();
     if (typeof obj['value'] === 'string') return obj['value'].trim().toLowerCase();
   }
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return String(value ?? '').trim().toLowerCase();
 }
 

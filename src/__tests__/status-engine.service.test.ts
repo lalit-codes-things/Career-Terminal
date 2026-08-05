@@ -108,7 +108,7 @@ describe('StatusEngine', () => {
         emailId: 'email-old',
         category: JobEmailCategory.ASSESSMENT_TEST,
         confidence: 0.95,
-        detectedCompany: 'Stripe',
+        detectedCompany: 'example-organization',
         detectedRole: 'Engineer',
       },
       {

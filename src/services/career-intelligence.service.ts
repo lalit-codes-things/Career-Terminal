@@ -17,8 +17,6 @@
 import { planner, type PlannerIntent } from './planner';
 import { recruiterIntelligenceConnectorService } from './recruiter-intelligence/recruiter-intelligence-connector.service';
 import { opportunityIntelligenceService } from './opportunity/opportunity-intelligence.service';
-import { companyIntelligenceService } from './company-intelligence/company-intelligence.service';
-import { resumeIntelligenceService } from './resume/resume-intelligence.service';
 import { recruiterMemoryService } from './recruiter-intelligence/memory/recruiter-memory.service';
 import { prisma } from '../config/database';
 

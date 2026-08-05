@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { ConfidenceCalibrationResult } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { ConfidenceCalibrationResult } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class ConfidenceCalibrator {
   calibrate(
@@ -12,16 +12,16 @@ export class ConfidenceCalibrator {
     const correctPredictions = predictions.filter((p) => p.correct).length;
 
     const bins = [
-      { min: 0, max: 0.1, label: '0-0.1', counts: [], accuracies: [] },
-      { min: 0.1, max: 0.2, label: '0.1-0.2', counts: [], accuracies: [] },
-      { min: 0.2, max: 0.3, label: '0.2-0.3', counts: [], accuracies: [] },
-      { min: 0.3, max: 0.4, label: '0.3-0.4', counts: [], accuracies: [] },
-      { min: 0.4, max: 0.5, label: '0.4-0.5', counts: [], accuracies: [] },
-      { min: 0.5, max: 0.6, label: '0.5-0.6', counts: [], accuracies: [] },
-      { min: 0.6, max: 0.7, label: '0.6-0.7', counts: [], accuracies: [] },
-      { min: 0.7, max: 0.8, label: '0.7-0.8', counts: [], accuracies: [] },
-      { min: 0.8, max: 0.9, label: '0.8-0.9', counts: [], accuracies: [] },
-      { min: 0.9, max: 1.0, label: '0.9-1.0', counts: [], accuracies: [] },
+      { min: 0, max: 0.1, label: '0-0.1', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.1, max: 0.2, label: '0.1-0.2', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.2, max: 0.3, label: '0.2-0.3', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.3, max: 0.4, label: '0.3-0.4', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.4, max: 0.5, label: '0.4-0.5', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.5, max: 0.6, label: '0.5-0.6', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.6, max: 0.7, label: '0.6-0.7', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.7, max: 0.8, label: '0.7-0.8', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.8, max: 0.9, label: '0.8-0.9', counts: [] as number[], accuracies: [] as number[] },
+      { min: 0.9, max: 1.0, label: '0.9-1.0', counts: [] as number[], accuracies: [] as number[] },
     ];
 
     for (const pred of predictions) {
@@ -61,7 +61,7 @@ export class ConfidenceCalibrator {
     };
   }
 
-  private computeCalibrationError(diagram: Array<{ accuracy: number; confidence: number }>): number {
+  private computeCalibrationError(diagram: Array<{ accuracy: number; confidence: number; count: number }>): number {
     if (diagram.length === 0) return 0;
     const totalError = diagram.reduce((s, d) => {
       const weight = d.count > 0 ? d.count : 1;

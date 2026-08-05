@@ -6,7 +6,7 @@ const makeOpportunity = (overrides: Partial<Opportunity> = {}): Opportunity => (
   id: 'opp-1',
   opportunityTypeId: 'external_job',
   title: 'Senior Software Engineer',
-  companyName: 'Acme Corp',
+  companyName: 'example-organization',
   location: { countryCode: 'US', city: 'San Francisco', remoteModel: 'hybrid' },
   employmentType: 'full_time',
   source: 'linkedin',

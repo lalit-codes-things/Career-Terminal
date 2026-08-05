@@ -16,11 +16,30 @@ import {
   type KgRelationshipType,
 } from './recruiter-knowledge-graph.service';
 
+export interface KgNode {
+  nodeType: KgNodeType;
+  externalKey: string;
+  label: string;
+}
+
+export interface KgEdge {
+  fromNodeId: string;
+  toNodeId: string;
+  relationshipType: KgRelationshipType;
+  confidence: number;
+}
+
 export interface GraphPopulationResult {
   recruiterId: string;
   addedNodeIds: string[];
   addedEdgeIds: string[];
+  addedNodes: KgNode[];
+  addedEdges: KgEdge[];
   completedAt: Date;
+  delta: {
+    addedNodes: KgNode[];
+    addedEdges: KgEdge[];
+  };
 }
 
 export class KnowledgeGraphPopulationService {
@@ -39,6 +58,8 @@ export class KnowledgeGraphPopulationService {
   ): Promise<GraphPopulationResult> {
     const addedNodeIds: string[] = [];
     const addedEdgeIds: string[] = [];
+    const addedNodes: KgNode[] = [];
+    const addedEdges: KgEdge[] = [];
 
     // Ensure recruiter node exists
     const recruiterNodeId = await this.graph.upsertNode({
@@ -83,6 +104,7 @@ export class KnowledgeGraphPopulationService {
         metadata: { ...fact.structuredValue },
       });
       addedNodeIds.push(targetNodeId);
+      addedNodes.push({ nodeType, externalKey: fact.normalizedValue || fact.rawValue, label: fact.rawValue });
 
       const edgeId = await this.graph.upsertEdge({
         fromNodeId: recruiterNodeId,
@@ -99,9 +121,10 @@ export class KnowledgeGraphPopulationService {
         },
       });
       addedEdgeIds.push(edgeId);
+      addedEdges.push({ fromNodeId: recruiterNodeId, toNodeId: targetNodeId, relationshipType: relType, confidence: fact.confidence });
     }
 
-    return { recruiterId, addedNodeIds, addedEdgeIds, completedAt: new Date() };
+    return { recruiterId, addedNodeIds, addedEdgeIds, addedNodes, addedEdges, completedAt: new Date(), delta: { addedNodes, addedEdges } };
   }
 
   /**
@@ -114,6 +137,8 @@ export class KnowledgeGraphPopulationService {
   ): Promise<GraphPopulationResult> {
     const addedNodeIds: string[] = [];
     const addedEdgeIds: string[] = [];
+    const addedNodes: KgNode[] = [];
+    const addedEdges: KgEdge[] = [];
 
     const recruiterNodeId = await this.graph.upsertNode({
       nodeType: 'recruiter',
@@ -135,6 +160,7 @@ export class KnowledgeGraphPopulationService {
         label: domain,
       });
       addedNodeIds.push(nodeId);
+      addedNodes.push({ nodeType: 'technology', externalKey: domain.toLowerCase(), label: domain });
 
       const edgeId = await this.graph.upsertEdge({
         fromNodeId: recruiterNodeId,
@@ -146,6 +172,7 @@ export class KnowledgeGraphPopulationService {
         provenanceJson: { source: 'reasoning-enrichment', method: 'reasoning_enrichment', populatedAt: new Date().toISOString() },
       });
       addedEdgeIds.push(edgeId);
+      addedEdges.push({ fromNodeId: recruiterNodeId, toNodeId: nodeId, relationshipType: 'recruiter_to_technology', confidence: reasoning.technicalDomains.confidence });
     }
 
     // Hiring focus → role nodes
@@ -156,6 +183,7 @@ export class KnowledgeGraphPopulationService {
         label: role,
       });
       addedNodeIds.push(nodeId);
+      addedNodes.push({ nodeType: 'role', externalKey: role.toLowerCase().replace(/\s+/g, '-'), label: role });
 
       const edgeId = await this.graph.upsertEdge({
         fromNodeId: recruiterNodeId,
@@ -167,6 +195,7 @@ export class KnowledgeGraphPopulationService {
         provenanceJson: { source: 'reasoning-enrichment', method: 'reasoning_enrichment', populatedAt: new Date().toISOString() },
       });
       addedEdgeIds.push(edgeId);
+      addedEdges.push({ fromNodeId: recruiterNodeId, toNodeId: nodeId, relationshipType: 'recruiter_to_hiring_domain', confidence: reasoning.hiringFocus.confidence });
     }
 
     // Geographic responsibility → location nodes
@@ -177,6 +206,7 @@ export class KnowledgeGraphPopulationService {
         label: location,
       });
       addedNodeIds.push(nodeId);
+      addedNodes.push({ nodeType: 'location', externalKey: location.toLowerCase(), label: location });
 
       const edgeId = await this.graph.upsertEdge({
         fromNodeId: recruiterNodeId,
@@ -188,9 +218,10 @@ export class KnowledgeGraphPopulationService {
         provenanceJson: { source: 'reasoning-enrichment', method: 'reasoning_enrichment', populatedAt: new Date().toISOString() },
       });
       addedEdgeIds.push(edgeId);
+      addedEdges.push({ fromNodeId: recruiterNodeId, toNodeId: nodeId, relationshipType: 'recruiter_to_location', confidence: reasoning.geographicResponsibility.confidence });
     }
 
-    return { recruiterId, addedNodeIds, addedEdgeIds, completedAt: new Date() };
+    return { recruiterId, addedNodeIds, addedEdgeIds, addedNodes, addedEdges, completedAt: new Date(), delta: { addedNodes, addedEdges } };
   }
 }
 

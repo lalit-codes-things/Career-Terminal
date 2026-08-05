@@ -1,22 +1,78 @@
 import express from 'express';
 import request from 'supertest';
 import { companyIntelligenceRouter } from '../company-intelligence.routes';
+import { prisma } from '../../config/database';
+
+jest.mock('../../config/database', () => ({
+  prisma: {
+    company: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    canonicalCompany: {
+      findUnique: jest.fn(),
+    },
+    companyIdentifier: {
+      findMany: jest.fn(),
+    },
+    companySignal: {
+      findMany: jest.fn(),
+    },
+    companyAddress: {
+      findMany: jest.fn(),
+    },
+  },
+}));
+
+const mockPrisma = prisma as unknown as {
+  company: { findUnique: jest.Mock; findMany: jest.Mock; count: jest.Mock };
+  canonicalCompany: { findUnique: jest.Mock };
+  companyIdentifier: { findMany: jest.Mock };
+  companySignal: { findMany: jest.Mock };
+  companyAddress: { findMany: jest.Mock };
+};
 
 const app = express();
 app.use(express.json());
 app.use('/api/company-intelligence', companyIntelligenceRouter);
 
 describe('Company Intelligence API', () => {
-  it('GET /lookup/:id returns wrapped response', async () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('GET /lookup/:id returns wrapped response for existing company', async () => {
+    mockPrisma.company.findUnique.mockResolvedValue({
+      id: 'C123',
+      name: 'Example Corp',
+      domain: 'example.com',
+      industry: 'Software',
+      headquarters: 'Remote',
+      website: 'https://example.com',
+    });
+
     const res = await request(app).get('/api/company-intelligence/lookup/C123');
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe('C123');
     expect(res.body.version).toBe('1.0.0');
-    expect(res.body.provenance).toContain('internal');
+    expect(res.body.provenance).toContain('database');
     expect(res.body.timestamp).toBeDefined();
   });
 
+  it('GET /lookup/:id returns not-found for missing company', async () => {
+    mockPrisma.company.findUnique.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/company-intelligence/lookup/C999');
+    expect(res.status).toBe(200);
+    expect(res.body.data.found).toBe(false);
+  });
+
   it('GET /search returns wrapped response', async () => {
+    mockPrisma.company.findMany.mockResolvedValue([
+      { id: 'C1', name: 'Test Co', domain: 'test.com' },
+    ]);
+
     const res = await request(app).get('/api/company-intelligence/search?q=test');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
@@ -38,10 +94,15 @@ describe('Company Intelligence API', () => {
   });
 
   it('POST /bulk-lookup returns bulk results', async () => {
+    mockPrisma.company.findMany.mockResolvedValue([
+      { id: 'C1', name: 'Company One', domain: 'co1.com' },
+    ]);
+
     const res = await request(app).post('/api/company-intelligence/bulk-lookup').send({ ids: ['C1', 'C2'] });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data[0]).toMatchObject({ requestedId: 'C1' });
+    expect(res.body.data[1]).toMatchObject({ requestedId: 'C2', found: false });
   });
 
   it('GET /metadata returns metadata envelope', async () => {

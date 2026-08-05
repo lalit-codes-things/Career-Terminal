@@ -7,10 +7,10 @@ import {
 function makeEmail(overrides: Partial<ClassifiableEmail> = {}): ClassifiableEmail {
   return {
     emailId: 'email-1',
-    sender: 'recruiting@stripe.com',
+    sender: 'recruiting@example-organization.com',
     subject: 'Application received for Senior Backend Engineer',
     bodyText:
-      'Hi Maya Chen, thanks for applying to Stripe. We are reviewing your application for the Engineering team in New York. Please complete your assessment by March 15, 2026.',
+      'Hi Maya Chen, thanks for applying to example-organization. We are reviewing your application for the Engineering team in New York. Please complete your assessment by March 15, 2026.',
     ...overrides,
   };
 }
@@ -23,18 +23,18 @@ describe('JobApplicationExtractor', () => {
       emailId: 'email-1',
       category: JobEmailCategory.JOB_APPLICATION,
       confidence: 0.95,
-      detectedCompany: 'Stripe',
+      detectedCompany: 'example-organization',
       detectedRole: 'Senior Backend Engineer',
     });
 
-    expect(application.company.name).toBe('Stripe');
-    expect(application.company.domain).toBe('stripe.com');
+    expect(application.company.name).toBe('example-organization');
+    expect(application.company.domain).toBe('example-organization.com');
     expect(application.role.title).toBe('Senior Backend Engineer');
     expect(application.role.department).toBe('Engineering');
     expect(application.status).toBe(JobApplicationStatus.APPLIED);
     expect(application.appliedDate).toBeInstanceOf(Date);
     expect(application.recruiter.name).toBe('Maya Chen');
-    expect(application.recruiter.email).toBe('maya@stripe.com');
+    expect(application.recruiter.email).toBe('maya@example-organization.com');
     expect(application.sourceEmailId).toBe('email-1');
   });
 
@@ -53,7 +53,7 @@ describe('JobApplicationExtractor', () => {
         emailId: 'email-2',
         category: JobEmailCategory.INTERVIEW_INVITATION,
         confidence: 0.94,
-        detectedCompany: 'Stripe',
+        detectedCompany: 'example-organization',
         detectedRole: 'Product Manager',
       },
     );

@@ -31,7 +31,7 @@ export class GmailEmailProcessor implements EmailProcessor {
       receivedAt: email.receivedAt,
       threadId: email.threadId ?? undefined,
     };
-    const classification = jobEmailClassifier.classify(classifiableEmail);
+    const classification = await jobEmailClassifier.classify(classifiableEmail);
     if (classification.category === JobEmailCategory.NOT_JOB_RELATED) {
       return;
     }

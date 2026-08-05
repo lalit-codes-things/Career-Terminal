@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import type { PromptVersion, PromptRegistryEntry, PromptExperiment, PromptExperimentStatus } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { PromptVersion, PromptRegistryEntry, PromptExperiment, PromptExperimentStatus } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class PromptRegistryService {
   private readonly registry = new Map<string, PromptRegistryEntry>();

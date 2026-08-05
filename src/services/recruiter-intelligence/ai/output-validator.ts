@@ -61,7 +61,7 @@ export class OutputValidator {
       }
       if (typeof f['confidence'] !== 'number') {
         errors.push({ field: `fields[${i}].confidence`, message: 'confidence must be a number', severity: 'error' });
-      } else if ((f['confidence'] as number) < 0 || (f['confidence'] as number) > 1) {
+      } else if ((f['confidence']) < 0 || (f['confidence']) > 1) {
         warnings.push({ field: `fields[${i}].confidence`, message: 'confidence should be between 0.0 and 1.0' });
       }
       if (!Array.isArray(f['evidence'])) {

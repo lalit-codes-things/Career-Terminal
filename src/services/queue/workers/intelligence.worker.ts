@@ -41,6 +41,7 @@ export async function processIntelligenceJob(job: Job<IntelligenceJobPayload>): 
     switch (type) {
       case 'GENERATE_EMBEDDING': {
         if (!targetId || !targetType) break;
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const text = String((metadata as Record<string, unknown>)?.['text'] ?? targetId);
         const entityType = resolveEntityType(targetType);
         await hybridRetrievalService.embed(text, targetId, entityType, userId).catch((err) => {
@@ -54,6 +55,7 @@ export async function processIntelligenceJob(job: Job<IntelligenceJobPayload>): 
 
       case 'MATCH_RESUME': {
         if (!targetId) break;
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const resumeText = String((metadata as Record<string, unknown>)?.['resumeText'] ?? '');
         if (!resumeText) {
           logger.warn('[IntelligenceWorker] MATCH_RESUME job missing resumeText', { targetId });
@@ -72,6 +74,7 @@ export async function processIntelligenceJob(job: Job<IntelligenceJobPayload>): 
 
       case 'MATCH_SKILLS': {
         if (!targetId) break;
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const text = String((metadata as Record<string, unknown>)?.['text'] ?? '');
         await Promise.allSettled([
           aiTaxonomyService.matchSkills(text, userId, targetId),
@@ -86,6 +89,7 @@ export async function processIntelligenceJob(job: Job<IntelligenceJobPayload>): 
           userId,
           entityId: targetId,
           entityType: resolveCapabilityEntityType(targetType ?? 'recruiter'),
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           content: String((metadata as Record<string, unknown>)?.['content'] ?? targetId),
           plannerContext: { triggeredBy: 'intelligence_worker', jobId: job.id },
         };
@@ -99,6 +103,7 @@ export async function processIntelligenceJob(job: Job<IntelligenceJobPayload>): 
           userId,
           entityId: targetId,
           entityType: resolveCapabilityEntityType(targetType ?? 'opportunity'),
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           content: String((metadata as Record<string, unknown>)?.['content'] ?? targetId),
           plannerContext: { triggeredBy: 'intelligence_worker', jobId: job.id },
         };

@@ -1,6 +1,6 @@
-import { CrossEpicIntelligenceIntegrationService } from '../cross-epic/cross-epic-integration.service';
-import { EpicLinkService } from '../cross-epic/epic-link.service';
-import { IntelligenceBrokerService } from '../cross-epic/intelligence-broker.service';
+import { CrossEpicIntelligenceIntegrationService } from '../../cross-epic/cross-epic-integration.service';
+import { EpicLinkService } from '../../cross-epic/epic-link.service';
+import { IntelligenceBrokerService } from '../../cross-epic/intelligence-broker.service';
 
 describe('Cross-Epic Intelligence Integration', () => {
   let service: CrossEpicIntelligenceIntegrationService;
@@ -59,7 +59,7 @@ describe('Cross-Epic Intelligence Integration', () => {
       });
 
       expect(result.results.length).toBeGreaterThan(0);
-      expect(result.results[0].sourceEpic).toBe('recruiter-intelligence');
+      expect(result.results[0]!.sourceEpic).toBe('recruiter-intelligence');
       expect(result.totalConfidence).toBeGreaterThan(0);
     });
 
@@ -175,8 +175,8 @@ describe('Cross-Epic Intelligence Integration', () => {
 
       expect(aToB.length).toBe(1);
       expect(bToA.length).toBe(1);
-      expect(aToB[0].sourceEpic).toBe('resume-intelligence');
-      expect(bToA[0].sourceEpic).toBe('recruiter-intelligence');
+      expect(aToB[0]!.sourceEpic).toBe('resume-intelligence');
+      expect(bToA[0]!.sourceEpic).toBe('recruiter-intelligence');
     });
 
     test('removeExpiredLinks prunes expired links', async () => {
@@ -313,8 +313,8 @@ describe('Cross-Epic Intelligence Integration', () => {
           maxResults: 10,
           requireEvidence: true,
         },
-        integrationService,
-      );
+         integrationService as any,
+       );
 
       expect(result.query.sourceEpic).toBe('recruiter-intelligence');
       expect(result.enrichedIntelligence).toBeDefined();
@@ -352,7 +352,7 @@ describe('Cross-Epic Intelligence Integration', () => {
           minConfidence: 0.3,
           requireEvidence: true,
         },
-        integrationService,
+         integrationService as any,
       );
 
       expect(result.enrichedIntelligence.length).toBeLessThanOrEqual(5);

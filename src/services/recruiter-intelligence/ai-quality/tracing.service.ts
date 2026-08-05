@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { TraceSpan, TraceEvent, InferenceLogEntry } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { TraceSpan, TraceEvent, InferenceLogEntry } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class TracingService {
   private readonly spans = new Map<string, TraceSpan>();

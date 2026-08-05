@@ -50,7 +50,7 @@ export class CompanyIntelligenceService {
 
     return {
       companyId,
-      score: scoreField ? Number(scoreField.value) || result.results[0]?.confidence ?? 0 : 0,
+      score: scoreField ? (Number(scoreField.value) || result.results[0]?.confidence) ?? 0 : 0,
       confidence: result.results[0]?.confidence ?? 0,
       signals: result.results.flatMap((r) => r.fields.map((f) => `${f.name}: ${JSON.stringify(f.value)}`)),
       planId: result.planId,
@@ -80,7 +80,7 @@ export class CompanyIntelligenceService {
 
     return {
       companyId,
-      score: scoreField ? Number(scoreField.value) || result.results[0]?.confidence ?? 0.5 : 0.5,
+      score: scoreField ? (Number(scoreField.value) || result.results[0]?.confidence) ?? 0.5 : 0.5,
       confidence: result.results[0]?.confidence ?? 0,
       signals: result.results.flatMap((r) => r.fields.map((f) => `${f.name}: ${JSON.stringify(f.value)}`)),
       planId: result.planId,

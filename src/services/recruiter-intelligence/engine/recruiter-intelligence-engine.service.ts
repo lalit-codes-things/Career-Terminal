@@ -290,7 +290,8 @@ export class RecruiterIntelligenceEngineService {
     reasoning: RecruiterReasoningResult,
   ): HiringFocusProfile {
     const domainFacts = byType.get('hiring_domain') ?? [];
-    const domains = domainFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['domain'] ?? f.rawValue));
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const domains = domainFacts.map((f) => String((f.structuredValue)['domain'] ?? f.rawValue));
     const roles = reasoning.hiringFocus.value;
 
     return {
@@ -308,8 +309,10 @@ export class RecruiterIntelligenceEngineService {
   ): TechnicalFocusProfile {
     const techFacts = byType.get('technology') ?? [];
     const skillFacts = byType.get('skill') ?? [];
-    const technologies = techFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['name'] ?? f.rawValue));
-    const skills = skillFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['name'] ?? f.rawValue));
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const technologies = techFacts.map((f) => String((f.structuredValue)['name'] ?? f.rawValue));
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const skills = skillFacts.map((f) => String((f.structuredValue)['name'] ?? f.rawValue));
 
     return {
       technologies: [...new Set([...technologies, ...reasoning.technicalDomains.value])],
@@ -499,7 +502,8 @@ export class RecruiterIntelligenceEngineService {
     const signals: CandidateFitSignal[] = [];
 
     for (const techFact of byType.get('technology') ?? []) {
-      const name = String((techFact.structuredValue as Record<string, unknown>)['name'] ?? techFact.rawValue);
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      const name = String((techFact.structuredValue)['name'] ?? techFact.rawValue);
       signals.push({
         signal: `${name} proficiency`,
         category: 'technical',
@@ -510,7 +514,8 @@ export class RecruiterIntelligenceEngineService {
     }
 
     for (const skillFact of byType.get('skill') ?? []) {
-      const name = String((skillFact.structuredValue as Record<string, unknown>)['name'] ?? skillFact.rawValue);
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      const name = String((skillFact.structuredValue)['name'] ?? skillFact.rawValue);
       signals.push({
         signal: `${name} experience`,
         category: 'technical',
@@ -521,7 +526,8 @@ export class RecruiterIntelligenceEngineService {
     }
 
     for (const locFact of byType.get('hiring_location') ?? []) {
-      const loc = String((locFact.structuredValue as Record<string, unknown>)['location'] ?? locFact.rawValue);
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      const loc = String((locFact.structuredValue)['location'] ?? locFact.rawValue);
       signals.push({
         signal: `Based in or willing to relocate to ${loc}`,
         category: 'location',
@@ -589,6 +595,7 @@ export class RecruiterIntelligenceEngineService {
     return {
       summary: fieldMap.has('summary')
         ? {
+            // eslint-disable-next-line @typescript-eslint/no-base-to-string
             text: String(fieldMap.get('summary') ?? ''),
             confidence: 0.82,
             evidenceFactIds: facts.slice(0, 3).map((f) => f.factId),

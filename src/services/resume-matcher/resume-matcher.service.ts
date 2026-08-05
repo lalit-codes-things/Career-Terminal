@@ -1,27 +1,12 @@
-import { TokenOverlapMatcher } from './embeddings';
+import { randomUUID } from 'crypto';
+import type { ExtractionInput, ExtractionOutput, ExtractedField } from '../recruiter-intelligence/ai/types';
+import { pipeline } from '../recruiter-intelligence/ai/pipeline.factory';
 import { TokenOverlapMatcher } from './embeddings';
 import type { MatchScore, ParsedJob, ParsedResume } from './models';
 import { factService } from '../fact.service';
 import { snapshotService } from '../snapshot.service';
 import { logger } from '../../lib/logger';
-import {
-  getJobSkillLexicon,
-  getResumeSkillLexicon,
-  getJobOccupationLexicon,
-  getResumeOccupationLexicon,
-} from '../../config/resume-lexicon';
 import { documentExtractionService } from '../document/document-extraction.service';
-
-const EXPERIENCE_PATTERNS = [
-  /(.+?)\s+at\s+(.+?)\s*\((.+?)\)/i,
-  /(.+?)\s*[-–—]\s*(.+?)\s*\((.+?)\)/i,
-  /(\d{4})\s*[-–—]\s*(\d{4}|present|current)\s*[-–—]\s*(.+?)\s*[-–—]\s*(.+)/i,
-];
-
-const EDUCATION_PATTERNS = [
-  /\b(bachelor|b\.s\.?|b\.a\.?|master|m\.s\.?|m\.a\.?|ph\.d\.?|associate|diploma|certificate|mba|jd|md|dds|dvm)\b(?:\s+of|\s+in)?\s*([^,\n.]*)/i,
-  /\b([^,\n.]+?)\b(?:\s+university|\s+college|\s+institute|\s+school)\b/i,
-];
 
 export class ResumeMatcherService {
   private tokenOverlapMatcher: TokenOverlapMatcher;
@@ -30,61 +15,21 @@ export class ResumeMatcherService {
     this.tokenOverlapMatcher = new TokenOverlapMatcher();
   }
 
-  /**
-   * Delegates to DocumentExtractionService — single source of truth for
-   * turning binary buffers into raw text.
-   */
   public async extractTextFromBuffer(buffer: Buffer, mimetype: string): Promise<string> {
     const { rawText } = await documentExtractionService.extract(buffer, mimetype);
     return rawText;
   }
 
-  /**
-   * Parses the raw resume text into a structured format.
-   * Only includes evidence-backed facts — never invents role, company,
-   * years, education, or skills not present in the source text.
-   */
   public async parseResume(text: string): Promise<ParsedResume> {
-    const lowerText = text.toLowerCase();
-    const skills = await this.matchTerms(lowerText, await getResumeSkillLexicon());
-    const occupations = await this.matchTerms(lowerText, await getResumeOccupationLexicon());
-    const technologies = skills;
-    const experience = this.extractExperienceHints(text);
-    const education = this.extractEducationHints(text);
-
-    return {
-      skills,
-      technologies,
-      occupations,
-      experience,
-      education,
-      keywords: [...skills, ...technologies, ...occupations],
-    };
+    const output = await this.extractResume(text);
+    return this.buildParsedResume(output);
   }
 
-  /**
-   * Parses the raw job description text.
-   */
   public async parseJobDescription(text: string): Promise<ParsedJob> {
-    const lowerText = text.toLowerCase();
-    const skills = await this.matchTerms(lowerText, await getJobSkillLexicon());
-    const occupations = await this.matchTerms(lowerText, await getJobOccupationLexicon());
-    const technologies = skills;
-    const minExperience = this.inferMinimumExperience(lowerText);
-
-    return {
-      requirements: [],
-      skills,
-      technologies,
-      occupations,
-      minExperience,
-      keywords: [...skills, ...technologies, ...occupations],
-    };
+    const output = await this.extractResume(text);
+    return this.buildParsedJob(output);
   }
 
-  /**
-   * Scores the resume against the job description.
-   */
   public async scoreMatch(resumeText: string, jobText: string): Promise<MatchScore> {
     const parsedResume = await this.parseResume(resumeText);
     const parsedJob = await this.parseJobDescription(jobText);
@@ -135,10 +80,10 @@ export class ResumeMatcherService {
       parsedJob.occupations.length > 0 ? occupationScoreSum / parsedJob.occupations.length : 1.0;
 
     const explicitExperience = parsedResume.experience.filter(
-      (exp) => exp.raw && exp.raw.trim().length > 0,
+      (exp) => exp.years > 0,
     );
     const totalExpYears = explicitExperience.reduce((sum, exp) => sum + exp.years, 0);
-    let experienceMatch =
+    const experienceMatch =
       parsedJob.minExperience > 0 ? Math.min(totalExpYears / parsedJob.minExperience, 1.0) : 1.0;
 
     const overallScore =
@@ -192,9 +137,11 @@ export class ResumeMatcherService {
     factIds: string[];
   }> {
     const text = await this.extractTextFromBuffer(input.fileBuffer, input.mimeType);
-    const skills = await this.detectSkills(text);
-    const experiences = this.extractExperiences(text);
-    const education = this.extractEducation(text);
+    const output = await this.extractResume(text);
+
+    const skills = this.extractStringFields(output, 'skill');
+    const experiences = this.extractExperienceFields(output);
+    const education = this.extractEducationFields(output);
     const factIds = await this.storeFacts(
       input.userId,
       input.resumeVersionId,
@@ -222,171 +169,107 @@ export class ResumeMatcherService {
     return { skills, experiences, education, factIds };
   }
 
-  private async detectSkills(text: string): Promise<string[]> {
-    const lowerText = text.toLowerCase();
-    const found = new Set<string>();
-    for (const skill of [...(await getResumeSkillLexicon())]) {
-      if (this.termMatches(lowerText, skill)) {
-        found.add(skill);
-      }
+  private async extractResume(text: string): Promise<ExtractionOutput> {
+    const input: ExtractionInput = {
+      extractionId: randomUUID(),
+      tenantId: 'default',
+      sourceType: 'document',
+      sourceId: randomUUID(),
+      content: text,
+      metadata: {},
+      requestedAt: new Date(),
+    };
+
+    const variables: Record<string, string> = {
+      content: text,
+    };
+
+    return pipeline.extract('resume-extraction', input, variables);
+  }
+
+  private buildParsedResume(output: ExtractionOutput): ParsedResume {
+    const skills = this.extractStringFields(output, 'skill');
+    const technologies = this.extractStringFields(output, 'technology');
+    const occupations = this.extractStringFields(output, 'occupation');
+    const experiences = this.extractExperienceFields(output);
+    const education = this.extractEducationFields(output);
+
+    return {
+      skills,
+      technologies,
+      occupations,
+      experience: experiences,
+      education,
+      keywords: [...skills, ...technologies, ...occupations],
+    };
+  }
+
+  private buildParsedJob(output: ExtractionOutput): ParsedJob {
+    const skills = this.extractStringFields(output, 'skill');
+    const technologies = this.extractStringFields(output, 'technology');
+    const occupations = this.extractStringFields(output, 'occupation');
+    const minExperience = this.inferMinimumExperience(output);
+
+    return {
+      requirements: [],
+      skills,
+      technologies,
+      occupations,
+      minExperience,
+      keywords: [...skills, ...technologies, ...occupations],
+    };
+  }
+
+  private extractStringFields(output: ExtractionOutput, fieldName: string): string[] {
+    return output.fields
+      .filter((f: ExtractedField) => f.field === fieldName)
+      .map((f: ExtractedField) => (typeof f.value === 'string' ? f.value : ''))
+      .filter((v: string) => v.length > 0);
+  }
+
+  private extractExperienceFields(output: ExtractionOutput): ParsedResume['experience'] {
+    return output.fields.filter((f: ExtractedField) => f.field === 'experience').map((f: ExtractedField) => {
+      const rawValue = f.rawValue;
+      const value = f.value as Record<string, unknown> | undefined;
+      const years = typeof value?.['years'] === 'number' ? value['years'] : 0;
+      const role = typeof value?.['role'] === 'string' ? value['role'] : null;
+      const company = typeof value?.['company'] === 'string' ? value['company'] : null;
+      const dates = typeof value?.['dates'] === 'string' ? value['dates'] : null;
+      return {
+        role,
+        company,
+        dates,
+        years,
+        raw: rawValue,
+      };
+    });
+  }
+
+  private extractEducationFields(output: ExtractionOutput): ParsedResume['education'] {
+    return output.fields.filter((f: ExtractedField) => f.field === 'education').map((f: ExtractedField) => {
+      const rawValue = f.rawValue;
+      const value = f.value as Record<string, unknown> | undefined;
+      const degree = typeof value?.['degree'] === 'string' ? value['degree'] : null;
+      const field = typeof value?.['field'] === 'string' ? value['field'] : null;
+      const institution =
+        typeof value?.['institution'] === 'string' ? value['institution'] : null;
+      const year = typeof value?.['year'] === 'string' ? value['year'] : null;
+      return {
+        degree,
+        field,
+        institution,
+        year,
+        raw: rawValue,
+      };
+    });
+  }
+
+  private inferMinimumExperience(output: ExtractionOutput): number {
+    const expField = output.fields.find((f: ExtractedField) => f.field === 'min_experience');
+    if (expField && typeof expField.value === 'number') {
+      return expField.value;
     }
-    return Array.from(found);
-  }
-
-  private async matchTerms(text: string, lexicon: string[]): Promise<string[]> {
-    const found = new Set<string>();
-    for (const term of lexicon) {
-      if (this.termMatches(text, term)) {
-        found.add(term);
-      }
-    }
-    return Array.from(found);
-  }
-
-  private termMatches(text: string, term: string): boolean {
-    if (!term) return false;
-    const normalized = term.toLowerCase().trim();
-    if (!normalized || normalized.length < 3) return false;
-    if (text.includes(normalized)) return true;
-
-    const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
-    return pattern.test(text);
-  }
-
-  private extractExperienceHints(text: string): Array<{
-    role: string | null;
-    company: string | null;
-    dates: string | null;
-    years: number;
-    raw: string;
-  }> {
-    const hints: Array<{
-      role: string | null;
-      company: string | null;
-      dates: string | null;
-      years: number;
-      raw: string;
-    }> = [];
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      for (const pattern of EXPERIENCE_PATTERNS) {
-        const match = trimmed.match(pattern);
-        if (match) {
-          const yearsMatch = trimmed.match(/(\d+)\s*(?:years?|yrs?|y)/i);
-          hints.push({
-            role: (match[1] ?? null)?.trim() || null,
-            company: (match[2] ?? null)?.trim() || null,
-            dates: (match[3] ?? null)?.trim() || null,
-            raw: trimmed,
-            years: yearsMatch ? parseInt(yearsMatch[1] ?? '0', 10) : 0,
-          });
-          break;
-        }
-      }
-    }
-    return hints;
-  }
-
-  private extractEducationHints(text: string): Array<{
-    degree: string | null;
-    field: string | null;
-    institution: string | null;
-    year: string | null;
-    raw: string;
-  }> {
-    const education: Array<{
-      degree: string | null;
-      field: string | null;
-      institution: string | null;
-      year: string | null;
-      raw: string;
-    }> = [];
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      for (const pattern of EDUCATION_PATTERNS) {
-        const match = trimmed.match(pattern);
-        if (match) {
-          education.push({
-            degree: (match[1] ?? null)?.trim() || null,
-            field: (match[2] ?? null)?.trim() || null,
-            institution: (match[2] ?? match[1] ?? null)?.trim() || null,
-            year: null,
-            raw: trimmed,
-          });
-          break;
-        }
-      }
-    }
-    return education;
-  }
-
-  private inferMinimumExperience(_text: string): number {
     return 0;
-  }
-
-  private extractExperiences(
-    text: string,
-  ): Array<{ role: string | null; company: string | null; dates: string | null; raw: string }> {
-    const experiences: Array<{
-      role: string | null;
-      company: string | null;
-      dates: string | null;
-      raw: string;
-    }> = [];
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      for (const pattern of EXPERIENCE_PATTERNS) {
-        const match = trimmed.match(pattern);
-        if (match) {
-          experiences.push({
-            role: (match[1] ?? null)?.trim() || null,
-            company: (match[2] ?? null)?.trim() || null,
-            dates: (match[3] ?? null)?.trim() || null,
-            raw: trimmed,
-          });
-          break;
-        }
-      }
-    }
-    return experiences;
-  }
-
-  private extractEducation(text: string): Array<{
-    degree: string | null;
-    field: string | null;
-    institution: string | null;
-    year: string | null;
-    raw: string;
-  }> {
-    const education: Array<{
-      degree: string | null;
-      field: string | null;
-      institution: string | null;
-      year: string | null;
-      raw: string;
-    }> = [];
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      for (const pattern of EDUCATION_PATTERNS) {
-        const match = trimmed.match(pattern);
-        if (match) {
-          education.push({
-            degree: (match[1] ?? null)?.trim() || null,
-            field: (match[2] ?? null)?.trim() || null,
-            institution: (match[2] ?? match[1] ?? null)?.trim() || null,
-            year: null,
-            raw: trimmed,
-          });
-          break;
-        }
-      }
-    }
-    return education;
   }
 
   private async storeFacts(
@@ -415,10 +298,10 @@ export class ResumeMatcherService {
       sourceId: resumeVersionId,
       sourceVersion: '1',
       sourceIdentity: resumeVersionId,
-      parserVersion: 'resume-matcher-v1',
-      modelProvider: 'local',
-      modelVersion: 'minimal-compat',
-      promptVersion: 'n/a',
+      parserVersion: 'resume-matcher-v2',
+      modelProvider: 'openrouter',
+      modelVersion: 'ai-extraction',
+      promptVersion: 'resume-extraction@1.0.0',
       schemaVersion: 'epic-4-prompt-3',
     });
 
@@ -432,9 +315,9 @@ export class ResumeMatcherService {
         sourceType: 'RESUME',
         sourceId: resumeVersionId,
         sourceVersion: '1',
-        extractionMethod: 'KEYWORD_MATCH',
-        modelVersion: 'minimal-compat',
-        confidence: 0.5,
+        extractionMethod: 'AI_EXTRACTION',
+        modelVersion: 'ai-extraction',
+        confidence: 0.85,
         evidenceReference: rawText,
         observedAt: new Date(),
       });
@@ -451,9 +334,9 @@ export class ResumeMatcherService {
         sourceType: 'RESUME',
         sourceId: resumeVersionId,
         sourceVersion: '1',
-        extractionMethod: 'REGEX',
-        modelVersion: 'minimal-compat',
-        confidence: 0.4,
+        extractionMethod: 'AI_EXTRACTION',
+        modelVersion: 'ai-extraction',
+        confidence: 0.82,
         evidenceReference: exp.raw,
         observedAt: new Date(),
       });
@@ -470,9 +353,9 @@ export class ResumeMatcherService {
         sourceType: 'RESUME',
         sourceId: resumeVersionId,
         sourceVersion: '1',
-        extractionMethod: 'REGEX',
-        modelVersion: 'minimal-compat',
-        confidence: 0.4,
+        extractionMethod: 'AI_EXTRACTION',
+        modelVersion: 'ai-extraction',
+        confidence: 0.8,
         evidenceReference: edu.raw,
         observedAt: new Date(),
       });

@@ -30,7 +30,6 @@
  */
 
 import { trace, SpanStatusCode, type Span } from '@opentelemetry/api';
-import { setProviderObservabilityHook } from '../../services/company-intelligence/framework/otel';
 
 const TRACER_NAME = 'career-terminal.ai';
 
@@ -94,26 +93,6 @@ export interface AiSpanAttributes {
   [key: string]: string | number | boolean | undefined;
 }
 
-// ── OTel hook for company-intelligence provider events ─────────────────────
-
-/**
- * Install the OTel hook for company-intelligence provider lifecycle events.
- * Call this once during application startup (after initTracing()).
- */
-export function installProviderOtelHook(): void {
-  setProviderObservabilityHook({
-    onProviderEvent(event) {
-      const span = trace.getActiveSpan();
-      if (!span) return;
-      span.addEvent(`provider.${event.type}`, {
-        'provider.key': event.providerKey,
-        'provider.timestamp': event.timestamp,
-        ...flattenAttributes(event.attributes ?? {}),
-      });
-    },
-  });
-}
-
 // ── Private helpers ────────────────────────────────────────────────────────
 
 function applyAttributes(span: Span, attrs: Partial<AiSpanAttributes>): void {
@@ -133,12 +112,4 @@ function applyAttributes(span: Span, attrs: Partial<AiSpanAttributes>): void {
   if (attrs.entityId)              span.setAttribute('ai.entity.id',         attrs.entityId);
   if (attrs.requiresReview != null) span.setAttribute('ai.requires_review', attrs.requiresReview);
   if (attrs.planId)                span.setAttribute('ai.plan.id',           attrs.planId);
-}
-
-function flattenAttributes(obj: Record<string, unknown>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    result[k] = String(v);
-  }
-  return result;
 }

@@ -435,7 +435,7 @@ export class GmailIngestionService implements IngestionService {
               receivedAt: data.receivedAt,
               threadId: data.threadId,
             };
-            const classification = jobEmailClassifier.classify(classifiableEmail);
+            const classification = await jobEmailClassifier.classify(classifiableEmail);
             if (classification.category !== JobEmailCategory.NOT_JOB_RELATED) {
               await applicationTrackingService.processEmailForJobApplication(
                 classifiableEmail,

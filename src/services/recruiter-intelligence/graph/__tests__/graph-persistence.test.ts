@@ -83,7 +83,6 @@ describe('RecruiterKnowledgeGraphService — persistence', () => {
     const recruiterNodeId = await svc.findNodeId('recruiter', recruiterId);
     if (!recruiterNodeId) throw new Error('Recruiter node not found');
 
-    const beforeEdge = new Date(Date.now() - 1000);
     const { edges } = await svc.reconstruct(new Date());
 
     // All returned edges should have validFrom <= now and no expired validTo

@@ -55,7 +55,7 @@ describe('ApplicationTrackingWorker - PROCESS_EMAIL', () => {
     };
 
     (prisma.emailMessage.findUnique as jest.Mock).mockResolvedValue(mockEmail);
-    (jobEmailClassifier.classify as jest.Mock).mockReturnValue({
+    (jobEmailClassifier.classify as jest.Mock).mockResolvedValue({
       category: 'INTERVIEW_INVITATION',
     });
 
@@ -79,7 +79,7 @@ describe('ApplicationTrackingWorker - PROCESS_EMAIL', () => {
     };
 
     (prisma.emailMessage.findUnique as jest.Mock).mockResolvedValue(mockEmail);
-    (jobEmailClassifier.classify as jest.Mock).mockReturnValue({
+    (jobEmailClassifier.classify as jest.Mock).mockResolvedValue({
       category: 'NOT_JOB_RELATED',
     });
 

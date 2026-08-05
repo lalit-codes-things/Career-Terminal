@@ -5,7 +5,7 @@ import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { validateQuery, validateParams, validateBody } from '../middleware/validate';
 import { recruiterService } from '../services/recruiter';
 import { generalApiLimiter, expensiveLimiter } from '../middleware/rate-limiter';
-import { planner, type PlannerIntent } from '../services/planner';
+import { planner } from '../services/planner';
 
 export const recruitersRouter = Router();
 
@@ -156,7 +156,7 @@ recruitersRouter.post(
         entityId: recruiterId,
         entityType: 'recruiter',
         content: content ?? `recruiter_id:${recruiterId}`,
-        intent: intent as PlannerIntent | undefined,
+        intent: intent,
         context,
       });
 

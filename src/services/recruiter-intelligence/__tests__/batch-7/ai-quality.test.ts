@@ -1,11 +1,13 @@
-import { EvaluationFrameworkService } from '../ai-quality/evaluation-framework.service';
-import { PromptRegistryService } from '../ai-quality/prompt-registry.service';
-import { ModelRegistryService } from '../ai-quality/model-registry.service';
-import { HallucinationDetector } from '../ai-quality/hallucination-detector.service';
-import { ConfidenceCalibrator } from '../ai-quality/confidence-calibrator.service';
-import { TracingService } from '../ai-quality/tracing.service';
-import { FeedbackPipelineService } from '../ai-quality/feedback-pipeline.service';
-import { BenchmarkSuiteService } from '../ai-quality/benchmark-suite.service';
+import { EvaluationFrameworkService } from '../../ai-quality/evaluation-framework.service';
+import { PromptRegistryService } from '../../ai-quality/prompt-registry.service';
+import { ModelRegistryService } from '../../ai-quality/model-registry.service';
+import { HallucinationDetector } from '../../ai-quality/hallucination-detector.service';
+import { ConfidenceCalibrator } from '../../ai-quality/confidence-calibrator.service';
+import { TracingService } from '../../ai-quality/tracing.service';
+import { FeedbackPipelineService } from '../../ai-quality/feedback-pipeline.service';
+import { BenchmarkSuiteService } from '../../ai-quality/benchmark-suite.service';
+import type { ModelEvaluation, RegressionTestResult } from '../../../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { ExtractionOutput } from '../../ai/types';
 
 describe('AI Quality Infrastructure', () => {
   let evaluationFramework: EvaluationFrameworkService;
@@ -100,19 +102,19 @@ describe('AI Quality Infrastructure', () => {
 
     test('compareProviders returns the best provider', async () => {
       const results = new Map<string, any[]>();
-      results.set('openai', [{ evaluationId: 'e1', score: 0.92, dimension: 'accuracy' }]);
-      results.set('anthropic', [{ evaluationId: 'e2', score: 0.88, dimension: 'accuracy' }]);
+      results.set('openrouter', [{ evaluationId: 'e1', score: 0.92, dimension: 'accuracy' }]);
+      results.set('openrouter', [{ evaluationId: 'e2', score: 0.88, dimension: 'accuracy' }]);
 
       const comparison = await evaluationFramework.compareProviders(
-        ['openai', 'anthropic'],
+        ['openrouter', 'openrouter'],
         ['gpt-4', 'claude-3'],
         'template-1',
         results,
       );
 
-      expect(comparison.winner).toBe('openai');
-      expect(comparison.providers).toContain('openai');
-      expect(comparison.providers).toContain('anthropic');
+      expect(comparison.winner).toBe('openrouter');
+      expect(comparison.providers).toContain('openrouter');
+      expect(comparison.providers).toContain('openrouter');
     });
 
     test('compareModels returns the best model', async () => {
@@ -279,7 +281,7 @@ describe('AI Quality Infrastructure', () => {
     test('register stores a model entry', () => {
       const model = {
         modelId: 'model-1',
-        provider: 'openai' as const,
+        provider: 'openrouter' as const,
         modelName: 'gpt-4',
         tier: 'powerful' as const,
         capabilities: ['text-generation', 'reasoning'],
@@ -299,7 +301,7 @@ describe('AI Quality Infrastructure', () => {
     test('getBestModel returns the best model for a dimension', () => {
       modelRegistry.register({
         modelId: 'model-1',
-        provider: 'openai',
+        provider: 'openrouter',
         modelName: 'gpt-4',
         tier: 'powerful',
         capabilities: ['text-generation'],
@@ -312,7 +314,7 @@ describe('AI Quality Infrastructure', () => {
 
       modelRegistry.register({
         modelId: 'model-2',
-        provider: 'anthropic',
+        provider: 'openrouter',
         modelName: 'claude-3',
         tier: 'powerful',
         capabilities: ['text-generation'],
@@ -328,7 +330,7 @@ describe('AI Quality Infrastructure', () => {
         modelId: 'model-1',
         templateId: 'template-1',
         phase: 'offline' as const,
-        results: new Map([['accuracy', { evaluationId: 'e1', phase: 'offline', dimension: 'accuracy', score: 0.90, confidence: 0.85, evidence: [], metadata: {}, recordedAt: new Date() }]]),
+        results: new Map([['accuracy', { evaluationId: 'e1', phase: 'offline', dimension: 'accuracy', score: 0.90, confidence: 0.85, evidence: [], metadata: {}, recordedAt: new Date() }]]) as any,
         overallScore: 0.90,
         completedAt: new Date(),
       };
@@ -338,10 +340,10 @@ describe('AI Quality Infrastructure', () => {
         modelId: 'model-2',
         templateId: 'template-1',
         phase: 'offline' as const,
-        results: new Map([['accuracy', { evaluationId: 'e2', phase: 'offline', dimension: 'accuracy', score: 0.95, confidence: 0.90, evidence: [], metadata: {}, recordedAt: new Date() }]]),
+        results: new Map([['accuracy', { evaluationId: 'e2', phase: 'offline', dimension: 'accuracy', score: 0.95, confidence: 0.90, evidence: [], metadata: {}, recordedAt: new Date() }]]) as any,
         overallScore: 0.95,
         completedAt: new Date(),
-      };
+      } as ModelEvaluation;
 
       modelRegistry.recordEvaluation(eval1);
       modelRegistry.recordEvaluation(eval2);
@@ -373,7 +375,7 @@ describe('AI Quality Infrastructure', () => {
         requiresHumanReview: false,
       };
 
-      const result = hallucinationDetector.detect(output, ['John Doe']);
+      const result = hallucinationDetector.detect(output as unknown as ExtractionOutput, ['John Doe']);
       expect(result.hasHallucination).toBe(true);
       expect(result.hallucinatedFields).toContain('fabricated');
       expect(result.evidenceSupport['name']).toBeGreaterThan(0);
@@ -399,7 +401,7 @@ describe('AI Quality Infrastructure', () => {
         requiresHumanReview: false,
       };
 
-      const result = hallucinationDetector.detect(output, ['John Doe']);
+      const result = hallucinationDetector.detect(output as unknown as ExtractionOutput, ['John Doe']);
       expect(result.hasHallucination).toBe(false);
       expect(result.hallucinatedFields).toHaveLength(0);
     });
@@ -411,7 +413,7 @@ describe('AI Quality Infrastructure', () => {
         { hasHallucination: true, hallucinatedFields: ['field2'], evidenceSupport: {}, confidence: 0.7, explanation: '', completedAt: new Date() },
       ];
 
-      const rate = hallucinationDetector.computeHallucinationRate(detections);
+      const rate = hallucinationDetector.computeHallucinationRate(detections as any);
       expect(rate).toBe(2 / 3);
     });
   });
@@ -469,7 +471,7 @@ describe('AI Quality Infrastructure', () => {
       const log = tracingService.logInference({
         extractionId: 'ext-1',
         templateId: 'template-1',
-        provider: 'openai',
+        provider: 'openrouter',
         model: 'gpt-4',
         inputTokens: 100,
         outputTokens: 50,
@@ -477,6 +479,7 @@ describe('AI Quality Infrastructure', () => {
         costUsd: 0.01,
         confidence: 0.85,
         requiresReview: false,
+        timestamp: new Date(),
       });
 
       expect(log.logId).toBeDefined();
@@ -507,6 +510,7 @@ describe('AI Quality Infrastructure', () => {
         rating: 4,
         comment: 'Good extraction quality',
         reviewerId: 'reviewer-1',
+        timestamp: new Date(),
       });
 
       expect(feedback.feedbackId).toBeDefined();
@@ -515,17 +519,17 @@ describe('AI Quality Infrastructure', () => {
     });
 
     test('getAverageRating computes correct average', () => {
-      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 5, comment: 'Great', reviewerId: 'r1' });
-      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 3, comment: 'Okay', reviewerId: 'r2' });
+      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 5, comment: 'Great', reviewerId: 'r1', timestamp: new Date() });
+      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 3, comment: 'Okay', reviewerId: 'r2', timestamp: new Date() });
 
       const avg = feedbackPipeline.getAverageRating('ext-1');
       expect(avg).toBe(4);
     });
 
     test('computeFeedbackSummary returns correct summary', () => {
-      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 5, comment: 'Great', reviewerId: 'r1' });
-      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 1, comment: 'Poor', reviewerId: 'r2' });
-      feedbackPipeline.submitFeedback({ extractionId: 'ext-2', rating: 4, comment: 'Good', reviewerId: 'r3' });
+      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 5, comment: 'Great', reviewerId: 'r1', timestamp: new Date() });
+      feedbackPipeline.submitFeedback({ extractionId: 'ext-1', rating: 1, comment: 'Poor', reviewerId: 'r2', timestamp: new Date() });
+      feedbackPipeline.submitFeedback({ extractionId: 'ext-2', rating: 4, comment: 'Good', reviewerId: 'r3', timestamp: new Date() });
 
       const summary = feedbackPipeline.computeFeedbackSummary();
       expect(summary.totalFeedback).toBe(3);
@@ -575,7 +579,7 @@ describe('AI Quality Infrastructure', () => {
       benchmarkSuite.recordRegressionResult(result);
       const results = benchmarkSuite.getRegressionResults('b1');
       expect(results).toHaveLength(1);
-      expect(results[0].passed).toBe(true);
+      expect(results[0]!.passed).toBe(true);
     });
 
     test('getRegressionSummary computes correct summary', () => {
@@ -598,8 +602,8 @@ describe('AI Quality Infrastructure', () => {
       expect(summary.averageScore).toBe(0.85);
     });
 
-    test('runOfflineEvaluation runs evaluation and records results', async () => {
-      const results = await benchmarkSuite.runOfflineEvaluation(
+    test('runOfflineEvaluation runs evaluation and records results', () => {
+      const results = benchmarkSuite.runOfflineEvaluation(
         'benchmark-1',
         'model-1',
         'template-1',
@@ -608,9 +612,9 @@ describe('AI Quality Infrastructure', () => {
       );
 
       expect(results).toHaveLength(3);
-      expect(results[0].passed).toBe(true);
-      expect(results[1].passed).toBe(true);
-      expect(results[2].passed).toBe(true);
+      expect(results[0]!.passed).toBe(true);
+      expect(results[1]!.passed).toBe(true);
+      expect(results[2]!.passed).toBe(true);
     });
   });
 });

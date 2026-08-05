@@ -323,8 +323,10 @@ export class ExtractionPipeline {
           ? Math.max(0, Math.min(1, i['confidence']))
           : 0.5;
         return {
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           field: String(i['attribute'] ?? ''),
           value: i['value'],
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           rawValue: String(i['value'] ?? ''),
           confidence,
           confidenceBand: toConfidenceBand(confidence),
@@ -365,8 +367,10 @@ export class ExtractionPipeline {
         : 0.5;
       const evidence = (field['evidence'] as Array<{ excerpt?: string; confidence?: number }> | undefined) ?? [];
       return {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         field: String(field['field'] ?? ''),
         value: field['value'],
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         rawValue: String(field['rawValue'] ?? field['value'] ?? ''),
         confidence,
         confidenceBand: toConfidenceBand(confidence),

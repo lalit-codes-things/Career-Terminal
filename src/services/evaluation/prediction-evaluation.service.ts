@@ -220,16 +220,16 @@ export class PredictionEvaluationService {
 
       // Provider aggregation
       if (!byProvider[prov]) byProvider[prov] = { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 };
-      byProvider[prov]!.calls++;
-      byProvider[prov]!.inputTokens += p.inputTokens ?? 0;
-      byProvider[prov]!.outputTokens += p.outputTokens ?? 0;
-      byProvider[prov]!.estimatedCostUsd += cost;
+      byProvider[prov].calls++;
+      byProvider[prov].inputTokens += p.inputTokens ?? 0;
+      byProvider[prov].outputTokens += p.outputTokens ?? 0;
+      byProvider[prov].estimatedCostUsd += cost;
 
       // Capability aggregation
       if (!byCapability[cap]) byCapability[cap] = { calls: 0, estimatedCostUsd: 0, avgLatencyMs: 0 };
-      byCapability[cap]!.calls++;
-      byCapability[cap]!.estimatedCostUsd += cost;
-      byCapability[cap]!.avgLatencyMs += p.latencyMs ?? 0;
+      byCapability[cap].calls++;
+      byCapability[cap].estimatedCostUsd += cost;
+      byCapability[cap].avgLatencyMs += p.latencyMs ?? 0;
     }
 
     // Finalize averages
