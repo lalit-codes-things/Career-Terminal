@@ -155,7 +155,7 @@ describe('Prompt 11 — AI extraction pipeline', () => {
       const bad = { fields: [{ field: 'x', value: 'y', rawValue: 'y' }] };
       const result = validator.validateExtractionOutput(bad);
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.field.includes('confidence'))).toBe(true);
+      expect(result.errors.some((e: any) => e.field.includes('confidence'))).toBe(true);
     });
 
     it('validates reasoning output structure', () => {
@@ -175,7 +175,7 @@ describe('Prompt 11 — AI extraction pipeline', () => {
       };
       const result = validator.validateReasoningOutput(bad);
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.field.includes('reasoning'))).toBe(true);
+      expect(result.errors.some((e: any) => e.field.includes('reasoning'))).toBe(true);
     });
 
     it('validates profile output and warns on missing optional fields', () => {
@@ -199,7 +199,7 @@ describe('Prompt 11 — AI extraction pipeline', () => {
   describe('CostTracker', () => {
     it('records usage and computes estimated cost', () => {
       const tracker = new CostTracker();
-      tracker.record({ provider: 'openai', model: 'gpt-4o-mini', templateId: 'tpl-1', tenantId: 'tenant-1', inputTokens: 1000, outputTokens: 500, latencyMs: 300, success: true });
+      tracker.record({ provider: 'openrouter', model: 'gpt-4o-mini', templateId: 'tpl-1', tenantId: 'tenant-1', inputTokens: 1000, outputTokens: 500, latencyMs: 300, success: true });
       expect(tracker.totalCostUsd()).toBeGreaterThan(0);
       expect(tracker.totalTokens()).toBe(1500);
     });
@@ -212,8 +212,8 @@ describe('Prompt 11 — AI extraction pipeline', () => {
 
     it('summarizes multiple records with success rate', () => {
       const tracker = new CostTracker();
-      tracker.record({ provider: 'openai', model: 'gpt-4o-mini', templateId: 't', tenantId: 'x', inputTokens: 100, outputTokens: 50, latencyMs: 100, success: true });
-      tracker.record({ provider: 'openai', model: 'gpt-4o-mini', templateId: 't', tenantId: 'x', inputTokens: 100, outputTokens: 50, latencyMs: 200, success: false, error: 'timeout' });
+      tracker.record({ provider: 'openrouter', model: 'gpt-4o-mini', templateId: 't', tenantId: 'x', inputTokens: 100, outputTokens: 50, latencyMs: 100, success: true });
+      tracker.record({ provider: 'openrouter', model: 'gpt-4o-mini', templateId: 't', tenantId: 'x', inputTokens: 100, outputTokens: 50, latencyMs: 200, success: false, error: 'timeout' });
       const summary = tracker.summarize();
       expect(summary.totalCalls).toBe(2);
       expect(summary.successRate).toBe(0.5);
@@ -427,7 +427,7 @@ describe('Prompt 11 — AI extraction pipeline', () => {
       const fallbackAdapter = new StubAiAdapter();
       const pipeline = new ExtractionPipeline({
         providers: [fallbackAdapter],
-        preferredProvider: 'openai', // not registered — should fall back to stub
+        preferredProvider: 'openrouter', // not registered — should fall back to stub
       });
       for (const t of buildDefaultTemplates()) pipeline.getPromptManager().register(t);
       const input: ExtractionInput = {
@@ -826,7 +826,7 @@ describe('Prompt 13 — AI reasoning & enrichment', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Prompt 14 — Knowledge graph population', () => {
-  function makeGraphService(): KnowledgeGraphPopulationService {
+  function makeGraphService(): any {
     return new KnowledgeGraphPopulationService();
   }
 
@@ -858,65 +858,65 @@ describe('Prompt 14 — Knowledge graph population', () => {
     };
   }
 
-  it('creates recruiter node on first population', () => {
+  it('creates recruiter node on first population', async () => {
     const svc = makeGraphService();
-    svc.populateFromFacts(RECRUITER_ID, []);
-    const graph = svc.getGraph();
+    await svc.populateFromFacts(RECRUITER_ID, []);
+    const graph = await svc.getGraph();
     expect(graph.nodes.size).toBeGreaterThanOrEqual(1);
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID);
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID);
     expect(recruiterNode).toBeDefined();
     expect(recruiterNode!.nodeType).toBe('recruiter');
   });
 
-  it('creates organization node and recruiter_to_organization edge', () => {
+  it('creates organization node and recruiter_to_organization edge', async () => {
     const svc = makeGraphService();
     const facts = [makeRecruiterFact('recruiter_organization', 'Example Corp', { name: 'Example Corp' }, 'example corp')];
-    svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
-    const orgNode = svc.getNodeByKey('organization', 'example corp');
+    await svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const orgNode = await svc.getNodeByKey('organization', 'example corp');
     expect(orgNode).toBeDefined();
     expect(orgNode!.nodeType).toBe('organization');
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID);
-    const edges = svc.getEdgesForNode(recruiterNode!.nodeId);
-    const orgEdge = edges.find((e) => e.relationshipType === 'recruiter_to_organization');
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID);
+    const edges = await svc.getEdgesForNode(recruiterNode!.nodeId);
+    const orgEdge = edges.find((e: any) => e.relationshipType === 'recruiter_to_organization');
     expect(orgEdge).toBeDefined();
     expect(orgEdge!.confidence).toBe(0.85);
   });
 
-  it('creates technology nodes and recruiter_to_technology edges', () => {
+  it('creates technology nodes and recruiter_to_technology edges', async () => {
     const svc = makeGraphService();
     const facts = [
       makeRecruiterFact('technology', 'TypeScript', { name: 'TypeScript' }, 'typescript'),
       makeRecruiterFact('technology', 'AWS', { name: 'AWS' }, 'aws'),
     ];
-    svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
-    expect(svc.getNodeByKey('technology', 'typescript')).toBeDefined();
-    expect(svc.getNodeByKey('technology', 'aws')).toBeDefined();
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID);
-    const edges = svc.getEdgesForNode(recruiterNode!.nodeId);
-    const techEdges = edges.filter((e) => e.relationshipType === 'recruiter_to_technology');
+    await svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    expect(await svc.getNodeByKey('technology', 'typescript')).toBeDefined();
+    expect(await svc.getNodeByKey('technology', 'aws')).toBeDefined();
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID);
+    const edges = await svc.getEdgesForNode(recruiterNode!.nodeId);
+    const techEdges = edges.filter((e: any) => e.relationshipType === 'recruiter_to_technology');
     expect(techEdges).toHaveLength(2);
   });
 
-  it('upserts existing node without duplicating — increments version', () => {
+  it('upserts existing node without duplicating — increments version', async () => {
     const svc = makeGraphService();
     const fact = makeRecruiterFact('recruiter_organization', 'Acme', { name: 'Acme' }, 'acme');
-    svc.populateFromFacts(RECRUITER_ID, [fact], OBSERVED_AT);
-    svc.populateFromFacts(RECRUITER_ID, [fact], new Date(OBSERVED_AT.getTime() + 1000));
+    await svc.populateFromFacts(RECRUITER_ID, [fact], OBSERVED_AT);
+    await svc.populateFromFacts(RECRUITER_ID, [fact], new Date(OBSERVED_AT.getTime() + 1000));
     // Should still be one organization node
-    const orgNode = svc.getNodeByKey('organization', 'acme');
+    const orgNode = await svc.getNodeByKey('organization', 'acme');
     expect(orgNode!.version).toBeGreaterThan(1);
-    const graph = svc.getGraph();
+    const graph = await svc.getGraph();
     const orgNodes = [...graph.nodes.values()].filter((n) => n.externalKey === 'acme');
     expect(orgNodes).toHaveLength(1);
   });
 
-  it('every edge carries confidence, evidence, and provenance', () => {
+  it('every edge carries confidence, evidence, and provenance', async () => {
     const svc = makeGraphService();
     const facts = [makeRecruiterFact('technology', 'Python', { name: 'Python' }, 'python')];
-    svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID)!;
-    const edges = svc.getEdgesForNode(recruiterNode.nodeId);
-    edges.forEach((edge) => {
+    await svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID)!;
+    const edges = await svc.getEdgesForNode(recruiterNode.nodeId);
+    edges.forEach((edge: any) => {
       expect(edge.confidence).toBeGreaterThan(0);
       expect(edge.confidence).toBeLessThanOrEqual(1);
       expect(edge.evidenceJson.length).toBeGreaterThan(0);
@@ -925,13 +925,13 @@ describe('Prompt 14 — Knowledge graph population', () => {
     });
   });
 
-  it('edges have valid temporal ranges (validFrom set)', () => {
+  it('edges have valid temporal ranges (validFrom set)', async () => {
     const svc = makeGraphService();
     const facts = [makeRecruiterFact('skill', 'Leadership', { name: 'Leadership' }, 'leadership')];
-    svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID)!;
-    const edges = svc.getEdgesForNode(recruiterNode.nodeId);
-    edges.forEach((edge) => {
+    await svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID)!;
+    const edges = await svc.getEdgesForNode(recruiterNode.nodeId);
+    edges.forEach((edge: any) => {
       expect(edge.validFrom).toBeInstanceOf(Date);
       if (edge.validTo) {
         expect(edge.validTo.getTime()).toBeGreaterThan(edge.validFrom.getTime());
@@ -939,17 +939,17 @@ describe('Prompt 14 — Knowledge graph population', () => {
     });
   });
 
-  it('validates graph integrity — returns ok:true for valid graph', () => {
+  it('validates graph integrity — returns ok:true for valid graph', async () => {
     const svc = makeGraphService();
-    svc.populateFromFacts(RECRUITER_ID, [
+    await svc.populateFromFacts(RECRUITER_ID, [
       makeRecruiterFact('technology', 'Go', { name: 'Go' }, 'go'),
     ], OBSERVED_AT);
-    expect(svc.validate()).toEqual({ ok: true, errors: [] });
+    expect(await svc.validate()).toEqual({ ok: true, errors: [] });
   });
 
-  it('validate detects missing node referenced by edge', () => {
+  it('validate detects missing node referenced by edge', async () => {
     const svc = makeGraphService();
-    svc.applyIncrementalUpdate({
+    await svc.applyIncrementalUpdate({
       edges: [{
         fromNodeId: 'ghost-node-id',
         toNodeId: 'another-ghost',
@@ -960,19 +960,19 @@ describe('Prompt 14 — Knowledge graph population', () => {
         provenanceJson: { source: 'test', populatedBy: 'test', method: 'manual', templateVersion: '1.0.0', populatedAt: new Date().toISOString() },
       }],
     });
-    const result = svc.validate();
+    const result = await svc.validate();
     expect(result.ok).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some((e) => e.includes('ghost-node-id'))).toBe(true);
+    expect(result.errors.some((e: any) => e.includes('ghost-node-id'))).toBe(true);
   });
 
-  it('historical reconstruction returns only edges active at a given point in time', () => {
+  it('historical reconstruction returns only edges active at a given point in time', async () => {
     const svc = makeGraphService();
     const past = new Date('2026-07-01T00:00:00Z');
     const current = new Date('2026-08-01T00:00:00Z');
     const future = new Date('2026-09-01T00:00:00Z');
 
-    svc.applyIncrementalUpdate({
+    await svc.applyIncrementalUpdate({
       nodes: [
         { nodeType: 'recruiter', externalKey: RECRUITER_ID, label: 'Ada', metadata: {} },
         { nodeType: 'organization', externalKey: 'past-corp', label: 'Past Corp', metadata: {} },
@@ -980,11 +980,11 @@ describe('Prompt 14 — Knowledge graph population', () => {
       ],
     });
 
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID)!;
-    const pastOrgNode = svc.getNodeByKey('organization', 'past-corp')!;
-    const currentOrgNode = svc.getNodeByKey('organization', 'current-corp')!;
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID)!;
+    const pastOrgNode = await svc.getNodeByKey('organization', 'past-corp')!;
+    const currentOrgNode = await svc.getNodeByKey('organization', 'current-corp')!;
 
-    svc.applyIncrementalUpdate({
+    await svc.applyIncrementalUpdate({
       edges: [
         {
           fromNodeId: recruiterNode.nodeId,
@@ -1010,41 +1010,41 @@ describe('Prompt 14 — Knowledge graph population', () => {
 
     // At a point before current was created (between past and current)
     const midPoint = new Date('2026-07-15T00:00:00Z');
-    const snapshot = svc.reconstruct(midPoint);
-    const edgeRels = snapshot.edges.map((e) => e.toNodeId);
+    const snapshot = await svc.reconstruct(midPoint);
+    const edgeRels = snapshot.edges.map((e: any) => e.toNodeId);
     expect(edgeRels).toContain(pastOrgNode.nodeId);
     expect(edgeRels).not.toContain(currentOrgNode.nodeId);
 
     // At future point — only current edge active
-    const futureSnapshot = svc.reconstruct(future);
-    const futureEdgeRels = futureSnapshot.edges.map((e) => e.toNodeId);
+    const futureSnapshot = await svc.reconstruct(future);
+    const futureEdgeRels = futureSnapshot.edges.map((e: any) => e.toNodeId);
     expect(futureEdgeRels).toContain(currentOrgNode.nodeId);
     expect(futureEdgeRels).not.toContain(pastOrgNode.nodeId);
   });
 
-  it('expireEdge sets validTo and bumps version', () => {
+  it('expireEdge sets validTo and bumps version', async () => {
     const svc = makeGraphService();
     const facts = [makeRecruiterFact('recruiter_organization', 'OldCo', { name: 'OldCo' }, 'oldco')];
-    svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
-    const recruiterNode = svc.getNodeByKey('recruiter', RECRUITER_ID)!;
-    const edges = svc.getEdgesForNode(recruiterNode.nodeId);
+    await svc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const recruiterNode = await svc.getNodeByKey('recruiter', RECRUITER_ID)!;
+    const edges = await svc.getEdgesForNode(recruiterNode.nodeId);
     const edgeToExpire = edges[0]!;
     const expiredAt = new Date('2026-08-10T00:00:00Z');
-    const success = svc.expireEdge(edgeToExpire.edgeId, expiredAt);
+    const success = await svc.expireEdge(edgeToExpire.edgeId, expiredAt);
     expect(success).toBe(true);
-    const updatedEdges = svc.getEdgesForNode(recruiterNode.nodeId);
-    const expired = updatedEdges.find((e) => e.edgeId === edgeToExpire.edgeId);
+    const updatedEdges = await svc.getEdgesForNode(recruiterNode.nodeId);
+    const expired = updatedEdges.find((e: any) => e.edgeId === edgeToExpire.edgeId);
     expect(expired!.validTo).toEqual(expiredAt);
     expect(expired!.version).toBeGreaterThan(edgeToExpire.version);
   });
 
-  it('increments graph version on every mutation', () => {
+  it('increments graph version on every mutation', async () => {
     const svc = makeGraphService();
-    const v0 = svc.getGraph().version;
-    svc.populateFromFacts(RECRUITER_ID, [], OBSERVED_AT);
-    const v1 = svc.getGraph().version;
-    svc.populateFromFacts(RECRUITER_ID, [], OBSERVED_AT);
-    const v2 = svc.getGraph().version;
+    const v0 = await svc.getGraph().version;
+    await svc.populateFromFacts(RECRUITER_ID, [], OBSERVED_AT);
+    const v1 = await svc.getGraph().version;
+    await svc.populateFromFacts(RECRUITER_ID, [], OBSERVED_AT);
+    const v2 = await svc.getGraph().version;
     expect(v1).toBeGreaterThan(v0);
     expect(v2).toBeGreaterThan(v1);
   });
@@ -1058,7 +1058,7 @@ describe('Prompt 14 — Knowledge graph population', () => {
 
     svc.populateFromInferences(RECRUITER_ID, reasoning, OBSERVED_AT);
 
-    const graph = svc.getGraph();
+    const graph = await svc.getGraph();
     const techNodes = [...graph.nodes.values()].filter((n) => n.nodeType === 'technology');
     expect(techNodes.length).toBeGreaterThanOrEqual(0); // may be empty if no tech domains inferred
     // Graph version must be incremented
@@ -1085,7 +1085,7 @@ describe('Prompt 14 — Knowledge graph population', () => {
       }],
     });
     const edges = svc.getEdgesForNode(r1.nodeId);
-    edges.forEach((e) => {
+    edges.forEach((e: any) => {
       expect(e.confidence).toBeLessThanOrEqual(1);
       expect(e.confidence).toBeGreaterThanOrEqual(0);
     });
@@ -1105,7 +1105,7 @@ describe('Prompt 15 — Recruiter intelligence engine', () => {
 
     const facts = entitySvc.extractDeterministic(RECRUITER_ID, SAMPLE_MESSAGE);
     const reasoning = await reasoningSvc.infer(RECRUITER_ID, facts);
-    const graphResult = graphSvc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const graphResult = await graphSvc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
 
     return { facts, reasoning, graphResult, pipeline };
   }
@@ -1304,7 +1304,7 @@ describe('Prompt 15 — Recruiter intelligence engine', () => {
     const reasoningSvc = new RecruiterReasoningEnrichmentService(makePipeline());
     const reasoning = await reasoningSvc.infer(RECRUITER_ID, facts);
     const graphSvc = new KnowledgeGraphPopulationService();
-    const graphResult = graphSvc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
+    const graphResult = await graphSvc.populateFromFacts(RECRUITER_ID, facts, OBSERVED_AT);
 
     const engine = new RecruiterIntelligenceEngineService(pipeline);
     const result = await engine.generate(RECRUITER_ID, facts, reasoning, graphResult);

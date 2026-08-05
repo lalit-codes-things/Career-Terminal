@@ -16,6 +16,7 @@
  */
 
 import { prisma } from '../../../config/database';
+import { Prisma } from '@prisma/client';
 
 export interface MemoryWriteInput {
   recruiterId: string;
@@ -98,12 +99,12 @@ export class RecruiterMemoryService {
         data: {
           recruiterId: input.recruiterId,
           factType: input.factType,
-          factValue: input.factValue,
-          confidence: Math.max(0, Math.min(1, input.confidence)),
-          validFrom: input.validFrom,
-          validTo: input.validTo ?? null,
-          provenanceJson: input.provenanceJson ?? {},
-          evidenceJson: input.evidenceJson ?? [],
+           factValue: input.factValue as unknown as Prisma.InputJsonValue,
+           confidence: Math.max(0, Math.min(1, input.confidence)),
+           validFrom: input.validFrom,
+           validTo: input.validTo ?? null,
+           provenanceJson: (input.provenanceJson ?? {}) as unknown as Prisma.InputJsonValue,
+           evidenceJson: (input.evidenceJson ?? []) as unknown as Prisma.InputJsonValue,
           version: 1,
         },
       });

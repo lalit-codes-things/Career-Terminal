@@ -164,7 +164,7 @@ export class RecruiterInsightsEngine {
         communicationSummary.confidence, 'info', 'normal',
         'Communication inferred from behavior profile and facts.', communicationSummary.evidenceFactIds),
       ...riskAlerts.map((a) => makeInsight(recruiterId, 'recruiter_risk_alert', a.title,
-        a.description, a.probability, a.severity as InsightSeverity, 'high',
+        a.description, a.probability, a.severity, 'high',
         `Risk alert: ${a.alertType}.`, a.evidenceFactIds, a.mitigationAdvice)),
       ...opportunityAlerts.map((a) => makeInsight(recruiterId, 'opportunity_alert', a.title,
         a.description, 0.75, 'info', a.urgency,
@@ -466,7 +466,7 @@ export class RecruiterInsightsEngine {
         recruiterId,
         recommendation: `Highlight expertise in: ${domains.slice(0, 3).join(', ')}.`,
         rationale: `Recruiter specializes in ${domains.join(', ')} — align your messaging.`,
-        priority: 'normal',
+        priority: 'normal' as InsightPriority,
         confidence: specializationResult?.expertiseProfile.hiringDomains.confidence ?? 0.60,
         evidenceFactIds: specializationResult?.expertiseProfile.hiringDomains.evidenceFactIds ?? [],
       });

@@ -71,9 +71,9 @@ export class CrossEpicIntelligenceIntegrationService {
       if (existing && existing.confidence >= confidence) {
         return existing;
       }
-      this.links.delete(linkId!);
-      this.removeEntityLink(sourceEpic, sourceEntityId, linkId!);
-      this.removeEntityLink(targetEpic, targetEntityId, linkId!);
+      this.links.delete(linkId);
+      this.removeEntityLink(sourceEpic, sourceEntityId, linkId);
+      this.removeEntityLink(targetEpic, targetEntityId, linkId);
     }
 
     const link = this.createLink(sourceEpic, sourceEntityId, targetEpic, targetEntityId, domain, intelligence, confidence, evidence, provenance);

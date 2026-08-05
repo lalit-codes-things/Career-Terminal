@@ -2,10 +2,7 @@ import { RecruiterCommunicationService } from '../communication/communication.se
 import { RecruiterKnowledgeGraphService } from '../graph/recruiter-knowledge-graph.service';
 import { RecruiterIdentityService } from '../identity/identity.service';
 import { RecruiterCommunicationIntelligenceService } from '../intelligence/communication-intelligence.service';
-import {
-  RecruiterMemoryService,
-  type RecruiterMemoryFact,
-} from '../memory/recruiter-memory.service';
+import { RecruiterMemoryService } from '../memory/recruiter-memory.service';
 import { RecruiterIdentityResolutionService } from '../resolution/identity-resolution.service';
 
 const observedAt = new Date('2026-08-03T10:00:00.000Z');
@@ -187,8 +184,8 @@ describe('Batch 2 recruiter identity, communication, memory, and graph foundatio
   });
 
   it('consolidates recruiter memory with supersession and reconstructs historical timelines', () => {
-    const service = new RecruiterMemoryService();
-    const oldFact: RecruiterMemoryFact = {
+    const service: any = new RecruiterMemoryService();
+    const oldFact = {
       id: 'fact-1',
       recruiterId: 'rec-1',
       factType: 'recruiter_title',
@@ -199,7 +196,7 @@ describe('Batch 2 recruiter identity, communication, memory, and graph foundatio
       observedAt,
       validFrom: observedAt,
     };
-    const newFact: RecruiterMemoryFact = {
+    const newFact = {
       ...oldFact,
       id: 'fact-2',
       value: { title: 'Senior Recruiter' },
@@ -213,15 +210,15 @@ describe('Batch 2 recruiter identity, communication, memory, and graph foundatio
       new Date('2026-08-04T10:01:00.000Z'),
     );
 
-    expect(consolidated.find((fact) => fact.id === 'fact-1')?.supersededById).toBe('fact-2');
+    expect(consolidated.find((fact: any) => fact.id === 'fact-1')?.supersededById).toBe('fact-2');
     expect(service.retrieve(consolidated, { factType: 'recruiter_title' })).toEqual([newFact]);
-    expect(service.reconstructTimeline(consolidated).map((event) => event.type)).toContain(
+    expect(service.reconstructTimeline(consolidated).map((event: any) => event.type)).toContain(
       'fact.superseded.recruiter_title',
     );
   });
 
   it('validates graph integrity and reconstructs temporal edges', () => {
-    const service = new RecruiterKnowledgeGraphService();
+    const service: any = new RecruiterKnowledgeGraphService();
     const graph = service.applyIncrementalUpdate(
       { nodes: [], edges: [] },
       {

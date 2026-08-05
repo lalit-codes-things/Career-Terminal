@@ -6,7 +6,6 @@ import type {
   CrossEpicQuery,
   CrossEpicQueryResult,
   EpicId,
-  IntelligenceDomain,
 } from '../../../domain/recruiter-intelligence/cross-epic/contracts';
 
 export interface IntelligenceBrokerConfig {
@@ -296,7 +295,7 @@ export class IntelligenceBrokerService {
           targetEpic: msg.targetEpic,
           sourceEntityId: msg.sourceEntityId,
           targetEntityId: msg.targetEntityId,
-          domain: msg.domain as IntelligenceDomain,
+          domain: msg.domain,
           direction: 'bidirectional',
           intelligenceType: 'memory_lookup',
           intelligence: msg.intelligence,
@@ -373,7 +372,7 @@ export class IntelligenceBrokerService {
           targetEpic: msg.targetEpic,
           sourceEntityId: msg.sourceEntityId,
           targetEntityId: msg.targetEntityId,
-          domain: msg.domain as IntelligenceDomain,
+          domain: msg.domain,
           direction: 'bidirectional',
           intelligenceType: 'timeline_lookup',
           intelligence: { ...msg.intelligence, timelineEnriched: true },

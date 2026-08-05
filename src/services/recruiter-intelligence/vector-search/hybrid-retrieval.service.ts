@@ -70,7 +70,7 @@ export class HybridRetrievalService {
         vector: queryVector,
         topK,
         minSimilarity: 0.3,
-        metadataFilters: query.vectorQuery?.metadataFilters,
+        metadataFilters: undefined,
       });
     }
 

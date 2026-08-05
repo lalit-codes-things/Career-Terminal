@@ -60,9 +60,10 @@ export class RecruiterCopilotService {
       queryText: userQuery,
       traversalConfig: { maxDepth: 1, semanticThreshold: 0.5 },
       requireEvidence: options?.requireEvidence ?? true,
+      structuredFacts: [],
     };
     // Mock facts injection; in reality, we'd fetch actual facts based on the query or conversation.recruiterId
-    const ragResponse = await this.graphRag.answer(ragRequest, []);
+    const ragResponse = await this.graphRag.answer(ragRequest);
 
     // 3. Orchestrate final reasoning (Copilot response generation)
     const responseWorkflow: ReasoningWorkflow = {

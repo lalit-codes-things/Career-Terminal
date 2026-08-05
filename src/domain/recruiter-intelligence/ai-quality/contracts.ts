@@ -18,7 +18,7 @@ export type PromptExperimentStatus = 'draft' | 'active' | 'paused' | 'completed'
 
 export type ModelTier = 'fast' | 'balanced' | 'powerful';
 
-export type QualityProviderKind = 'openai' | 'anthropic' | 'vertex' | 'stub';
+export type QualityProviderKind = 'openrouter' | 'vertex' | 'stub';
 
 export interface EvaluationResult {
   evaluationId: string;

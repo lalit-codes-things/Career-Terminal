@@ -143,7 +143,8 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
         queryVector: await embeddingAdapter.embedContext('What are they hiring for and what is the salary?'),
         traversalConfig: { maxDepth: 1, semanticThreshold: 0.0 },
         requireEvidence: true,
-      }, structuredFacts);
+        structuredFacts,
+      });
 
       expect(response.answerText).toBeTruthy();
       expect(response.evidence.length).toBeGreaterThan(0);

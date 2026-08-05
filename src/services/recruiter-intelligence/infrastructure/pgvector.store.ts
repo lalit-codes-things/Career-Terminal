@@ -131,7 +131,7 @@ export class PgVectorStore implements VectorStore {
           for (const [k, v] of Object.entries(query.metadataFilters!)) {
             const rowVal = (row.metadata as Record<string, unknown>)[k];
             if (Array.isArray(v)) {
-              if (!v.includes(rowVal)) return false;
+              if (!v.map(String).includes(rowVal as string)) return false;
             } else if (rowVal !== v) {
               return false;
             }
@@ -147,8 +147,8 @@ export class PgVectorStore implements VectorStore {
         entityId: row.entity_id,
         entityType: (row.entity_type ?? 'recruiter_profile') as VectorSearchResult['entityType'],
         score: row.score,
-        text: String((row.metadata as Record<string, unknown>)['text'] ?? ''),
-        metadata: row.metadata as Record<string, unknown>,
+        text: String((row.metadata)['text'] ?? ''),
+        metadata: row.metadata,
       }));
   }
 

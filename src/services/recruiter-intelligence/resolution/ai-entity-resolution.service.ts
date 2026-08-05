@@ -162,7 +162,7 @@ export class AiEntityResolutionService {
 
   private async updateRecruiterAlias(
     recruiterId: string,
-    canonicalRecruiterId: string,
+    _canonicalRecruiterId: string,
     confidence: number,
     status: 'VERIFIED' | 'PENDING',
   ): Promise<boolean> {

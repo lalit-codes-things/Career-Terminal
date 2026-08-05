@@ -141,7 +141,7 @@ export class EvaluationFrameworkService {
     const providerResults = new Map<QualityProviderKind, EvaluationResult[]>();
 
     for (const provider of providers) {
-      const providerKey = provider as QualityProviderKind;
+      const providerKey = provider;
       const providerResultsList = results.get(provider) ?? [];
       providerResults.set(providerKey, providerResultsList);
     }
@@ -165,7 +165,7 @@ export class EvaluationFrameworkService {
       models,
       templateId,
       results: providerResults,
-      winner: winner as QualityProviderKind,
+      winner: winner,
       completedAt: new Date(),
     };
   }

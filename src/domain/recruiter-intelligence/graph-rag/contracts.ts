@@ -22,6 +22,7 @@ export interface GraphRagRequest {
   queryVector?: number[];
   traversalConfig: GraphTraversalConfig;
   requireEvidence: boolean;
+  structuredFacts: Array<{ factId: string; fieldType: string; rawValue: string }>;
 }
 
 export interface GraphRagEvidence {

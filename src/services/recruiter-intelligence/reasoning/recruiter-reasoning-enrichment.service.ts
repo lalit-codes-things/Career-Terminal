@@ -169,19 +169,19 @@ export class RecruiterReasoningEnrichmentService {
     }
 
     // Hiring focus from domain + title
-    const hiringFocusDomains = domainFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['domain'] ?? f.rawValue));
+    const hiringFocusDomains = domainFacts.map((f) => String((f.structuredValue)['domain'] ?? f.rawValue));
     if (hiringFocusDomains.length > 0) {
       add('hiringFocus', hiringFocusDomains, `Derived from ${hiringFocusDomains.length} domain signals in communication`, 0.75, domainFacts);
     }
 
     // Technical domains
-    const techNames = techFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['name'] ?? f.rawValue));
+    const techNames = techFacts.map((f) => String((f.structuredValue)['name'] ?? f.rawValue));
     if (techNames.length > 0) {
       add('technicalDomains', techNames, `Extracted ${techNames.length} technology signals`, 0.82, techFacts);
     }
 
     // Geographic responsibility from location facts
-    const locations = locationFacts.map((f) => String((f.structuredValue as Record<string, unknown>)['location'] ?? f.rawValue));
+    const locations = locationFacts.map((f) => String((f.structuredValue)['location'] ?? f.rawValue));
     if (locations.length > 0) {
       add('geographicResponsibility', locations, `Hiring locations mentioned in communication`, 0.70, locationFacts);
     }
@@ -199,7 +199,7 @@ export class RecruiterReasoningEnrichmentService {
     // Urgency from priority + stage signals
     const hasPriority = priorityFacts.some((f) => f.structuredValue['priority'] === 'high');
     const isLateStage = stageFacts.some((f) => {
-      const stage = String((f.structuredValue as Record<string, unknown>)['stage'] ?? '');
+      const stage = String((f.structuredValue)['stage'] ?? '');
       return ['final_round', 'offer', 'onsite'].includes(stage);
     });
     if (hasPriority || isLateStage) {
@@ -292,7 +292,7 @@ export class RecruiterReasoningEnrichmentService {
         inferrer: 'ai-reasoning-enrichment-v1',
         templateId: output.templateId,
         templateVersion: output.templateVersion,
-        provider: output.provider as string,
+        provider: output.provider,
         model: output.model,
         inferredAt: output.completedAt,
       },

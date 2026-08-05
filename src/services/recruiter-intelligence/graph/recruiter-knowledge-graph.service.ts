@@ -16,6 +16,7 @@
  */
 
 import { prisma } from '../../../config/database';
+import { Prisma } from '@prisma/client';
 
 export type KgNodeType =
   | 'recruiter'
@@ -83,7 +84,7 @@ export class RecruiterKnowledgeGraphService {
         where: { id: existing.id },
         data: {
           label: input.label || existing.label,
-          metadata: { ...(existing.metadata as object), ...(input.metadata ?? {}) },
+           metadata: { ...(existing.metadata as Record<string, unknown>), ...(input.metadata ?? {}) } as unknown as Prisma.InputJsonValue,
           version: existing.version + 1,
         },
       });
@@ -95,7 +96,7 @@ export class RecruiterKnowledgeGraphService {
         nodeType: input.nodeType,
         externalKey: input.externalKey,
         label: input.label,
-        metadata: input.metadata ?? {},
+         metadata: (input.metadata ?? {}) as unknown as Prisma.InputJsonValue,
         version: 1,
       },
     });
