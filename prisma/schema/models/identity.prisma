@@ -1,0 +1,122 @@
+enum CellStatus {
+  ACTIVE
+  DRAINING
+  READ_ONLY
+  MIGRATING
+  DISABLED
+}
+
+enum CellLifecycleState {
+  PROVISIONING
+  ACTIVE
+  DRAINING
+  MIGRATING
+  DISABLED
+}
+
+enum CellRoutingState {
+  ROUTABLE
+  WRITE_BLOCKED
+  READ_ONLY
+  UNROUTABLE
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String?   @unique
+  name                String?
+  cellId              String?   @map("cell_id")
+  region              String    @default("us-east-1")
+  dataResidencyRegion String    @default("us-east-1") @map("data_residency_region")
+  shardKey            Int       @default(0) @map("shard_key")
+  tenantId            String?   @map("tenant_id") @db.Uuid
+  consentVersion      String    @default("v1") @map("consent_version")
+  consentGrantedAt    DateTime  @default(now()) @map("consent_granted_at") @db.Timestamptz
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz
+  deletionStatus      String    @default("active") @map("deletion_status")
+  deletionRequestedAt DateTime? @map("deletion_requested_at") @db.Timestamptz
+  deletionCompletedAt DateTime? @map("deletion_completed_at") @db.Timestamptz
+  legalHoldReason     String?   @map("legal_hold_reason") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  connections           UserEmailConnection[]
+  syncStates            GmailSyncState[]
+  candidateProfile      CandidateProfile?
+  idMappings            UserIdMapping[]
+  syncJobs              SyncJob[]
+  jobApplications       JobApplication[]
+  userResumes           UserResume[]
+  resumes               Resume[]
+  checkpoint            GmailCheckpoint?
+  syncBatches           SyncBatch[]
+  snapshots             Snapshot[]
+  factObservations      FactObservation[]
+  extractionRuns        ExtractionRun[]
+  factProvenance        FactProvenance[]
+  outcomeEvents         OutcomeEvent[]
+  actionEvents          ActionEvent[]
+  predictions           Prediction[]
+  predictionFeedback    PredictionFeedback[]
+  recommendations       Recommendation[]
+  correctedFacts        FactObservation[]                @relation("FactCorrectedBy")
+  reviewedFacts         FactObservation[]                @relation("FactReviewedBy")
+  homeCell              Cell?                            @relation(fields: [cellId], references: [id], onDelete: SetNull)
+  canonicalIntelligence CanonicalCandidateIntelligence[]
+  events                Event[]
+  opportunityObservations OpportunityObservation[]
+
+  @@index([region])
+  @@index([deletionStatus])
+  @@index([shardKey])
+  @@index([tenantId])
+  @@index([dataResidencyRegion])
+  @@index([cellId])
+  @@map("users")
+}
+
+model Cell {
+  id                String             @id
+  region            String
+  residencyPolicyId String?            @map("residency_policy_id")
+  status            CellStatus         @default(ACTIVE)
+  lifecycleState    CellLifecycleState @default(ACTIVE) @map("lifecycle_state")
+  routingState      CellRoutingState   @default(ROUTABLE) @map("routing_state")
+  capacityState     String?            @map("capacity_state")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  users User[]
+
+  @@index([region])
+  @@index([status])
+  @@index([routingState])
+  @@map("cells")
+}
+
+model CandidateProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  fullName    String?  @map("full_name")
+  phone       String?
+  location    String?
+  timezone    String?
+  preferences Json     @default("{}")
+  careerGoals Json?    @map("career_goals")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("candidate_profiles")
+}
+
+model UserIdMapping {
+  id         String   @id @default(uuid()) @db.Uuid
+  externalId String   @unique @map("external_id")
+  userId     String   @map("user_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_id_mapping")
+}

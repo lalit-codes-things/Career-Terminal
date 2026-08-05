@@ -1,0 +1,326 @@
+enum CompanyLifecycleStatus {
+  ACTIVE
+  INACTIVE
+  DISSOLVED
+  DORMANT
+  LIQUIDATED
+  UNKNOWN
+}
+
+enum CompanyImportType {
+  FULL
+  INCREMENTAL
+  SCHEDULED
+  MANUAL
+}
+
+enum CompanyImportRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+  SKIPPED
+}
+
+model Company {
+  id            String           @id @default(uuid()) @db.Uuid
+  name          String
+  domain        String           @unique
+  careersUrl    String?          @map("careers_url")
+  website       String?
+  logoUrl       String?          @map("logo_url")
+  industry      String?
+  headquarters  String?
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  aliases       CompanyAlias[]
+  recruiters    Recruiter[]
+  opportunities Opportunity[]
+  applications  JobApplication[]
+  companySignals CompanySignal[]
+  canonicalCompany CanonicalCompany?
+
+  @@index([name])
+  @@map("companies")
+}
+
+model CompanyAlias {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  value           String
+  normalizedValue String   @unique @map("normalized_value")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("company_aliases")
+}
+
+model CanonicalCompany {
+  id               String                @id @default(uuid()) @db.Uuid
+  name             String
+  legalName        String?               @map("legal_name")
+  normalizedName   String                @map("normalized_name")
+  domain           String?
+  countryCode      String?               @map("country_code")
+  jurisdictionCode String?               @map("jurisdiction_code")
+  status           CompanyLifecycleStatus @default(UNKNOWN)
+  foundedDate      DateTime?             @map("founded_date") @db.Date
+  incorporatedDate DateTime?             @map("incorporated_date") @db.Date
+  description      String?               @db.Text
+  validFrom        DateTime?             @map("valid_from") @db.Timestamptz
+  validTo          DateTime?             @map("valid_to") @db.Timestamptz
+  enrichmentStatus String                @default("none") @map("enrichment_status")
+  enrichmentVersion Int?                 @map("enrichment_version")
+  lastEnrichedAt   DateTime?             @map("last_enriched_at") @db.Timestamptz
+  companyId        String?               @unique @map("company_id") @db.Uuid
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+
+  company          Company?                     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  aliases          CanonicalCompanyAlias[]
+  identifiers      CompanyIdentifier[]
+  websites         CompanyWebsite[]
+  addresses        CompanyAddress[]
+  industryClassifications CompanyIndustryClassification[]
+  exchangeListings CompanyExchangeListing[]
+  providerRecords  CompanyProviderRecord[]
+
+  @@index([normalizedName])
+  @@index([domain])
+  @@index([countryCode])
+  @@index([jurisdictionCode])
+  @@index([status])
+  @@index([validFrom, validTo])
+  @@map("canonical_companies")
+}
+
+model CanonicalCompanyAlias {
+  id                 String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId String    @map("canonical_company_id") @db.Uuid
+  value              String
+  normalizedValue    String    @map("normalized_value")
+  aliasType          String    @default("trade") @map("alias_type")
+  validFrom          DateTime? @map("valid_from") @db.Timestamptz
+  validTo            DateTime? @map("valid_to") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([canonicalCompanyId, normalizedValue], name: "canonical_company_alias_company_value_unique")
+  @@index([normalizedValue])
+  @@map("canonical_company_aliases")
+}
+
+model CompanyIdentifier {
+  id                 String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId String    @map("canonical_company_id") @db.Uuid
+  type               String
+  value              String
+  normalizedValue    String    @map("normalized_value")
+  jurisdictionCode   String?   @map("jurisdiction_code")
+  registrar          String?
+  validFrom          DateTime? @map("valid_from") @db.Timestamptz
+  validTo            DateTime? @map("valid_to") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([type, normalizedValue, jurisdictionCode], name: "company_identifier_unique")
+  @@index([normalizedValue])
+  @@index([type])
+  @@map("company_identifiers")
+}
+
+model CompanyWebsite {
+  id                 String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId String    @map("canonical_company_id") @db.Uuid
+  url                String
+  normalizedUrl      String    @map("normalized_url")
+  kind               String    @default("primary")
+  isVerified         Boolean   @default(false) @map("is_verified")
+  validFrom          DateTime? @map("valid_from") @db.Timestamptz
+  validTo            DateTime? @map("valid_to") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([canonicalCompanyId, normalizedUrl], name: "company_website_company_url_unique")
+  @@index([normalizedUrl])
+  @@map("company_websites")
+}
+
+model CompanyAddress {
+  id                 String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId String    @map("canonical_company_id") @db.Uuid
+  addressType        String    @default("registered") @map("address_type")
+  addressLines       String[]  @map("address_lines")
+  locality           String?
+  region             String?
+  postalCode         String?   @map("postal_code")
+  countryCode        String?   @map("country_code")
+  latitude           Decimal?  @db.Decimal(10, 7)
+  longitude          Decimal?  @db.Decimal(10, 7)
+  validFrom          DateTime? @map("valid_from") @db.Timestamptz
+  validTo            DateTime? @map("valid_to") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@index([canonicalCompanyId, addressType])
+  @@index([countryCode])
+  @@map("company_addresses")
+}
+
+model CompanyIndustryClassification {
+  id                   String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId   String    @map("canonical_company_id") @db.Uuid
+  classificationSystem String    @map("classification_system")
+  code                 String
+  label                String?
+  isPrimary            Boolean   @default(false) @map("is_primary")
+  validFrom            DateTime? @map("valid_from") @db.Timestamptz
+  validTo              DateTime? @map("valid_to") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([canonicalCompanyId, classificationSystem, code], name: "company_industry_unique")
+  @@index([classificationSystem, code])
+  @@map("company_industry_classifications")
+}
+
+model CompanyExchangeListing {
+  id                 String    @id @default(uuid()) @db.Uuid
+  canonicalCompanyId String    @map("canonical_company_id") @db.Uuid
+  exchange           String
+  ticker             String
+  currency           String?
+  isPrimary          Boolean   @default(false) @map("is_primary")
+  listingStatus      String    @default("listed") @map("listing_status")
+  validFrom          DateTime? @map("valid_from") @db.Timestamptz
+  validTo            DateTime? @map("valid_to") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  canonicalCompany CanonicalCompany @relation(fields: [canonicalCompanyId], references: [id], onDelete: Cascade)
+
+  @@unique([canonicalCompanyId, exchange, ticker], name: "company_listing_unique")
+  @@index([exchange, ticker])
+  @@map("company_exchange_listings")
+}
+
+model CompanyProvider {
+  id                String    @id @default(uuid()) @db.Uuid
+  providerKey       String    @unique @map("provider_key")
+  name              String
+  version           String    @default("1.0.0")
+  jurisdiction      String?
+  enabled           Boolean   @default(false)
+  status            String    @default("unknown")
+  lastHealthCheckAt DateTime? @map("last_health_check_at") @db.Timestamptz
+  lastRunAt         DateTime? @map("last_run_at") @db.Timestamptz
+  lastRunStatus     String?   @map("last_run_status")
+  lastError         String?   @map("last_error") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  importRuns CompanyImportRun[]
+
+  @@map("company_providers")
+}
+
+model CompanyImportRun {
+  id                     String               @id @default(uuid()) @db.Uuid
+  providerId             String               @map("provider_id") @db.Uuid
+  providerKey            String               @map("provider_key")
+  importType             CompanyImportType    @map("import_type")
+  status                 CompanyImportRunStatus
+  since                  DateTime?            @db.Timestamptz
+  startedAt              DateTime             @map("started_at") @db.Timestamptz
+  completedAt            DateTime?            @map("completed_at") @db.Timestamptz
+  recordsFetched         Int                  @default(0) @map("records_fetched")
+  recordsValidated       Int                  @default(0) @map("records_validated")
+  recordsFailedValidation Int                 @default(0) @map("records_failed_validation")
+  companiesCreated       Int                  @default(0) @map("companies_created")
+  companiesUpdated       Int                  @default(0) @map("companies_updated")
+  companiesMatched       Int                  @default(0) @map("companies_matched")
+  errors                 Int                  @default(0)
+  error                  String?              @db.Text
+  correlationId          String?              @map("correlation_id")
+  metadata               Json                 @default("{}")
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+
+  provider        CompanyProvider       @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  providerRecords CompanyProviderRecord[]
+
+  @@index([providerKey, importType])
+  @@index([providerId, startedAt])
+  @@index([status])
+  @@map("company_import_runs")
+}
+
+model CompanyProviderRecord {
+  id                 String    @id @default(uuid()) @db.Uuid
+  importRunId        String    @map("import_run_id") @db.Uuid
+  canonicalCompanyId String?   @map("canonical_company_id") @db.Uuid
+  providerKey        String    @map("provider_key")
+  providerRecordId   String    @map("provider_record_id")
+  fetchedAt          DateTime  @map("fetched_at") @db.Timestamptz
+  checksum           String
+  rawReference       String?   @map("raw_reference")
+  status             String    @default("processed")
+  error              String?   @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  importRun       CompanyImportRun @relation(fields: [importRunId], references: [id], onDelete: Cascade)
+  canonicalCompany CanonicalCompany? @relation(fields: [canonicalCompanyId], references: [id], onDelete: SetNull)
+
+  @@unique([providerKey, providerRecordId], name: "company_provider_record_unique")
+  @@index([canonicalCompanyId])
+  @@index([importRunId])
+  @@index([fetchedAt])
+  @@map("company_provider_records")
+}
+
+model CompanyAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  actor      String   @default("system")
+  beforeData Json?    @map("before_data")
+  afterData  Json?    @map("after_data")
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([entityType, entityId])
+  @@index([entityId, createdAt])
+  @@map("company_audit_logs")
+}
+
+model CompanySignal {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @map("company_id") @db.Uuid
+  signalType       String   @map("signal_type")
+  category         String
+  headline         String
+  description      String?  @db.Text
+  sourceUrl        String?  @map("source_url")
+  sourceName       String?  @map("source_name")
+  publicationTime  DateTime? @map("publication_time") @db.Timestamptz
+  discoveryTime    DateTime @default(now()) @map("discovery_time") @db.Timestamptz
+  confidence       Float    @default(1.0)
+  affectedAreas    String[] @default([]) @map("affected_areas")
+  estimatedImpact  String?  @map("estimated_impact")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([signalType])
+  @@index([discoveryTime])
+  @@map("company_signals")
+}

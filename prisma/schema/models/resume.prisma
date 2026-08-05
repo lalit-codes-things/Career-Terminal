@@ -1,0 +1,76 @@
+model UserResume {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  legacyUserId   String?   @map("legacy_user_id")
+  resumeHashId   String?   @map("resume_hash_id") @db.Uuid
+  filename       String
+  originalName   String?   @map("original_name")
+  s3Key          String    @map("s3_key")
+  contentType    String    @map("content_type")
+  isPrimary      Boolean   @default(false) @map("is_primary")
+  isActive       Boolean   @default(true) @map("is_active")
+  version        Int       @default(1)
+  supersededAt   DateTime? @map("superseded_at") @db.Timestamptz
+  scanningStatus String?   @map("scanning_status")
+  status         String?   @default("pending")
+  parsedContent  Json?     @map("parsed_content")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeHash     ResumeHash? @relation(fields: [resumeHashId], references: [id], onDelete: SetNull)
+  applicationLinks ApplicationResume[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("user_resumes")
+}
+
+model ResumeHash {
+  id        String   @id @default(uuid()) @db.Uuid
+  hash      String   @unique
+  storageKey String  @map("storage_key")
+  storageUrl String  @map("storage_url")
+  mimeType  String   @map("mime_type")
+  sizeBytes Int      @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  resumes   UserResume[]
+
+  @@map("resume_hashes")
+}
+
+model ApplicationResume {
+  applicationId       String     @map("application_id") @db.Uuid
+  resumeVersionId     String     @map("resume_version_id") @db.Uuid
+  snapshotKey         String     @map("snapshot_key")
+  snapshotMetadata    Json       @default("{}") @map("snapshot_metadata")
+  appliedAt           DateTime?  @map("applied_at") @db.Timestamptz
+  usageContext        Json       @default("{}") @map("usage_context")
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  application         JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  resumeVersion       UserResume @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+
+  @@id([applicationId, resumeVersionId])
+  @@map("application_resumes")
+}
+
+model Resume {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  legacyUserId    String?         @map("legacy_user_id")
+  applicationId   String?         @map("application_id") @db.Uuid
+  resumeVersionId String?         @map("resume_version_id") @db.Uuid
+  filename        String
+  s3Key           String          @map("s3_key")
+  contentType     String          @map("content_type")
+  parsedContent   Json?           @map("parsed_content")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application    JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  factObservations FactObservation[]
+  extractionRuns   ExtractionRun[]
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("resumes")
+}

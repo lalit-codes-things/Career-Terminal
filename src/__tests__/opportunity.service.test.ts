@@ -80,7 +80,7 @@ const COMPANY_1 = {
 const OPPORTUNITY_EXISTING = {
   id: 'opp-1',
   companyId: COMPANY_1.id,
-  title: 'Senior Software Engineer',
+  title: 'Senior Knowledge Worker',
   description: null,
   location: 'San Francisco, CA',
   salaryRange: null,
@@ -97,7 +97,7 @@ const OPPORTUNITY_EXISTING = {
 const INPUT: OpportunityResolutionInput = {
   companyName: 'example-organization',
   companyDomain: 'example-organization.com',
-  roleTitle: 'Senior Software Engineer',
+  roleTitle: 'Senior Knowledge Worker',
   location: 'San Francisco, CA',
   url: 'https://acme.com/jobs/senior-swe',
   sourceMetadata: { source: 'email' },
@@ -204,7 +204,7 @@ describe('OpportunityService', () => {
     mockPrisma.opportunity.findMany.mockResolvedValue([
       {
         id: OPPORTUNITY_EXISTING.id,
-        title: 'Senior Software Engineer',
+        title: 'Senior Knowledge Worker',
         location: 'San Francisco, CA',
         description: null,
         salaryRange: null,
@@ -217,7 +217,7 @@ describe('OpportunityService', () => {
     const { opportunityId, isNew } = await service.resolve({
       companyName: INPUT.companyName,
       companyDomain: INPUT.companyDomain,
-      roleTitle: 'Software Engineer', // stripped -> matches "Software Engineer"
+      roleTitle: 'Knowledge Worker', // stripped -> matches "Knowledge Worker"
       location: 'San Francisco', // normalized -> substring of "San Francisco, CA"
     });
 
@@ -230,7 +230,7 @@ describe('OpportunityService', () => {
     mockPrisma.opportunity.findMany.mockResolvedValue([
       {
         id: 'opp-title-only',
-        title: 'Senior Software Engineer',
+        title: 'Senior Knowledge Worker',
         location: 'New York, NY',
         description: null,
         salaryRange: null,
@@ -243,7 +243,7 @@ describe('OpportunityService', () => {
     const { opportunityId, isNew } = await service.resolve({
       companyName: INPUT.companyName,
       companyDomain: INPUT.companyDomain,
-      roleTitle: 'Lead Senior Software Engineer', // title overlaps
+      roleTitle: 'Lead Senior Knowledge Worker', // title overlaps
       location: 'Remote', // mismatching
     });
 

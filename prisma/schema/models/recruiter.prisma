@@ -1,0 +1,506 @@
+enum RecruiterVerificationStatus {
+  VERIFIED
+  PENDING
+  UNVERIFIED
+  REJECTED
+}
+
+enum RecruiterEventType {
+  RECRUITER_CREATED
+  RECRUITER_UPDATED
+  RECRUITER_MERGED
+  EMPLOYMENT_ADDED
+  EMPLOYMENT_UPDATED
+  COMMUNICATION_IMPORTED
+  FACT_RECORDED
+  FACT_UPDATED
+  FACT_SUPERSEDED
+  EVIDENCE_ATTACHED
+}
+
+model Recruiter {
+  id           String           @id @default(uuid()) @db.Uuid
+  companyId    String           @map("company_id") @db.Uuid
+  name         String
+  email        String
+  title        String
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  emails       EmailMessage[]
+  applications JobApplication[]
+
+  @@unique([companyId, email], name: "unique_company_recruiter_email")
+  @@index([companyId])
+  @@index([email])
+  @@map("recruiters")
+}
+
+model RecruiterIdentity {
+  id                    String                    @id @default(uuid()) @db.Uuid
+  recruiterId           String                    @map("recruiter_id") @db.Uuid
+  canonicalRecruiterId  String?                   @map("canonical_recruiter_id") @db.Uuid
+  identityType          String                    @map("identity_type")
+  identityValue         String                    @map("identity_value")
+  normalizedValue       String                    @map("normalized_value")
+  confidence            Float                     @default(0.5)
+  verificationStatus    RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source                String
+  deletedAt             DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version               Int                      @default(1)
+
+  @@unique([identityType, normalizedValue], name: "recruiter_identity_unique")
+  @@index([recruiterId])
+  @@index([canonicalRecruiterId])
+  @@index([identityType, normalizedValue])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("recruiter_identities")
+}
+
+model RecruiterAlias {
+  id                String                    @id @default(uuid()) @db.Uuid
+  recruiterId       String                    @map("recruiter_id") @db.Uuid
+  alias             String
+  normalizedAlias  String                    @map("normalized_alias")
+  confidence        Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source            String
+  deletedAt         DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int                      @default(1)
+
+  @@unique([recruiterId, normalizedAlias], name: "recruiter_alias_unique")
+  @@index([recruiterId])
+  @@index([normalizedAlias])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("recruiter_aliases")
+}
+
+model RecruiterEmail {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  email              String
+  normalizedEmail    String                    @map("normalized_email")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@unique([normalizedEmail], name: "recruiter_email_unique")
+  @@index([recruiterId])
+  @@index([normalizedEmail])
+  @@index([verificationStatus])
+  @@map("recruiter_emails")
+}
+
+model RecruiterPhone {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  phone              String
+  normalizedPhone    String                    @map("normalized_phone")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@unique([normalizedPhone], name: "recruiter_phone_unique")
+  @@index([recruiterId])
+  @@index([normalizedPhone])
+  @@map("recruiter_phones")
+}
+
+model RecruiterSocialProfile {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  profileType        String                    @map("profile_type")
+  profileValue       String                    @map("profile_value")
+  normalizedValue    String                    @map("normalized_value")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@unique([profileType, normalizedValue], name: "recruiter_social_profile_unique")
+  @@index([recruiterId])
+  @@index([profileType, normalizedValue])
+  @@map("recruiter_social_profiles")
+}
+
+model RecruiterEmployment {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  organizationId     String?                   @map("organization_id") @db.Uuid
+  title              String
+  department         String?
+  team               String?
+  startDate          DateTime?                 @map("start_date") @db.Timestamptz
+  endDate            DateTime?                 @map("end_date") @db.Timestamptz
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([organizationId])
+  @@index([department])
+  @@index([team])
+  @@index([deletedAt])
+  @@map("recruiter_employments")
+}
+
+model RecruiterRole {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  roleName           String                    @map("role_name")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([roleName])
+  @@map("recruiter_roles")
+}
+
+model RecruiterDepartment {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  departmentName     String                    @map("department_name")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([departmentName])
+  @@map("recruiter_departments")
+}
+
+model RecruiterTeam {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  teamName           String                    @map("team_name")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([teamName])
+  @@map("recruiter_teams")
+}
+
+model RecruiterOrganization {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  organizationName   String                    @map("organization_name")
+  domain             String?
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([organizationName])
+  @@index([domain])
+  @@map("recruiter_organizations")
+}
+
+model RecruiterOffice {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  officeName         String                    @map("office_name")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([officeName])
+  @@map("recruiter_offices")
+}
+
+model RecruiterLocation {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  locationName       String                    @map("location_name")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([locationName])
+  @@map("recruiter_locations")
+}
+
+model RecruiterLanguage {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  languageCode       String                    @map("language_code")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([languageCode])
+  @@map("recruiter_languages")
+}
+
+model RecruiterTimezone {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  timezone           String
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  source             String
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([timezone])
+  @@map("recruiter_timezones")
+}
+
+model RecruiterEvent {
+  id                String             @id @default(uuid()) @db.Uuid
+  recruiterId       String             @map("recruiter_id") @db.Uuid
+  eventType         RecruiterEventType
+  eventVersion      Int                @default(1) @map("event_version")
+  correlationId     String?            @map("correlation_id")
+  causationId       String?            @map("causation_id")
+  payload           Json
+  immutable         Boolean            @default(true)
+  source            String
+  recordedAt        DateTime           @default(now()) @map("recorded_at") @db.Timestamptz
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int                @default(1)
+
+  @@index([recruiterId])
+  @@index([eventType])
+  @@index([correlationId])
+  @@index([recordedAt])
+  @@map("recruiter_events")
+}
+
+model RecruiterFact {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  recruiterId        String                    @map("recruiter_id") @db.Uuid
+  factType           String                    @map("fact_type")
+  factValue          Json                      @map("fact_value")
+  confidence         Float                     @default(0.5)
+  verificationStatus RecruiterVerificationStatus @default(PENDING) @map("verification_status")
+  validFrom          DateTime                  @map("valid_from") @db.Timestamptz
+  validTo            DateTime?                 @map("valid_to") @db.Timestamptz
+  recordedAt         DateTime                  @default(now()) @map("recorded_at") @db.Timestamptz
+  supersededAt       DateTime?                 @map("superseded_at") @db.Timestamptz
+  source             String
+  provenanceJson     Json                      @map("provenance_json")
+  evidenceJson       Json                      @map("evidence_json")
+  deletedAt          DateTime?                 @map("deleted_at") @db.Timestamptz
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime                  @updatedAt @map("updated_at") @db.Timestamptz
+  version            Int                      @default(1)
+
+  @@index([recruiterId])
+  @@index([factType])
+  @@index([validFrom, validTo])
+  @@index([verificationStatus])
+  @@index([deletedAt])
+  @@map("recruiter_facts")
+}
+
+model RecruiterConversation {
+  id                String   @id @default(uuid()) @db.Uuid
+  recruiterId       String?  @map("recruiter_id") @db.Uuid
+  userId            String?  @map("user_id") @db.Uuid
+  provider          String
+  providerThreadId  String   @map("provider_thread_id")
+  firstContactAt    DateTime @map("first_contact_at") @db.Timestamptz
+  latestContactAt   DateTime @map("latest_contact_at") @db.Timestamptz
+  responseLatencyMs Int?     @map("response_latency_ms")
+  followUpCount     Int      @default(0) @map("follow_up_count")
+  metadata          Json     @default("{}")
+  evidenceJson      Json     @default("[]") @map("evidence_json")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+
+  @@unique([provider, providerThreadId], name: "recruiter_conversation_provider_thread_unique")
+  @@index([recruiterId])
+  @@index([userId])
+  @@index([latestContactAt])
+  @@map("recruiter_conversations")
+}
+
+model RecruiterCommunicationMessage {
+  id               String   @id @default(uuid()) @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  recruiterId      String?  @map("recruiter_id") @db.Uuid
+  provider         String
+  providerMessageId String  @map("provider_message_id")
+  direction        String
+  subject          String?
+  snippet          String?  @db.Text
+  sentAt           DateTime @map("sent_at") @db.Timestamptz
+  participantsJson Json     @default("[]") @map("participants_json")
+  metadata         Json     @default("{}")
+  evidenceJson     Json     @default("[]") @map("evidence_json")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([provider, providerMessageId], name: "recruiter_message_provider_message_unique")
+  @@index([conversationId])
+  @@index([recruiterId])
+  @@index([sentAt])
+  @@map("recruiter_communication_messages")
+}
+
+model RecruiterResolutionDecision {
+  id                  String   @id @default(uuid()) @db.Uuid
+  sourceRecruiterId   String?  @map("source_recruiter_id") @db.Uuid
+  candidateRecruiterId String? @map("candidate_recruiter_id") @db.Uuid
+  decisionType        String   @map("decision_type")
+  confidence          Float    @default(0.5)
+  requiresHumanReview Boolean  @default(false) @map("requires_human_review")
+  explanation         String   @db.Text
+  evidenceJson        Json     @default("[]") @map("evidence_json")
+  provenanceJson      Json     @default("{}") @map("provenance_json")
+  reviewedAt          DateTime? @map("reviewed_at") @db.Timestamptz
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([sourceRecruiterId])
+  @@index([candidateRecruiterId])
+  @@index([requiresHumanReview])
+  @@map("recruiter_resolution_decisions")
+}
+
+model RecruiterMemoryObservation {
+  id              String   @id @default(uuid()) @db.Uuid
+  recruiterId     String   @map("recruiter_id") @db.Uuid
+  factType        String   @map("fact_type")
+  factValue       Json     @map("fact_value")
+  confidence      Float    @default(0.5)
+  validFrom       DateTime @map("valid_from") @db.Timestamptz
+  validTo         DateTime? @map("valid_to") @db.Timestamptz
+  supersededById  String?  @map("superseded_by_id") @db.Uuid
+  supersededAt    DateTime? @map("superseded_at") @db.Timestamptz
+  provenanceJson  Json     @default("{}") @map("provenance_json")
+  evidenceJson    Json     @default("[]") @map("evidence_json")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  version         Int      @default(1)
+
+  @@index([recruiterId])
+  @@index([factType])
+  @@index([validFrom, validTo])
+  @@index([supersededAt])
+  @@map("recruiter_memory_observations")
+}
+
+model RecruiterGraphNode {
+  id        String   @id @default(uuid()) @db.Uuid
+  nodeType  String   @map("node_type")
+  externalKey String? @map("external_key")
+  label     String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version   Int      @default(1)
+
+  @@unique([nodeType, externalKey], name: "recruiter_graph_node_key_unique")
+  @@index([nodeType])
+  @@map("recruiter_graph_nodes")
+}
+
+model RecruiterGraphEdge {
+  id               String   @id @default(uuid()) @db.Uuid
+  fromNodeId       String   @map("from_node_id") @db.Uuid
+  toNodeId         String   @map("to_node_id") @db.Uuid
+  relationshipType String   @map("relationship_type")
+  confidence       Float    @default(0.5)
+  validFrom        DateTime @map("valid_from") @db.Timestamptz
+  validTo          DateTime? @map("valid_to") @db.Timestamptz
+  evidenceJson     Json     @default("[]") @map("evidence_json")
+  provenanceJson   Json     @default("{}") @map("provenance_json")
+  metadata         Json     @default("{}")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version          Int      @default(1)
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+  @@index([relationshipType])
+  @@index([validFrom, validTo])
+  @@map("recruiter_graph_edges")
+}
+
+model RecruiterIntelligenceProfile {
+  id                    String   @id @default(uuid()) @db.Uuid
+  profileId             String   @unique @map("profile_id")
+  recruiterId           String   @map("recruiter_id") @db.Uuid
+  summaryText           String   @map("summary_text") @db.Text
+  summaryConfidence     Float    @map("summary_confidence")
+  hiringFocusJson       Json     @map("hiring_focus_json")
+  technicalFocusJson    Json     @map("technical_focus_json")
+  industryFocusJson     Json     @map("industry_focus_json")
+  organizationCtxJson   Json     @map("organization_ctx_json")
+  communicationStyle    String   @map("communication_style") @db.Text
+  recruitingStyle       String   @map("recruiting_style") @db.Text
+  velocitySignalsJson   Json     @map("velocity_signals_json")
+  relationshipJson      Json     @map("relationship_json")
+  candidateFitJson      Json     @map("candidate_fit_json")
+  evidenceRefsJson      Json     @default("[]") @map("evidence_refs_json")
+  overallConfidence     Float    @default(0.5) @map("overall_confidence")
+  factCount             Int      @default(0) @map("fact_count")
+  inferenceCount        Int      @default(0) @map("inference_count")
+  version               Int      @default(1)
+  generatedAt           DateTime @map("generated_at") @db.Timestamptz
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([recruiterId])
+  @@index([generatedAt])
+  @@index([overallConfidence])
+  @@map("recruiter_intelligence_profiles")
+}

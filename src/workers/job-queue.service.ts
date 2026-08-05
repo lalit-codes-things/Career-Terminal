@@ -83,9 +83,7 @@ export class JobQueueService {
         legacyUserId: userScope.legacyUserId,
         type: input.jobType,
         status: JobStatus.PENDING,
-        // Store correlationId in error field temporarily until we add a dedicated column
-        // TODO: Add correlationId column to syncJob table
-        error: input.correlationId ? `correlation:${input.correlationId}` : undefined,
+        correlationId: input.correlationId,
       },
     });
 

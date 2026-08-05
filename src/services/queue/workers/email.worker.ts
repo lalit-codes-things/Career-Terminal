@@ -13,6 +13,7 @@ import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
 import { QUEUE_NAMES, type EmailJobPayload, EmailJobPayloadSchema } from '../queue.types';
 import { config } from '../../../config';
+import { emailProvider } from '../../../infrastructure/email/email.service';
 
 // ---------------------------------------------------------------------------
 // Processor — pure function, easy to unit-test in isolation
@@ -30,22 +31,12 @@ export async function processEmailJob(job: Job<EmailJobPayload>): Promise<void> 
     userId,
   });
 
-  // TODO: replace with your email provider client (e.g. SendGrid, AWS SES)
-  // Example wiring:
-  //   await emailSenderService.send({ to: toAddress, subject, bodyText, bodyHtml });
-  //
-  // For now we log the intent so the worker is runnable without a live provider.
-  logger.info('[EmailWorker] Would send email', {
-    type,
-    userId,
-    toAddress,
+  await emailProvider.send({
+    to: toAddress ?? '',
     subject,
-    hasHtml: !!bodyHtml,
-    bodyTextPreview: bodyText.slice(0, 80),
+    bodyText,
+    bodyHtml,
   });
-
-  // Simulate async work
-  await Promise.resolve();
 }
 
 // ---------------------------------------------------------------------------

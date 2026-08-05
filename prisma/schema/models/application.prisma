@@ -1,0 +1,135 @@
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  SCREENING
+  ASSESSMENT
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum ApplicationSourceProvider {
+  GMAIL
+  MANUAL
+  OUTLOOK
+  CSV
+  API
+}
+
+enum ApplicationTimelineEventType {
+  APPLICATION_SUBMITTED
+  APPLICATION_CONFIRMED
+  RECRUITER_CONTACT
+  ASSESSMENT
+  ASSESSMENT_COMPLETED
+  PHONE_SCREEN
+  INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  REJECTION
+  WITHDRAWN
+}
+
+model JobApplication {
+  id                  String                      @id @default(uuid()) @db.Uuid
+  userId              String                      @map("user_id") @db.Uuid
+  legacyUserId        String?                     @map("legacy_user_id")
+  companyId           String?                     @map("company_id") @db.Uuid
+  opportunityId       String?                     @map("opportunity_id") @db.Uuid
+  recruiterId         String?                     @map("recruiter_id") @db.Uuid
+  snapshotId          String?                     @map("snapshot_id") @db.Uuid
+  companyName         String?                     @map("company_name")
+  companyDomain       String?                     @map("company_domain")
+  roleTitle           String?                     @map("role_title")
+  roleDepartment      String?                     @map("role_department")
+  status              ApplicationStatus           @default(SAVED)
+  sourceProvider      ApplicationSourceProvider   @default(MANUAL) @map("source_provider")
+  appliedAt           DateTime?                   @map("applied_at") @db.Timestamptz
+  appliedDate         DateTime?                   @map("applied_date") @db.Timestamptz
+  lastActivityAt      DateTime                    @default(now()) @map("last_activity_at") @db.Timestamptz
+  recruiterName       String?                     @map("recruiter_name")
+  recruiterEmail      String?                     @map("recruiter_email")
+  sourceEmailId       String?                     @map("source_email_id")
+  location            String?
+  employmentType      String?                     @map("employment_type")
+  currentStage        String?                     @map("current_stage")
+  interviewRounds     Int                         @default(0) @map("interview_rounds")
+  deadlines           String[]                    @default([])
+  threadIds           String[]                    @default([]) @map("thread_ids")
+  atsApplicationId    String?                     @map("ats_application_id")
+  candidateEmail      String?                     @map("candidate_email")
+  metadata            Json                        @default("{}")
+  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime                    @updatedAt @map("updated_at") @db.Timestamptz
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company             Company?                    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity         Opportunity?                @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  recruiter           Recruiter?                  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  snapshot            Snapshot?                   @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  emailMessages       EmailMessage[]
+  timeline            ApplicationTimeline[]
+  resumes             Resume[]
+  factObservations    FactObservation[]
+  extractionRuns      ExtractionRun[]
+  predictions         Prediction[]
+  outcomeEvents       OutcomeEvent[]
+  actionEvents        ActionEvent[]
+  applicationSource   ApplicationSource?
+  statusHistory       ApplicationStatusHistory[]
+  applicationResumes  ApplicationResume[]
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([snapshotId])
+  @@map("job_applications")
+}
+
+model ApplicationTimeline {
+  id            String                       @id @default(uuid()) @db.Uuid
+  applicationId String                       @map("application_id") @db.Uuid
+  eventType     ApplicationTimelineEventType @map("event_type")
+  timestamp     DateTime                     @map("timestamp") @db.Timestamptz
+  occurredAt    DateTime                     @map("occurred_at") @db.Timestamptz
+  sourceEmailId String?                      @map("source_email_id")
+  description   String?
+  metadata      Json                         @default("{}")
+  createdAt     DateTime                     @default(now()) @map("created_at") @db.Timestamptz
+  application   JobApplication               @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([occurredAt])
+  @@map("application_timeline_events")
+}
+
+model ApplicationSource {
+  id            String         @id @default(uuid()) @db.Uuid
+  applicationId String         @unique @map("application_id") @db.Uuid
+  provider      String
+  sourceEmailId String?        @map("source_email_id")
+  sourceData    Json?          @map("source_data")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("application_sources")
+}
+
+model ApplicationStatusHistory {
+  id              String         @id @default(uuid()) @db.Uuid
+  applicationId   String         @map("application_id") @db.Uuid
+  previousStatus  String?        @map("previous_status")
+  status          String
+  source          String
+  sourceEmailId   String?        @map("source_email_id")
+  changedByUserId String?        @map("changed_by_user_id")
+  timestamp       DateTime       @map("timestamp") @db.Timestamptz
+  metadata        Json           @default("{}")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  application     JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([timestamp])
+  @@map("application_status_history")
+}

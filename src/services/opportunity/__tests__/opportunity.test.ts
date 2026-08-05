@@ -5,7 +5,7 @@ import { Opportunity } from '../model';
 const makeOpportunity = (overrides: Partial<Opportunity> = {}): Opportunity => ({
   id: 'opp-1',
   opportunityTypeId: 'external_job',
-  title: 'Senior Software Engineer',
+  title: 'Senior Knowledge Worker',
   companyName: 'example-organization',
   location: { countryCode: 'US', city: 'San Francisco', remoteModel: 'hybrid' },
   employmentType: 'full_time',
@@ -107,7 +107,7 @@ describe('Opportunity Intelligence Framework', () => {
       expect(updated.title).toBe('Staff Engineer');
       expect(updated.currentVersion).toBe(2);
       expect(updated.versions).toHaveLength(1);
-      expect(updated.versions[0]!.snapshot.title).toBe('Senior Software Engineer');
+      expect(updated.versions[0]!.snapshot.title).toBe('Senior Knowledge Worker');
       expect(updated.versions[0]!.changedBy).toBe('system');
     });
 

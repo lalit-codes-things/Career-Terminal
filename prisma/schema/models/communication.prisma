@@ -1,0 +1,53 @@
+enum EmailProvider {
+  GMAIL
+  OUTLOOK
+}
+
+model EmailMessage {
+  id                String         @id @default(uuid()) @db.Uuid
+  applicationId     String?        @map("application_id") @db.Uuid
+  recruiterId       String?        @map("recruiter_id") @db.Uuid
+  userId            String?        @map("user_id") @db.Uuid
+  legacyUserId      String?        @map("legacy_user_id")
+  connectionId      String?        @map("connection_id") @db.Uuid
+  providerMessageId String         @map("provider_message_id")
+  threadId          String         @map("thread_id")
+  subject           String?
+  snippet           String?        @db.Text
+  body              String?        @db.Text
+  bodyText          String?        @map("body_text") @db.Text
+  bodyHtml          String?        @map("body_html") @db.Text
+  from              String?
+  to                String[]
+  labels            Json           @default("[]")
+  receivedAt        DateTime       @map("received_at") @db.Timestamptz
+  isRead            Boolean        @default(false) @map("is_read")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  application       JobApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  recruiter         Recruiter?     @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  attachments       EmailAttachment[]
+  factObservations  FactObservation[]
+  extractionRuns    ExtractionRun[]
+
+  @@unique([legacyUserId, providerMessageId], name: "unique_user_message")
+  @@index([applicationId])
+  @@index([recruiterId])
+  @@index([threadId])
+  @@index([receivedAt])
+  @@map("email_messages")
+}
+
+model EmailAttachment {
+  id             String       @id @default(uuid()) @db.Uuid
+  emailMessageId String       @map("email_message_id") @db.Uuid
+  filename       String
+  contentType    String       @map("content_type")
+  size           Int
+  s3Key          String       @map("s3_key")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  emailMessage   EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+
+  @@index([emailMessageId])
+  @@map("email_attachments")
+}

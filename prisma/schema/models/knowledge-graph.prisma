@@ -1,0 +1,111 @@
+model FactObservation {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  factType          String   @map("fact_type")
+  factData          Json     @map("fact_data")
+  sourceType        String   @map("source_type")
+  sourceId          String   @map("source_id") @db.Uuid
+  sourceVersion     String?  @map("source_version")
+  extractionMethod  String   @map("extraction_method")
+  modelVersion      String?  @map("model_version")
+  confidence        Float    @default(1.0)
+  evidenceReference String?  @map("evidence_reference")
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  observedAt        DateTime @default(now()) @map("observed_at") @db.Timestamptz
+  snapshotId        String?  @map("snapshot_id") @db.Uuid
+  extractedAt       DateTime @default(now()) @map("extracted_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+  isCurrent         Boolean  @default(true) @map("is_current")
+  supersededById    String?  @map("superseded_by_id") @db.Uuid
+  supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
+  correctedBy       String?  @map("corrected_by") @db.Uuid
+  correctedAt       DateTime? @map("corrected_at") @db.Timestamptz
+  correctionReason  String?  @map("correction_reason")
+  isUserCorrected   Boolean  @default(false) @map("is_user_corrected")
+  needsReview       Boolean  @default(false) @map("needs_review")
+  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz
+  reviewedBy        String?  @map("reviewed_by") @db.Uuid
+  reviewStatus      String?  @map("review_status")
+  reviewNotes       String?  @map("review_notes")
+  deduplicationKey  String?  @map("deduplication_key")
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userCorrectedBy  User?           @relation("FactCorrectedBy", fields: [correctedBy], references: [id], onDelete: SetNull)
+  userReviewedBy   User?           @relation("FactReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  email            EmailMessage?   @relation(fields: [sourceId], references: [id], map: "fact_email_fk", onDelete: Cascade)
+  resume           Resume?         @relation(fields: [sourceId], references: [id], map: "fact_resume_fk", onDelete: Cascade)
+  opportunity      Opportunity?    @relation(fields: [sourceId], references: [id], map: "fact_opportunity_fk", onDelete: Cascade)
+  application      JobApplication? @relation(fields: [sourceId], references: [id], map: "fact_application_fk", onDelete: Cascade)
+  snapshot         Snapshot?       @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+  supersededBy     FactObservation? @relation("FactSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes       FactObservation[] @relation("FactSupersededBy")
+  extractionRunId  String?          @map("extraction_run_id") @db.Uuid
+  provenanceId     String?          @map("provenance_id") @db.Uuid
+  extractionRun    ExtractionRun?   @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
+  provenance       FactProvenance?  @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
+  canonicalLinks   CanonicalCandidateIntelligence[]
+
+  @@index([userId, factType, isCurrent])
+  @@index([userId, isCurrent])
+  @@index([sourceId, sourceType])
+  @@index([userId, observedAt])
+  @@index([snapshotId])
+  @@index([needsReview, reviewStatus])
+  @@map("fact_observations")
+}
+
+model CanonicalCandidateIntelligence {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  cellId           String   @map("cell_id")
+  factType         String   @map("fact_type")
+  deduplicationKey String   @map("deduplication_key")
+  sourceFactId     String   @map("source_fact_id") @db.Uuid
+  provenanceId     String   @map("provenance_id") @db.Uuid
+  confidence       Float    @default(1.0)
+  lastObservedAt   DateTime @map("last_observed_at") @db.Timestamptz
+  sourceVersion    String?  @map("source_version")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceFact       FactObservation @relation(fields: [sourceFactId], references: [id], onDelete: Restrict)
+  provenance       FactProvenance  @relation(fields: [provenanceId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, factType, deduplicationKey], name: "unique_canonical_per_user_type_key")
+  @@index([userId, factType, isActive])
+  @@index([userId, isActive])
+  @@index([sourceFactId])
+  @@index([provenanceId])
+  @@index([cellId])
+  @@map("canonical_candidate_intelligence")
+}
+
+model Snapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  snapshotType  String   @map("snapshot_type")
+  referenceId   String?  @map("reference_id") @db.Uuid
+  capturedAt    DateTime @default(now()) @map("captured_at") @db.Timestamptz
+  description   String?
+  lastFactId     String?  @map("last_fact_id") @db.Uuid
+  schemaVersion  String   @default("v1") @map("schema_version")
+  candidateStateJson Json? @map("candidate_state_json")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facts         FactObservation[]
+  applications  JobApplication[]
+
+  @@index([userId, snapshotType])
+  @@index([referenceId])
+  @@index([capturedAt])
+  @@index([userId, capturedAt])
+  @@map("snapshots")
+}

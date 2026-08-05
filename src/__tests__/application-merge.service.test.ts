@@ -18,7 +18,7 @@ describe('ApplicationMergeService', () => {
   const mockIncomingData: ExtractedJobData = {
     userId,
     company: { name: 'example-organization', domain: 'example-organization.com' },
-    role: { title: 'Software Engineer' },
+    role: { title: 'Knowledge Worker' },
     status: 'APPLIED',
     appliedDate: new Date('2026-07-15'),
     recruiter: { email: 'recruiter@acme.com' },
@@ -39,7 +39,7 @@ describe('ApplicationMergeService', () => {
     legacyUserId: userId,
     companyName: 'example-organization',
     companyDomain: 'example-organization.com',
-    roleTitle: 'Software Engineer',
+    roleTitle: 'Knowledge Worker',
     roleDepartment: 'Engineering',
     status: 'APPLIED',
     appliedDate: new Date('2026-07-10'),
@@ -140,7 +140,7 @@ describe('ApplicationMergeService', () => {
   it('should create new (not merge) for low confidence match', async () => {
     // Same company, fuzzy role match but no thread, different recruiter, long time ago
     const existingApp = createMockApp({
-      roleTitle: 'Senior Software Engineer', // fuzzy role (+30)
+      roleTitle: 'Senior Knowledge Worker', // fuzzy role (+30)
       threadIds: [],
       recruiterEmail: 'someone-else@acme.com',
       appliedDate: new Date('2025-01-01'), // not close date

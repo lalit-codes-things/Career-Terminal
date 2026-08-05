@@ -79,7 +79,7 @@ describe('Security Hardening & Middleware Pipeline', () => {
       const email = {
         emailId: 'test',
         sender: 'test@example.com',
-        subject: 'Interview for Software Engineer',
+        subject: 'Interview for Knowledge Worker',
         receivedAt: new Date(),
         bodyText: longString,
         bodyHtml: null,
@@ -89,7 +89,7 @@ describe('Security Hardening & Middleware Pipeline', () => {
         emailId: email.emailId,
         category: JobEmailCategory.INTERVIEW_INVITATION,
         detectedCompany: 'Google',
-        detectedRole: 'Software Engineer',
+        detectedRole: 'Knowledge Worker',
         confidence: 0.9,
       });
 

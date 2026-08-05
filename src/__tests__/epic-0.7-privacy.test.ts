@@ -161,9 +161,10 @@ describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
 
   it('2d. assertAiDataMinimisation passes for safe structured data', () => {
     const safeData = {
-      company: 'example-organization',
-      role: 'Software Engineer',
-      status: 'INTERVIEW',
+      company: 'example-org',
+      candidateId: 'user-1',
+      role: 'Knowledge Worker',
+      context: 'Internal Transfer',
       applicationId: 'abc123',
     };
     expect(() => assertAiDataMinimisation(safeData)).not.toThrow();

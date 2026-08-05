@@ -76,7 +76,7 @@ describe('ResumeMatcherService (AI-based)', () => {
           makeField('skill', 'Python', 'Python', 0.88),
           makeField('skill', 'Project Management', 'Project Management', 0.85),
           makeField('technology', 'React', 'React', 0.82),
-          makeField('occupation', 'Software Engineer', 'Software Engineer', 0.8),
+          makeField('occupation', 'Knowledge Worker', 'Knowledge Worker', 0.8),
         ]),
       );
 
@@ -85,7 +85,7 @@ describe('ResumeMatcherService (AI-based)', () => {
       expect(parsed.skills).toContain('Python');
       expect(parsed.skills).toContain('Project Management');
       expect(parsed.technologies).toContain('React');
-      expect(parsed.occupations).toContain('Software Engineer');
+      expect(parsed.occupations).toContain('Knowledge Worker');
     });
 
     it('extracts experience entries with parsed fields', async () => {

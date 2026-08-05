@@ -1,0 +1,132 @@
+model IdempotencyRecord {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique
+  operationType String   @map("operation_type")
+  resultId      String   @map("result_id")
+  resultData    Json?    @map("result_data")
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+model Recommendation {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id") @db.Uuid
+  recommendationType String  @map("recommendation_type")
+  targetType        String   @map("target_type")
+  targetId          String?  @map("target_id") @db.Uuid
+  overallScore      Float?   @map("overall_score")
+  scoreBreakdown    Json?    @map("score_breakdown") @default("{}")
+  explanation       String?  @db.Text
+  confidence        Float?
+  modelVersion      String?  @map("model_version")
+  rankingPosition   Int?     @map("ranking_position")
+  feedback          Json?    @default("{}")
+  eventualOutcome   Json?    @map("eventual_outcome") @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([recommendationType])
+  @@index([userId, createdAt])
+  @@map("recommendations")
+}
+
+model CanonicalRole {
+  id            String   @id @default(uuid()) @db.Uuid
+  canonicalName String   @map("canonical_name")
+  category      String?
+  seniority     String?
+  synonyms      String[] @default([])
+  requiredSkills String[] @default([]) @map("required_skills")
+  preferredSkills String[] @default([]) @map("preferred_skills")
+  salaryInfo    Json?    @map("salary_info") @default("{}")
+  demandTrend   String?  @map("demand_trend") @default("stable")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([canonicalName])
+  @@index([category])
+  @@index([seniority])
+  @@map("canonical_roles")
+}
+
+model EmbeddingModel {
+  id          String   @id
+  name        String
+  version     String
+  dimensions  Int
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  candidateProfileEmbeddings CandidateProfileEmbedding[]
+  opportunityEmbeddings      OpportunityEmbedding[]
+  applicationEmbeddings      ApplicationEmbedding[]
+
+  @@map("embedding_models")
+}
+
+model CandidateProfileEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("PROFILE") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_candidate_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("candidate_profile_embeddings")
+}
+
+model OpportunityEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("OPPORTUNITY") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_opportunity_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("opportunity_embeddings")
+}
+
+model ApplicationEmbedding {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  cellId      String   @map("cell_id")
+  modelId     String   @map("model_id")
+  embedding   Unsupported("vector(1536)")?
+  sourceType  String   @default("APPLICATION") @map("source_type")
+  sourceId    String   @map("source_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  model EmbeddingModel @relation(fields: [modelId], references: [id])
+
+  @@unique([userId, modelId, sourceType, sourceId], map: "uq_application_embeddings_user_model_source")
+  @@index([userId, cellId])
+  @@index([sourceType, sourceId])
+  @@map("application_embeddings")
+}
