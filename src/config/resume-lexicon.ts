@@ -2,7 +2,7 @@
  * resume-lexicon.ts
  *
  * All skill and occupation terms now come exclusively from AiTaxonomyService.
- 
+ */
 
 import { aiTaxonomyService } from '../services/career-taxonomy/ai-taxonomy.service';
 
