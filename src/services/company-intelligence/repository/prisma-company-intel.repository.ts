@@ -294,19 +294,28 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
     companyId: string,
     aliases: string[],
   ): Promise<void> {
-    for (const alias of aliases) {
-      const normalizedValue = normalizeCompanyName(alias) ?? alias;
-      await tx.canonicalCompanyAlias.upsert({
-        where: {
-          canonical_company_alias_company_value_unique: {
-            canonicalCompanyId: companyId,
-            normalizedValue,
-          },
-        },
-        create: { canonicalCompanyId: companyId, value: alias, normalizedValue },
-        update: { value: alias },
-      });
+    if (aliases.length === 0) {
+      return;
     }
+
+    // Batch upsert: delete existing then create all in one operation
+    const normalizedValues = aliases.map((alias) => normalizeCompanyName(alias) ?? alias);
+
+    await tx.canonicalCompanyAlias.deleteMany({
+      where: {
+        canonicalCompanyId: companyId,
+        normalizedValue: { in: normalizedValues },
+      },
+    });
+
+    await tx.canonicalCompanyAlias.createMany({
+      data: aliases.map((alias, index) => ({
+        canonicalCompanyId: companyId,
+        value: alias,
+        normalizedValue: normalizedValues[index]!,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   private async persistIdentifiers(
@@ -314,21 +323,45 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
     companyId: string,
     data: NormalizedCompanyData,
   ): Promise<void> {
-    for (const identifier of data.identifiers) {
-      // The unique key includes a nullable jurisdictionCode, which Prisma does
-      // not accept in `upsert.where`. Resolve via findFirst to stay type-safe.
-      const where = {
+    if (data.identifiers.length === 0) {
+      return;
+    }
+
+    // Batch fetch existing identifiers to avoid N+1 queries
+    const identifierKeys = data.identifiers.map((identifier) => ({
+      type: identifier.type,
+      normalizedValue: identifier.normalizedValue,
+      jurisdictionCode: identifier.jurisdiction ?? data.jurisdiction ?? null,
+    }));
+
+    const existingIdentifiers = await tx.companyIdentifier.findMany({
+      where: {
         canonicalCompanyId: companyId,
-        type: identifier.type,
-        normalizedValue: identifier.normalizedValue,
-        jurisdictionCode: identifier.jurisdiction ?? data.jurisdiction ?? null,
-      };
-      const existing = await tx.companyIdentifier.findFirst({ where });
+        OR: identifierKeys.map((key) => ({
+          type: key.type,
+          normalizedValue: key.normalizedValue,
+          jurisdictionCode: key.jurisdictionCode,
+        })),
+      },
+    });
+
+    const existingMap = new Map(
+      existingIdentifiers.map((existing) => [
+        `${existing.type}:${existing.normalizedValue}:${existing.jurisdictionCode ?? ''}`,
+        existing,
+      ]),
+    );
+
+    // Process each identifier using the batch-fetched data
+    for (const identifier of data.identifiers) {
+      const jurisdictionCode = identifier.jurisdiction ?? data.jurisdiction ?? null;
+      const key = `${identifier.type}:${identifier.normalizedValue}:${jurisdictionCode ?? ''}`;
+      const existing = existingMap.get(key);
 
       const values = {
         value: identifier.value,
         normalizedValue: identifier.normalizedValue,
-        jurisdictionCode: identifier.jurisdiction ?? data.jurisdiction ?? null,
+        jurisdictionCode,
         registrar: identifier.registrar ?? null,
         validFrom: this.toDate(identifier.validFrom),
         validTo: this.toDate(identifier.validTo),
@@ -365,16 +398,36 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
       seen.set(website.url, website);
     }
 
-    for (const website of seen.values()) {
-      const normalizedUrl = this.normalizeWebsiteUrl(website.url) ?? website.url;
-      await tx.companyWebsite.upsert({
-        where: {
-          company_website_company_url_unique: {
-            canonicalCompanyId: companyId,
-            normalizedUrl,
-          },
-        },
-        create: {
+    if (seen.size === 0) {
+      return;
+    }
+
+    // Fetch existing websites in a single query to avoid N+1
+    const normalizedUrls = Array.from(seen.keys()).map(
+      (url) => this.normalizeWebsiteUrl(url) ?? url,
+    );
+
+    const existingWebsites = await tx.companyWebsite.findMany({
+      where: {
+        canonicalCompanyId: companyId,
+        normalizedUrl: { in: normalizedUrls },
+      },
+    });
+
+    const existingMap = new Map(existingWebsites.map((w) => [w.normalizedUrl, w]));
+
+    // Batch upsert: delete existing then create all in one operation
+    await tx.companyWebsite.deleteMany({
+      where: {
+        canonicalCompanyId: companyId,
+        normalizedUrl: { in: normalizedUrls },
+      },
+    });
+
+    await tx.companyWebsite.createMany({
+      data: Array.from(seen.values()).map((website) => {
+        const normalizedUrl = this.normalizeWebsiteUrl(website.url) ?? website.url;
+        return {
           canonicalCompanyId: companyId,
           url: website.url,
           normalizedUrl,
@@ -382,14 +435,10 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
           isVerified: website.isVerified ?? false,
           validFrom: this.toDate(website.validFrom),
           validTo: this.toDate(website.validTo),
-        },
-        update: {
-          url: website.url,
-          kind: website.kind ?? 'primary',
-          isVerified: website.isVerified ?? false,
-        },
-      });
-    }
+        };
+      }),
+      skipDuplicates: true,
+    });
   }
 
   private async persistAddresses(
@@ -423,29 +472,60 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
     companyId: string,
     data: NormalizedCompanyData,
   ): Promise<void> {
+    if (data.industryClassifications.length === 0) {
+      return;
+    }
+
+    // Fetch existing classifications in a single query
+    const classificationKeys = data.industryClassifications.map((c) => ({
+      classificationSystem: c.system,
+      code: c.code,
+    }));
+
+    const existingClassifications = await tx.companyIndustryClassification.findMany({
+      where: {
+        canonicalCompanyId: companyId,
+        OR: classificationKeys.map((key) => ({
+          classificationSystem: key.classificationSystem,
+          code: key.code,
+        })),
+      },
+    });
+
+    const existingMap = new Map(
+      existingClassifications.map((c) => [`${c.classificationSystem}:${c.code}`, c]),
+    );
+
+    // Process each classification
     for (const classification of data.industryClassifications) {
-      await tx.companyIndustryClassification.upsert({
-        where: {
-          company_industry_unique: {
+      const key = `${classification.system}:${classification.code}`;
+      const existing = existingMap.get(key);
+
+      const values = {
+        label: classification.label ?? null,
+        isPrimary: classification.isPrimary ?? false,
+        validFrom: this.toDate(classification.validFrom),
+        validTo: this.toDate(classification.validTo),
+      };
+
+      if (existing) {
+        await tx.companyIndustryClassification.update({
+          where: { id: existing.id },
+          data: {
+            label: values.label,
+            isPrimary: values.isPrimary,
+          },
+        });
+      } else {
+        await tx.companyIndustryClassification.create({
+          data: {
             canonicalCompanyId: companyId,
             classificationSystem: classification.system,
             code: classification.code,
+            ...values,
           },
-        },
-        create: {
-          canonicalCompanyId: companyId,
-          classificationSystem: classification.system,
-          code: classification.code,
-          label: classification.label ?? null,
-          isPrimary: classification.isPrimary ?? false,
-          validFrom: this.toDate(classification.validFrom),
-          validTo: this.toDate(classification.validTo),
-        },
-        update: {
-          label: classification.label ?? null,
-          isPrimary: classification.isPrimary ?? false,
-        },
-      });
+        });
+      }
     }
   }
 
@@ -454,31 +534,62 @@ export class PrismaCompanyIntelRepository implements CompanyIntelRepository {
     companyId: string,
     data: NormalizedCompanyData,
   ): Promise<void> {
+    if (data.exchangeListings.length === 0) {
+      return;
+    }
+
+    // Fetch existing listings in a single query
+    const listingKeys = data.exchangeListings.map((l) => ({
+      exchange: l.exchange,
+      ticker: l.ticker,
+    }));
+
+    const existingListings = await tx.companyExchangeListing.findMany({
+      where: {
+        canonicalCompanyId: companyId,
+        OR: listingKeys.map((key) => ({
+          exchange: key.exchange,
+          ticker: key.ticker,
+        })),
+      },
+    });
+
+    const existingMap = new Map(
+      existingListings.map((l) => [`${l.exchange}:${l.ticker}`, l]),
+    );
+
+    // Process each listing
     for (const listing of data.exchangeListings) {
-      await tx.companyExchangeListing.upsert({
-        where: {
-          company_listing_unique: {
+      const key = `${listing.exchange}:${listing.ticker}`;
+      const existing = existingMap.get(key);
+
+      const values = {
+        currency: listing.currency ?? null,
+        isPrimary: listing.isPrimary ?? false,
+        listingStatus: listing.listingStatus ?? 'listed',
+        validFrom: this.toDate(listing.validFrom),
+        validTo: this.toDate(listing.validTo),
+      };
+
+      if (existing) {
+        await tx.companyExchangeListing.update({
+          where: { id: existing.id },
+          data: {
+            currency: values.currency,
+            isPrimary: values.isPrimary,
+            listingStatus: values.listingStatus,
+          },
+        });
+      } else {
+        await tx.companyExchangeListing.create({
+          data: {
             canonicalCompanyId: companyId,
             exchange: listing.exchange,
             ticker: listing.ticker,
+            ...values,
           },
-        },
-        create: {
-          canonicalCompanyId: companyId,
-          exchange: listing.exchange,
-          ticker: listing.ticker,
-          currency: listing.currency ?? null,
-          isPrimary: listing.isPrimary ?? false,
-          listingStatus: listing.listingStatus ?? 'listed',
-          validFrom: this.toDate(listing.validFrom),
-          validTo: this.toDate(listing.validTo),
-        },
-        update: {
-          currency: listing.currency ?? null,
-          isPrimary: listing.isPrimary ?? false,
-          listingStatus: listing.listingStatus ?? 'listed',
-        },
-      });
+        });
+      }
     }
   }
 
