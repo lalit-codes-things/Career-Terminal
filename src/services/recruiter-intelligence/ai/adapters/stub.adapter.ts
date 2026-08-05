@@ -6,7 +6,7 @@ import type { AiAdapterRequest, AiAdapterResponse, AiModelAdapter, AiProviderKin
  * without real API keys. No network calls.
  */
 export class StubAiAdapter implements AiModelAdapter {
-  readonly provider: AiProviderKind = 'stub';
+  readonly provider: AiProviderKind = 'stub' as AiProviderKind;
   readonly supportedModels = ['stub-fast', 'stub-balanced', 'stub-powerful'];
 
   private readonly responses = new Map<string, string>();

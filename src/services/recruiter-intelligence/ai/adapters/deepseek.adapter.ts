@@ -1,20 +1,25 @@
 import type { AiAdapterRequest, AiAdapterResponse, AiModelAdapter, AiProviderKind } from '../types';
 
 /**
- * OpenAiAdapter — wraps the OpenAI Chat Completions API.
- * All provider-specific concerns are isolated here.
- * The pipeline only sees AiModelAdapter.
+ * DeepSeekAdapter — wraps the DeepSeek Chat Completions API (primary provider).
+ *
+ * DeepSeek exposes an OpenAI-compatible endpoint, so the wire format is
+ * identical to OpenAI's /chat/completions.  We keep this as a separate file
+ * so provider-specific headers, model lists, and error handling stay isolated.
  */
-export class OpenAiAdapter implements AiModelAdapter {
-  readonly provider: AiProviderKind = 'openai';
-  readonly supportedModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+export class DeepSeekAdapter implements AiModelAdapter {
+  readonly provider: AiProviderKind = 'deepseek';
+  readonly supportedModels = [
+    'deepseek-chat',      // DeepSeek-V3  — fast / balanced
+    'deepseek-reasoner',  // DeepSeek-R1  — powerful / reasoning
+  ];
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
 
   constructor(options: { apiKey: string; baseUrl?: string }) {
     this.apiKey = options.apiKey;
-    this.baseUrl = options.baseUrl ?? 'https://api.openai.com/v1';
+    this.baseUrl = options.baseUrl ?? 'https://api.deepseek.com/v1';
   }
 
   async complete(request: AiAdapterRequest): Promise<AiAdapterResponse> {
@@ -43,8 +48,8 @@ export class OpenAiAdapter implements AiModelAdapter {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new OpenAiAdapterError(
-        `OpenAI API error ${response.status}: ${errorText}`,
+      throw new DeepSeekAdapterError(
+        `DeepSeek API error ${response.status}: ${errorText}`,
         response.status,
         this.isRetryable(response.status),
       );
@@ -54,9 +59,9 @@ export class OpenAiAdapter implements AiModelAdapter {
       return this.handleStream(response, request, start);
     }
 
-    const data = (await response.json()) as OpenAiCompletionResponse;
+    const data = (await response.json()) as DeepSeekCompletionResponse;
     const choice = data.choices[0];
-    if (!choice) throw new OpenAiAdapterError('No completion choice returned', 500, false);
+    if (!choice) throw new DeepSeekAdapterError('No completion choice returned', 500, false);
 
     return {
       rawText: choice.message.content ?? '',
@@ -73,7 +78,7 @@ export class OpenAiAdapter implements AiModelAdapter {
     request: AiAdapterRequest,
     start: number,
   ): Promise<AiAdapterResponse> {
-    if (!response.body) throw new OpenAiAdapterError('No response body for stream', 500, false);
+    if (!response.body) throw new DeepSeekAdapterError('No response body for stream', 500, false);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -96,9 +101,8 @@ export class OpenAiAdapter implements AiModelAdapter {
           request.onChunk?.({ chunkIndex, delta: '', finished: true });
           continue;
         }
-
         try {
-          const parsed = JSON.parse(raw) as OpenAiStreamChunk;
+          const parsed = JSON.parse(raw) as DeepSeekStreamChunk;
           model = parsed.model ?? model;
           const delta = parsed.choices[0]?.delta?.content ?? '';
           if (delta) {
@@ -130,20 +134,20 @@ export class OpenAiAdapter implements AiModelAdapter {
   }
 }
 
-export class OpenAiAdapterError extends Error {
+export class DeepSeekAdapterError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
     public readonly retryable: boolean,
   ) {
     super(message);
-    this.name = 'OpenAiAdapterError';
+    this.name = 'DeepSeekAdapterError';
   }
 }
 
 // ─── Response shapes ──────────────────────────────────────────────────────────
 
-interface OpenAiCompletionResponse {
+interface DeepSeekCompletionResponse {
   model: string;
   choices: Array<{
     message: { content: string | null };
@@ -152,7 +156,7 @@ interface OpenAiCompletionResponse {
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
 
-interface OpenAiStreamChunk {
+interface DeepSeekStreamChunk {
   model?: string;
   choices: Array<{ delta?: { content?: string } }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };

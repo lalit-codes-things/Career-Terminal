@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { CompanyIntelligenceApiService } from '../services/company-intelligence/api.service';
+import { planner } from '../services/planner';
 
 export const companyIntelligenceRouter = Router();
 const apiService = new CompanyIntelligenceApiService();
@@ -82,4 +83,47 @@ companyIntelligenceRouter.get('/:id/hiring', async (req, res) => {
 companyIntelligenceRouter.get('/:id/authenticity', async (req, res) => {
   const result = await apiService.getAuthenticity(req.params.id);
   res.json(result);
+});
+
+/**
+ * POST /:id/intelligence
+ * Run AI capabilities (understand/infer/predict) against a company entity.
+ * Content is sourced from the existing company health + hiring signals.
+ */
+companyIntelligenceRouter.post('/:id/intelligence', async (req: Request, res) => {
+  const userId = (req as Request & { user?: { id: string } }).user?.id ?? 'system';
+  const companyId = req.params.id;
+  const { content, intent } = req.body as { content?: string; intent?: string };
+
+  const [healthResult, hiringResult] = await Promise.allSettled([
+    apiService.getHealth(companyId),
+    apiService.getHiring(companyId),
+  ]);
+
+  const contextContent = content ??
+    JSON.stringify({
+      health: healthResult.status === 'fulfilled' ? healthResult.value : {},
+      hiring: hiringResult.status === 'fulfilled' ? hiringResult.value : {},
+    });
+
+  const result = await planner.run({
+    userId,
+    entityId: companyId,
+    entityType: 'company',
+    content: contextContent,
+    intent: (intent as 'understand' | 'infer' | 'predict' | 'recommend' | undefined) ?? 'understand',
+  });
+
+  res.json({
+    success: true,
+    data: {
+      planId: result.planId,
+      intent: result.intent,
+      fields: result.results.flatMap((r) => r.fields),
+      confidence: result.results.length
+        ? result.results.reduce((s, r) => s + r.confidence, 0) / result.results.length
+        : 0,
+      latencyMs: result.totalLatencyMs,
+    },
+  });
 });

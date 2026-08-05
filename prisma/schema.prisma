@@ -1498,14 +1498,22 @@ model ActionEvent {
 }
 
 model Model {
-  id               String   @id
-  name             String
-  version          String
-  provider         String
-  capabilities     String[]
-  isActive         Boolean  @default(true) @map("is_active")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                 String   @id
+  name               String
+  version            String
+  provider           String
+  capabilities       String[]
+  isActive           Boolean  @default(true) @map("is_active")
+  contextWindow      Int?     @map("context_window")
+  maxOutputTokens    Int?     @map("max_output_tokens")
+  costPer1kInput     Float?   @map("cost_per_1k_input")
+  costPer1kOutput    Float?   @map("cost_per_1k_output")
+  supportsJsonMode   Boolean  @default(true) @map("supports_json_mode")
+  supportsStreaming   Boolean  @default(true) @map("supports_streaming")
+  defaultTemperature Float    @default(0.1) @map("default_temperature")
+  metadata           Json     @default("{}") @map("metadata")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   predictions      Prediction[]
   extractionRuns   ExtractionRun[]
@@ -1517,51 +1525,77 @@ model Prediction {
   id                String   @id @default(cuid())
   modelId           String   @map("model_id")
   userId            String   @map("user_id") @db.Uuid
+  recruiterId       String?  @map("recruiter_id") @db.Uuid
   applicationId     String?  @map("application_id") @db.Uuid
   opportunityId     String?  @map("opportunity_id") @db.Uuid
   extractionRunId   String?  @map("extraction_run_id") @db.Uuid
-  predictionType    String   @map("prediction_type") // INTERVIEW_PROBABILITY, SALARY_ESTIMATE, SKILL_MATCH
+  predictionType    String   @map("prediction_type")
+  capability        String?
   predictionValue   Json     @map("prediction_value")
   confidenceScore   Float    @map("confidence_score")
+  confidenceBand    String?  @map("confidence_band")
+  provider          String?
+  latencyMs         Int?     @map("latency_ms")
+  inputTokens       Int?     @map("input_tokens")
+  outputTokens      Int?     @map("output_tokens")
+  estimatedCostUsd  Float?   @map("estimated_cost_usd")
+  rawOutput         Json?    @map("raw_output")
+  outputValid       Boolean? @map("output_valid")
+  outputErrors      Json     @default("[]") @map("output_errors")
+  requiresReview    Boolean  @default(false) @map("requires_review")
+  reviewReason      String?  @map("review_reason") @db.Text
+  plannerContext    Json     @default("{}") @map("planner_context")
   timestamp         DateTime @default(now()) @db.Timestamptz
-  isCorrect         Boolean?  @map("is_correct")
-  evaluationNote    String?   @map("evaluation_note") @db.Text
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  isCorrect         Boolean? @map("is_correct")
+  evaluationNote    String?  @map("evaluation_note") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  model       Model                @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  application JobApplication?      @relation(fields: [applicationId], references: [id], onDelete: SetNull)
-  opportunity Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
-    extractionRun    ExtractionRun?   @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
-  feedback    PredictionFeedback[]
+  model         Model                @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application   JobApplication?      @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  opportunity   Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  extractionRun ExtractionRun?       @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
+  feedback      PredictionFeedback[]
 
   @@index([modelId])
   @@index([userId])
+  @@index([recruiterId])
   @@index([applicationId])
   @@index([predictionType])
+  @@index([capability])
+  @@index([provider])
   @@index([timestamp])
   @@index([isCorrect])
+  @@index([requiresReview])
+  @@index([outputValid])
   @@map("predictions")
 }
 
 model PredictionFeedback {
-  id           String   @id @default(cuid())
-  predictionId String   @map("prediction_id")
-  userId       String   @map("user_id") @db.Uuid
-  rating       Int?
-  helpful      Boolean?
-  correct      Boolean?
-  comment      String?  @db.Text
-  feedbackType String   @map("feedback_type")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                  String    @id @default(cuid())
+  predictionId        String    @map("prediction_id")
+  userId              String    @map("user_id") @db.Uuid
+  rating              Int?
+  helpful             Boolean?
+  correct             Boolean?
+  comment             String?   @db.Text
+  feedbackType        String    @map("feedback_type")
+  expectedValue       Json?     @map("expected_value")
+  actualValue         Json?     @map("actual_value")
+  confidenceAtPred    Float?    @map("confidence_at_pred")
+  outcomeOccurredAt   DateTime? @map("outcome_occurred_at") @db.Timestamptz
+  calibrationBucket   String?   @map("calibration_bucket")
+  metadata            Json      @default("{}") @map("metadata")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([predictionId])
   @@index([userId])
+  @@index([calibrationBucket])
   @@map("prediction_feedback")
 }
 
@@ -1597,212 +1631,12 @@ model Event {
   @@map("events")
 }
 
-// ---------------------------------------------------------------------------
-// CANONICAL ONTOLOGY (Epic 4 Prompt 6)
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// CANONICAL ISO / TIMEZONE / LANGUAGE / CURRENCY
+// (Kept: external interoperability — ISO 3166-1, IANA tz, ISO 639, ISO 4217)
+// ─────────────────────────────────────────────────────────────────────────────
 
-model CanonicalOccupation {
-  id            String  @id @default(uuid()) @db.Uuid
-  canonicalName String  @map("canonical_name")
-  source        String // 'ONET', 'ESCO', 'ISCO'
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  aliases            CanonicalOccupationAlias[]
-  skills             OccupationSkill[]
-  parentOccupations  OccupationHierarchy[]      @relation("ParentOccupation")
-  childOccupations   OccupationHierarchy[]      @relation("ChildOccupation")
-  mappings           OccupationClassificationMapping[]
-
-  @@unique([source, sourceId])
-  @@index([canonicalName])
-  @@map("canonical_occupations")
-}
-
-model CanonicalOccupationAlias {
-  id           String @id @default(uuid()) @db.Uuid
-  occupationId String @map("occupation_id") @db.Uuid
-  alias        String
-
-  occupation CanonicalOccupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
-
-  @@index([alias])
-  @@map("canonical_occupation_aliases")
-}
-
-model CanonicalSkill {
-  id            String  @id @default(uuid()) @db.Uuid
-  canonicalName String  @map("canonical_name")
-  skillType     String  @map("skill_type") // SKILL, KNOWLEDGE, ABILITY, LANGUAGE, TRANSVERSAL
-  source        String // 'ONET', 'ESCO'
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  aliases     CanonicalSkillAlias[]
-  occupations OccupationSkill[]
-  relatedFrom SkillRelationship[]   @relation("SkillA")
-  relatedTo   SkillRelationship[]   @relation("SkillB")
-
-  @@unique([source, sourceId])
-  @@index([canonicalName])
-  @@index([skillType])
-  @@map("canonical_skills")
-}
-
-model CanonicalSkillAlias {
-  id      String @id @default(uuid()) @db.Uuid
-  skillId String @map("skill_id") @db.Uuid
-  alias   String
-
-  skill CanonicalSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@index([alias])
-  @@map("canonical_skill_aliases")
-}
-
-model CanonicalTask {
-  id            String  @id @default(uuid()) @db.Uuid
-  description   String
-  source        String
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  @@unique([source, sourceId])
-  @@map("canonical_tasks")
-}
-
-model CanonicalWorkActivity {
-  id            String  @id @default(uuid()) @db.Uuid
-  name          String
-  source        String
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  @@unique([source, sourceId])
-  @@map("canonical_work_activities")
-}
-
-model CanonicalIndustry {
-  id            String  @id @default(uuid()) @db.Uuid
-  code          String
-  name          String
-  source        String
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  @@unique([source, sourceId])
-  @@index([code])
-  @@map("canonical_industries")
-}
-
-model CanonicalCountry {
-  id        String @id @default(uuid()) @db.Uuid
-  isoAlpha2 String @unique @map("iso_alpha_2")
-  isoAlpha3 String @unique @map("iso_alpha_3")
-  name      String
-
-  timeZones CanonicalTimeZone[]
-
-  @@map("canonical_countries")
-}
-
-model CanonicalLanguage {
-  id         String  @id @default(uuid()) @db.Uuid
-  iso6391    String  @unique @map("iso_639_1") // Optional in standard, but we'll use empty string if missing
-  iso6392    String  @unique @map("iso_639_2")
-  name       String
-  nativeName String? @map("native_name")
-
-  @@map("canonical_languages")
-}
-
-model CanonicalTimeZone {
-  id          String @id @default(uuid()) @db.Uuid
-  zoneName    String @unique @map("zone_name")
-  countryCode String @map("country_code")
-
-  country CanonicalCountry @relation(fields: [countryCode], references: [isoAlpha2], onDelete: Cascade)
-
-  @@map("canonical_time_zones")
-}
-
-model OntologySource {
-  id            String   @id @default(uuid()) @db.Uuid
-  name          String
-  provider      String
-  version       String
-  sourceUrl     String?  @map("source_url")
-  license       String?
-  checksum      String?
-  importDate    DateTime @default(now()) @map("import_date") @db.Timestamptz
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  @@unique([name, version])
-  @@map("ontology_sources")
-}
-
-model OccupationSkill {
-  occupationId String  @map("occupation_id") @db.Uuid
-  skillId      String  @map("skill_id") @db.Uuid
-  importance   Float?
-  confidence   Float?
-  sourceId     String? @map("source_id")
-
-  occupation CanonicalOccupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
-  skill      CanonicalSkill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
-
-  @@id([occupationId, skillId])
-  @@map("occupation_skill")
-}
-
-model SkillRelationship {
-  skillA           String  @map("skill_a") @db.Uuid
-  skillB           String  @map("skill_b") @db.Uuid
-  relationshipType String  @map("relationship_type")
-  confidence       Float?
-  sourceId         String? @map("source_id")
-
-  skillARef CanonicalSkill @relation("SkillA", fields: [skillA], references: [id], onDelete: Cascade)
-  skillBRef CanonicalSkill @relation("SkillB", fields: [skillB], references: [id], onDelete: Cascade)
-
-  @@id([skillA, skillB, relationshipType])
-  @@map("skill_relationship")
-}
-
-model OccupationHierarchy {
-  parent String @db.Uuid
-  child  String @db.Uuid
-
-  parentRef CanonicalOccupation @relation("ParentOccupation", fields: [parent], references: [id], onDelete: Cascade)
-  childRef  CanonicalOccupation @relation("ChildOccupation", fields: [child], references: [id], onDelete: Cascade)
-
-  @@id([parent, child])
-  @@map("occupation_hierarchy")
-}
-
-model OccupationClassificationMapping {
-  occupationId         String @map("occupation_id") @db.Uuid
-  classificationSystem String @map("classification_system")
-  externalCode         String @map("external_code")
-
-  occupation CanonicalOccupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
-
-  @@id([occupationId, classificationSystem, externalCode])
-  @@map("occupation_classification_mapping")
-}
-
-model CanonicalCurrency {
-  id            String  @id @default(uuid()) @db.Uuid
-  code          String  @unique
-  name          String
-  symbol        String?
-  minorUnits    Int?    @map("minor_units")
-  source        String
-  sourceId      String  @map("source_id")
-  sourceVersion String? @map("source_version")
-
-  @@map("canonical_currencies")
-}
+// (removed — was CanonicalCountry relation, now standalone)
 
 model CompanySignal {
   id               String   @id @default(uuid()) @db.Uuid

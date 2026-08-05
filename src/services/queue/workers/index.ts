@@ -16,6 +16,7 @@ import { startMalwareScanWorker } from './malware-scan.worker';
 import { startResumeParsingWorker } from './resume-parsing.worker';
 import { startApplicationTrackingWorker } from './application-tracking.worker';
 import { startGmailSyncWorker } from './gmail-sync.worker';
+import { startIntelligenceWorker } from './intelligence.worker';
 import { outboxDispatcher } from '../../event/outbox-dispatcher.service';
 import { logger } from '../../../lib/logger';
 import { config } from '../../../config';
@@ -28,6 +29,7 @@ const workerFactories = {
   'resume-parsing': startResumeParsingWorker,
   'application-tracking': startApplicationTrackingWorker,
   'gmail-sync': startGmailSyncWorker,
+  intelligence: startIntelligenceWorker,
   'outbox-dispatcher': () => {
     outboxDispatcher.start();
     return { close: async () => outboxDispatcher.stop() } as unknown as Worker;

@@ -8,7 +8,7 @@ import { Worker, type Job } from 'bullmq';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
 import { storageService } from '../../storage/storage.service';
-import { resumeMatcherService } from '../../resume-matcher/resume-matcher.service';
+import { resumeIntelligenceService } from '../../resume/resume-intelligence.service';
 import { prisma } from '../../../config/database';
 import { cellService } from '../../cell/cell.service';
 import { placementService } from '../../placement/placement.service';
@@ -58,11 +58,18 @@ export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>)
       return;
     }
 
-    await resumeMatcherService.parseAndStoreResumeFacts({
-      userId,
-      resumeVersionId: matchingResume.id,
+    // AI intelligence pipeline: text extraction → capability extraction → facts + pgvector
+    await resumeIntelligenceService.analyzeBuffer(
       fileBuffer,
       mimeType,
+      userId,
+      matchingResume.id,
+    ).catch((err) => {
+      logger.warn('[ResumeParsingWorker] Intelligence analysis failed (non-fatal)', {
+        userId,
+        userResumeId: matchingResume.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
 
     await prisma.userResume.update({

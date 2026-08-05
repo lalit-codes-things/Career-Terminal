@@ -6,14 +6,15 @@ import { randomUUID } from 'crypto';
  * Updated manually when providers change pricing.
  */
 const PRICING_PER_1K_TOKENS: Record<string, { input: number; output: number }> = {
-  'gpt-4o': { input: 0.005, output: 0.015 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'gpt-4-turbo': { input: 0.01, output: 0.03 },
-  'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 },
-  'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },
-  'claude-3-5-haiku-20241022': { input: 0.0008, output: 0.004 },
-  'claude-3-opus-20240229': { input: 0.015, output: 0.075 },
-  'claude-3-haiku-20240307': { input: 0.00025, output: 0.00125 },
+  // DeepSeek (primary)
+  'deepseek-chat': { input: 0.00014, output: 0.00028 },
+  'deepseek-reasoner': { input: 0.00055, output: 0.00219 },
+  // OpenRouter pass-through (DeepSeek models via OpenRouter)
+  'deepseek/deepseek-chat': { input: 0.00014, output: 0.00028 },
+  'deepseek/deepseek-r1': { input: 0.00055, output: 0.00219 },
+  'meta-llama/llama-3.3-70b-instruct': { input: 0.00065, output: 0.00065 },
+  'google/gemini-flash-1.5': { input: 0.0000375, output: 0.00015 },
+  // Stubs
   'stub-fast': { input: 0, output: 0 },
   'stub-balanced': { input: 0, output: 0 },
   'stub-powerful': { input: 0, output: 0 },

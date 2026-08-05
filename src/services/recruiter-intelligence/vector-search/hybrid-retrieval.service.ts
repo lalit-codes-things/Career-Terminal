@@ -1,3 +1,13 @@
+/**
+ * HybridRetrievalService
+ *
+ * Semantic + keyword retrieval backed by pgvector (CandidateProfileEmbedding,
+ * OpportunityEmbedding, ApplicationEmbedding).
+ *
+ * The VectorStore injected here is PgVectorStore in production; the stub
+ * InMemoryVectorStore is still used in unit tests.
+ */
+
 import type { EmbeddingProvider } from '../../../domain/recruiter-intelligence/semantic-representation/contracts';
 import type {
   HybridQuery,
@@ -5,13 +15,25 @@ import type {
   VectorSearchResult,
   VectorStore,
 } from '../../../domain/recruiter-intelligence/vector-search/contracts';
+import { pgVectorStore } from '../infrastructure/pgvector.store';
+import { StubEmbeddingAdapter } from '../ai/adapters/stub-embedding.adapter';
 
 /**
- * HybridRetrievalService — Prompt 22 implementation.
- *
- * Implements semantic retrieval combining vector search and keyword matching.
- * Provides metadata filtering, confidence filtering, and temporal filtering.
+ * Build a default instance wired to pgvector + stub embeddings.
+ * In production replace StubEmbeddingAdapter with a real embedding adapter
+ * (e.g. DeepSeek text-embedding-v1 once that endpoint is stable, or
+ * OpenRouter's embedding proxy).
  */
+export function createHybridRetrievalService(
+  provider?: EmbeddingProvider,
+  vectorStore?: VectorStore,
+): HybridRetrievalService {
+  return new HybridRetrievalService(
+    provider ?? new StubEmbeddingAdapter('deepseek-embedding', 'text-embedding-v1', 1536),
+    vectorStore ?? pgVectorStore,
+  );
+}
+
 export class HybridRetrievalService {
   constructor(
     private readonly provider: EmbeddingProvider,
@@ -19,8 +41,8 @@ export class HybridRetrievalService {
   ) {}
 
   /**
-   * Performs hybrid search using Reciprocal Rank Fusion (RRF) for semantic + text results,
-   * though in this simplified implementation it uses a weighted linear combination.
+   * Hybrid search: weighted combination of vector similarity and BM25-style
+   * keyword overlap.  Defaults to 70 % vector / 30 % keyword.
    */
   async search(query: HybridQuery): Promise<HybridSearchResult[]> {
     const textWeight = query.weights?.text ?? 0.3;
@@ -29,7 +51,6 @@ export class HybridRetrievalService {
 
     let vectorResults: VectorSearchResult[] = [];
 
-    // 1. Vector Search
     if (query.vectorQuery) {
       let queryVector = query.vectorQuery.vector;
       if (!queryVector || queryVector.length === 0) {
@@ -39,44 +60,71 @@ export class HybridRetrievalService {
           throw new Error('Vector search requires either a vector or a text query');
         }
       }
-
       vectorResults = await this.vectorStore.search({
         ...query.vectorQuery,
         vector: queryVector,
       });
+    } else if (query.textQuery) {
+      // Text-only query: embed the text and search
+      const queryVector = await this.provider.embedContext(query.textQuery);
+      vectorResults = await this.vectorStore.search({
+        vector: queryVector,
+        topK,
+        minSimilarity: 0.3,
+        metadataFilters: query.vectorQuery?.metadataFilters,
+      });
     }
 
-    // 2. Keyword Search Simulation (for stubbing/demonstration)
-    // In a real implementation this would query ElasticSearch or Postgres FTS.
+    // Keyword scoring against retrieved text blobs
     const keywordResults = new Map<string, number>();
     if (query.textQuery && vectorResults.length > 0) {
       const tokens = query.textQuery.toLowerCase().split(/\W+/).filter((t) => t.length > 2);
       for (const res of vectorResults) {
-        let matchCount = 0;
+        if (!tokens.length) continue;
         const textLower = res.text.toLowerCase();
-        for (const token of tokens) {
-          if (textLower.includes(token)) matchCount++;
-        }
-        const keywordScore = tokens.length > 0 ? matchCount / tokens.length : 0;
-        keywordResults.set(res.entityId, keywordScore);
+        const matchCount = tokens.filter((t) => textLower.includes(t)).length;
+        keywordResults.set(res.entityId, matchCount / tokens.length);
       }
     }
 
-    // 3. Score fusion
     const hybridResults: HybridSearchResult[] = vectorResults.map((vr) => {
       const textScore = keywordResults.get(vr.entityId) ?? 0;
-      const hybridScore = (vr.score * vectorWeight) + (textScore * textWeight);
-      return {
-        ...vr,
-        vectorScore: vr.score,
-        textScore,
-        hybridScore,
-      };
+      const hybridScore = vr.score * vectorWeight + textScore * textWeight;
+      return { ...vr, vectorScore: vr.score, textScore, hybridScore };
     });
 
-    // 4. Sort by hybrid score and limit
-    return hybridResults
-      .sort((a, b) => b.hybridScore - a.hybridScore)
-      .slice(0, topK);
+    return hybridResults.sort((a, b) => b.hybridScore - a.hybridScore).slice(0, topK);
+  }
+
+  /**
+   * Embed and store a piece of text in the appropriate pgvector table.
+   * entityType determines the destination table (see PgVectorStore.store).
+   */
+  async embed(
+    text: string,
+    entityId: string,
+    entityType: import('../../../domain/recruiter-intelligence/semantic-representation/contracts').EntityType,
+    tenantId: string,
+  ): Promise<void> {
+    const vector = await this.provider.embedContext(text);
+    await this.vectorStore.store([
+      {
+        embeddingId: `${entityId}-${Date.now()}`,
+        vector,
+        dimensions: vector.length as 1536,
+        text,
+        metadata: {
+          entityType,
+          entityId,
+          tenantId,
+          sourceTextLength: text.length,
+          modelVersion: this.provider.modelName,
+          createdAt: new Date(),
+        },
+      },
+    ]);
   }
 }
+
+/** Singleton wired to pgvector — import this everywhere */
+export const hybridRetrievalService = createHybridRetrievalService();

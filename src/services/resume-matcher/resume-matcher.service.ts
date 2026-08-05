@@ -1,4 +1,5 @@
 import { TokenOverlapMatcher } from './embeddings';
+import { TokenOverlapMatcher } from './embeddings';
 import type { MatchScore, ParsedJob, ParsedResume } from './models';
 import { factService } from '../fact.service';
 import { snapshotService } from '../snapshot.service';
@@ -9,6 +10,7 @@ import {
   getJobOccupationLexicon,
   getResumeOccupationLexicon,
 } from '../../config/resume-lexicon';
+import { documentExtractionService } from '../document/document-extraction.service';
 
 const EXPERIENCE_PATTERNS = [
   /(.+?)\s+at\s+(.+?)\s*\((.+?)\)/i,
@@ -29,36 +31,12 @@ export class ResumeMatcherService {
   }
 
   /**
-   * Extracts raw text from a file buffer (e.g. PDF).
+   * Delegates to DocumentExtractionService — single source of truth for
+   * turning binary buffers into raw text.
    */
   public async extractTextFromBuffer(buffer: Buffer, mimetype: string): Promise<string> {
-    if (mimetype === 'application/pdf') {
-      const pdfParseModule = await import('pdf-parse');
-      const parse = (pdfParseModule.default || pdfParseModule) as unknown as (
-        buffer: Buffer,
-      ) => Promise<{ text: string }>;
-      const data = await parse(buffer);
-      return data.text;
-    }
-    if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      try {
-        // @ts-expect-error mammoth has no type declarations
-        const mammothModule = await import('mammoth');
-        const mammoth = mammothModule.default || mammothModule;
-        const result = await mammoth.extractRawText({ buffer });
-        return result.value;
-      } catch (error) {
-        logger.warn('[ResumeMatcher] DOCX extraction fallback used', {
-          reason: error instanceof Error ? error.message : String(error),
-        });
-        return buffer.toString('utf-8');
-      }
-    }
-    if (mimetype === 'text/plain') {
-      return buffer.toString('utf-8');
-    }
-    // Fallback for plain text or unknown
-    return buffer.toString('utf-8');
+    const { rawText } = await documentExtractionService.extract(buffer, mimetype);
+    return rawText;
   }
 
   /**

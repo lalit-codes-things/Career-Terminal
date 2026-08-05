@@ -27,6 +27,10 @@ export interface SearchOptions {
   filter?: SearchFilters;
 }
 
+import { companyIntelligenceService } from './company-intelligence.service';
+
+const SYSTEM_USER_ID = 'system';
+
 export class CompanyIntelligenceApiService {
   private wrapResponse<T>(data: T, provenance: string[] = [], metadata: Record<string, any> = {}): ApiResponse<T> {
     return {
@@ -98,16 +102,37 @@ export class CompanyIntelligenceApiService {
     return this.wrapResponse([], ['timeline-framework']);
   }
 
-  async getHealth(_id: string): Promise<ApiResponse<any>> {
-    return this.wrapResponse({ score: 0 }, ['health-framework']);
+  async getHealth(id: string): Promise<ApiResponse<any>> {
+    const stabilityResult = await companyIntelligenceService.scoreStability(id, SYSTEM_USER_ID).catch(() => null);
+    const hiringResult = await companyIntelligenceService.scoreHiringSignals(id, SYSTEM_USER_ID).catch(() => null);
+    return this.wrapResponse({
+      score: stabilityResult?.score ?? 0,
+      confidence: stabilityResult?.confidence ?? 0,
+      stabilitySignals: stabilityResult?.signals ?? [],
+      hiringScore: hiringResult?.score ?? 0,
+      activeHiringSignals: hiringResult?.activeSignals ?? [],
+      planId: stabilityResult?.planId,
+    }, ['health-framework', 'ai-capability']);
   }
 
-  async getHiring(_id: string): Promise<ApiResponse<any>> {
-    return this.wrapResponse({ signals: [] }, ['hiring-framework']);
+  async getHiring(id: string): Promise<ApiResponse<any>> {
+    const result = await companyIntelligenceService.scoreHiringSignals(id, SYSTEM_USER_ID).catch(() => null);
+    return this.wrapResponse({
+      signals: result?.activeSignals ?? [],
+      score: result?.score ?? 0,
+      confidence: result?.confidence ?? 0,
+      planId: result?.planId,
+    }, ['hiring-framework', 'ai-capability']);
   }
 
-  async getAuthenticity(_id: string): Promise<ApiResponse<any>> {
-    return this.wrapResponse({ trustScore: 0 }, ['authenticity-framework']);
+  async getAuthenticity(id: string): Promise<ApiResponse<any>> {
+    const result = await companyIntelligenceService.scoreAuthenticity(id, SYSTEM_USER_ID).catch(() => null);
+    return this.wrapResponse({
+      trustScore: result?.score ?? 0,
+      confidence: result?.confidence ?? 0,
+      signals: result?.signals ?? [],
+      planId: result?.planId,
+    }, ['authenticity-framework', 'ai-capability']);
   }
 
   async getMetadata(): Promise<ApiResponse<any>> {

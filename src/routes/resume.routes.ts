@@ -18,6 +18,8 @@ import { uploadLimiter, expensiveLimiter } from '../middleware/rate-limiter';
 import { sanitizeFilename } from '../infrastructure/security/utils';
 import { parseSizeToBytes } from '../lib/size';
 import { config } from '../config';
+import { planner } from '../services/planner';
+import { documentExtractionService } from '../services/document/document-extraction.service';
 
 const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
@@ -157,7 +159,7 @@ resumeRouter.post(
        const fileBuffer = fs.readFileSync(file.path);
        fs.unlinkSync(file.path);
 
-       const resumeText = await resumeMatcherService.extractTextFromBuffer(
+       const { rawText: resumeText } = await documentExtractionService.extract(
          fileBuffer,
          file.mimetype,
        );
@@ -204,6 +206,68 @@ resumeRouter.delete(
       }
       await resumeUploadService.deleteVersion(userId, userResumeId);
       res.json({ success: true, message: 'Resume version deleted.' });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /resume/analyze
+// AI-powered resume analysis via planner → extract + infer capabilities.
+// Persists findings as FactObservation rows via the capability base.
+// ---------------------------------------------------------------------------
+
+resumeRouter.post(
+  '/analyze',
+  expensiveLimiter,
+  requireAuth,
+  upload.single('resume'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const file = req.file;
+      const userResumeId = req.body.userResumeId as string | undefined;
+
+      if (!file && !userResumeId) {
+        throw new ValidationError('Either a resume file or userResumeId is required');
+      }
+
+      let resumeText = '';
+      let entityId = userResumeId ?? 'unknown';
+
+      if (file) {
+        if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
+          throw new ValidationError(`File type '${file.mimetype}' is not allowed`);
+        }
+        const fileBuffer = fs.readFileSync(file.path);
+        fs.unlinkSync(file.path);
+        const { rawText } = await documentExtractionService.extract(fileBuffer, file.mimetype);
+        resumeText = rawText;
+        entityId = userResumeId ?? `resume-${Date.now()}`;
+      }
+
+      const result = await planner.run({
+        userId,
+        entityId,
+        entityType: 'resume',
+        content: resumeText,
+        intent: 'extract',
+        context: { userResumeId: entityId },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          planId: result.planId,
+          capabilitiesRun: result.capabilitiesRun,
+          fields: result.results.flatMap((r) => r.fields),
+          confidence: result.results.length
+            ? result.results.reduce((s, r) => s + r.confidence, 0) / result.results.length
+            : 0,
+          latencyMs: result.totalLatencyMs,
+        },
+      });
     } catch (error) {
       next(error);
     }

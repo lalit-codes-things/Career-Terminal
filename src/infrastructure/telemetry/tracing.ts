@@ -18,6 +18,7 @@ import {
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { config } from '../../config';
 import { logger } from '../../lib/logger';
+import { installProviderOtelHook } from './ai-spans';
 
 let sdk: NodeSDK | null = null;
 
@@ -83,6 +84,10 @@ export function initTracing(): void {
 
     sdk.start();
     logger.info('Tracing initialized');
+
+    // Install AI provider OTel hook so company-intelligence lifecycle events
+    // are forwarded to the active span
+    installProviderOtelHook();
   } catch (err) {
     logger.error('Failed to initialize tracing', {
       error: err instanceof Error ? err.message : String(err),

@@ -2,7 +2,7 @@ import type { ConfidenceBand, EvidenceRef, Provenance } from '../../../domain/re
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
-export type AiProviderKind = 'openai' | 'anthropic' | 'vertex' | 'stub';
+export type AiProviderKind = 'deepseek' | 'openrouter' | 'stub';
 
 export type AiModelTier = 'fast' | 'balanced' | 'powerful';
 

@@ -1,3 +1,15 @@
+/**
+ * GraphRagService
+ *
+ * Combines:
+ *   1. Semantic retrieval (pgvector via HybridRetrievalService)
+ *   2. Real graph traversal (RecruiterGraphNode/Edge via Prisma)
+ *   3. Structured facts (RecruiterFact rows)
+ *   4. AI reasoning (ExtractionPipeline)
+ *
+ * The mock graph traversal is replaced with real DB queries.
+ */
+
 import { randomUUID } from 'crypto';
 import type {
   GraphRagContext,
@@ -6,93 +18,115 @@ import type {
   GraphRagResponse,
 } from '../../../domain/recruiter-intelligence/graph-rag/contracts';
 import type { HybridRetrievalService } from '../vector-search/hybrid-retrieval.service';
-import type { RecruiterEntityFact } from '../extraction/recruiter-entity-extraction.service';
 import type { ExtractionPipeline } from '../ai/extraction-pipeline';
 import type { ExtractionInput } from '../ai/types';
 import type { HybridQuery } from '../../../domain/recruiter-intelligence/vector-search/contracts';
+import { prisma } from '../../../config/database';
+import { pipeline as defaultPipeline } from '../ai/pipeline.factory';
+import { hybridRetrievalService as defaultHybrid } from '../vector-search/hybrid-retrieval.service';
 
-/**
- * GraphRagService — Prompt 23 implementation.
- *
- * Combines Knowledge Graph traversal, Vector Search (semantic retrieval),
- * Structured Facts, and AI Reasoning to answer complex queries.
- */
 export class GraphRagService {
   constructor(
-    private readonly hybridRetrieval: HybridRetrievalService,
-    private readonly pipeline: ExtractionPipeline,
+    private readonly hybridRetrieval: HybridRetrievalService = defaultHybrid,
+    private readonly pipelineInstance: ExtractionPipeline = defaultPipeline,
   ) {}
 
-  async answer(
-    request: GraphRagRequest,
-    structuredFacts: RecruiterEntityFact[],
-    // In a real implementation we would inject a GraphDatabase abstraction here
-  ): Promise<GraphRagResponse> {
-    // 1. Semantic Retrieval (Vector Search)
+  async answer(request: GraphRagRequest): Promise<GraphRagResponse> {
+    // 1. Semantic retrieval via pgvector
     const hybridQuery: HybridQuery = {
       textQuery: request.queryText,
-      vectorQuery: request.queryVector ? {
-        vector: request.queryVector,
-        topK: 5,
-        metadataFilters: { tenantId: request.tenantId },
-      } : undefined,
+      vectorQuery: request.queryVector
+        ? {
+            vector: request.queryVector,
+            topK: request.traversalConfig.maxDepth > 0 ? 10 : 5,
+            metadataFilters: { tenantId: request.tenantId },
+          }
+        : undefined,
     };
     const semanticResults = await this.hybridRetrieval.search(hybridQuery);
 
-    // 2. Graph Traversal Mock
-    // For this implementation, we simulate expanding from semantic results
-    // to their graph neighborhoods based on the traversal config.
-    const subgraphNodes: any[] = [];
-    const subgraphEdges: any[] = [];
-    if (request.traversalConfig.maxDepth > 0) {
-      for (const res of semanticResults) {
-        subgraphNodes.push({
-          id: res.entityId,
-          label: res.entityType,
-          properties: res.metadata,
+    // 2. Real graph traversal — expand from entity IDs found by semantic search
+    const subgraphNodes: Array<{ id: string; label: string; properties: Record<string, unknown> }> = [];
+    const subgraphEdges: Array<{ sourceId: string; targetId: string; type: string }> = [];
+
+    if (request.traversalConfig.maxDepth > 0 && semanticResults.length > 0) {
+      const seedIds = semanticResults.map((r) => r.entityId);
+
+      // Find nodes whose externalKey matches one of the seed entity IDs
+      const seedNodes = await prisma.recruiterGraphNode.findMany({
+        where: { externalKey: { in: seedIds } },
+        take: 20,
+      });
+
+      for (const node of seedNodes) {
+        subgraphNodes.push({ id: node.id, label: node.label, properties: (node.metadata as Record<string, unknown>) ?? {} });
+
+        // One-hop neighbourhood
+        const edges = await prisma.recruiterGraphEdge.findMany({
+          where: {
+            OR: [{ fromNodeId: node.id }, { toNodeId: node.id }],
+            validTo: null,
+          },
+          take: 10,
         });
-        // mock an edge
-        subgraphEdges.push({
-          sourceId: res.entityId,
-          targetId: `node_${randomUUID().substring(0, 8)}`,
-          type: 'RELATED_TO',
-        });
+
+        for (const edge of edges) {
+          subgraphEdges.push({
+            sourceId: edge.fromNodeId,
+            targetId: edge.toNodeId,
+            type: edge.relationshipType,
+          });
+
+          // Collect neighbor node if not already included
+          const neighborId = edge.fromNodeId === node.id ? edge.toNodeId : edge.fromNodeId;
+          if (!subgraphNodes.find((n) => n.id === neighborId)) {
+            const neighbor = await prisma.recruiterGraphNode.findUnique({ where: { id: neighborId } });
+            if (neighbor) {
+              subgraphNodes.push({ id: neighbor.id, label: neighbor.label, properties: (neighbor.metadata as Record<string, unknown>) ?? {} });
+            }
+          }
+        }
       }
     }
 
-    // 3. Context Assembly
+    // 3. Fetch structured facts from RecruiterFact table for the tenantId
+    const recruiterFacts = await prisma.recruiterFact.findMany({
+      where: { recruiterId: request.tenantId, deletedAt: null },
+      orderBy: { confidence: 'desc' },
+      take: 20,
+    });
+
+    // 4. Context assembly
     const context: GraphRagContext = {
       semanticResults,
       subgraph: { nodes: subgraphNodes, edges: subgraphEdges },
-      structuredFacts: structuredFacts.map((f) => ({
-        factId: f.factId,
-        fieldType: f.fieldType,
-        rawValue: f.rawValue,
+      structuredFacts: recruiterFacts.map((f) => ({
+        factId: f.id,
+        fieldType: f.factType,
+        rawValue: String((f.factValue as Record<string, unknown>)['value'] ?? ''),
       })),
     };
 
-    // 4. Evidence Assembly
-    const evidence: GraphRagEvidence[] = [];
-    for (const res of semanticResults) {
-      if (res.hybridScore >= (request.traversalConfig.semanticThreshold ?? 0.5)) {
-        evidence.push({
-          sourceId: res.entityId,
-          sourceType: 'vector',
-          excerpt: res.text,
-          relevanceScore: res.hybridScore,
-        });
-      }
-    }
-    for (const fact of structuredFacts) {
-      evidence.push({
-        sourceId: fact.factId,
-        sourceType: 'structured_fact',
-        excerpt: `${fact.fieldType}: ${fact.rawValue}`,
-        relevanceScore: fact.confidence,
-      });
-    }
+    // 5. Evidence assembly
+    const threshold = request.traversalConfig.semanticThreshold ?? 0.5;
+    const evidence: GraphRagEvidence[] = [
+      ...semanticResults
+        .filter((r) => r.hybridScore >= threshold)
+        .map((r) => ({
+          sourceId: r.entityId,
+          sourceType: 'vector' as const,
+          excerpt: r.text,
+          relevanceScore: r.hybridScore,
+        })),
+      ...recruiterFacts.map((f) => ({
+        sourceId: f.id,
+        sourceType: 'structured_fact' as const,
+        excerpt: `${f.factType}: ${JSON.stringify((f.factValue as Record<string, unknown>)['value'])}`,
+        relevanceScore: f.confidence,
+      })),
+    ];
 
-    // 5. AI Reasoning Generation (via Pipeline)
+    // 6. AI reasoning
     let answerText = 'Unable to generate answer from context.';
     let confidence = 0;
 
@@ -105,25 +139,25 @@ export class GraphRagService {
         content: JSON.stringify({
           query: request.queryText,
           context: {
-            semanticExcerpts: evidence.filter((e) => e.sourceType === 'vector').map((e) => e.excerpt),
-            facts: evidence.filter((e) => e.sourceType === 'structured_fact').map((e) => e.excerpt),
+            semanticExcerpts: evidence.filter((e) => e.sourceType === 'vector').map((e) => e.excerpt).slice(0, 5),
+            facts: evidence.filter((e) => e.sourceType === 'structured_fact').map((e) => e.excerpt).slice(0, 10),
+            graphNodes: subgraphNodes.slice(0, 10).map((n) => `${n.label} (${n.id})`),
           },
         }),
-        metadata: { templateId: 'graph-rag-answer' }, // Assuming a template exists
+        metadata: {},
         requestedAt: new Date(),
       };
 
-      const aiResult = await this.pipeline.extract('recruiter-insights-engine', aiInput, {}); // using insights engine as fallback template
+      const aiResult = await this.pipelineInstance.extract('recruiter-insights-engine', aiInput, {});
       if (aiResult.fields.length > 0) {
         answerText = String(aiResult.fields[0]?.value ?? answerText);
         confidence = aiResult.fields[0]?.confidence ?? 0.5;
       } else {
         confidence = 0.5;
-        answerText = 'Synthesized answer from GraphRAG context based on retrieved evidence.';
+        answerText = 'Answer synthesized from graph + vector context.';
       }
     } catch {
-      // fallback
-      answerText = 'Synthesized answer from GraphRAG context based on retrieved evidence.';
+      answerText = 'Answer synthesized from graph + vector context.';
       confidence = 0.5;
     }
 
@@ -136,3 +170,5 @@ export class GraphRagService {
     };
   }
 }
+
+export const graphRagService = new GraphRagService();
