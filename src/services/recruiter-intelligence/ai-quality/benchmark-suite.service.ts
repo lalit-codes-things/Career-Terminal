@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { BenchmarkSuite, BenchmarkDefinition, RegressionTestResult } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { BenchmarkSuite, BenchmarkDefinition, RegressionTestResult } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class BenchmarkSuiteService {
   private readonly suites = new Map<string, BenchmarkSuite>();

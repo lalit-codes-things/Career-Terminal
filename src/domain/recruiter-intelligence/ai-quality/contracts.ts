@@ -18,7 +18,7 @@ export type PromptExperimentStatus = 'draft' | 'active' | 'paused' | 'completed'
 
 export type ModelTier = 'fast' | 'balanced' | 'powerful';
 
-export type ProviderKind = 'openai' | 'anthropic' | 'vertex' | 'stub';
+export type QualityProviderKind = 'openai' | 'anthropic' | 'vertex' | 'stub';
 
 export interface EvaluationResult {
   evaluationId: string;
@@ -87,7 +87,7 @@ export interface ExperimentMetrics {
 
 export interface ModelEntry {
   modelId: string;
-  provider: ProviderKind;
+  provider: QualityProviderKind;
   modelName: string;
   tier: ModelTier;
   capabilities: string[];
@@ -178,7 +178,7 @@ export interface InferenceLogEntry {
   logId: string;
   extractionId: string;
   templateId: string;
-  provider: ProviderKind;
+  provider: QualityProviderKind;
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -232,11 +232,11 @@ export interface RegressionTestResult {
 
 export interface ProviderComparison {
   comparisonId: string;
-  providers: ProviderKind[];
+  providers: QualityProviderKind[];
   models: string[];
   templateId: string;
-  results: Map<ProviderKind, ModelEvaluation>;
-  winner: ProviderKind;
+  results: Map<QualityProviderKind, EvaluationResult[]>;
+  winner: QualityProviderKind;
   completedAt: Date;
 }
 
@@ -244,7 +244,7 @@ export interface ModelComparison {
   comparisonId: string;
   modelIds: string[];
   templateId: string;
-  results: Map<string, ModelEvaluation>;
+  results: Map<string, EvaluationResult[]>;
   winner: string;
   completedAt: Date;
 }
@@ -253,7 +253,7 @@ export interface PromptComparison {
   comparisonId: string;
   templateId: string;
   versions: string[];
-  results: Map<string, ModelEvaluation>;
+  results: Map<string, EvaluationResult[]>;
   winner: string;
   completedAt: Date;
 }

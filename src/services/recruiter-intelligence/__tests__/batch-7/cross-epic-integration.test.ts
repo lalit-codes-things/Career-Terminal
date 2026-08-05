@@ -1,6 +1,6 @@
 import { CrossEpicIntelligenceIntegrationService } from '../cross-epic/cross-epic-integration.service';
 import { EpicLinkService } from '../cross-epic/epic-link.service';
-import { IntelligenceBrokerService } from '../cross-epic/intelligence-broker.service';
+import { IntelligenceBrokerService } from '../../../cross-epic/intelligence-broker.service';
 
 describe('Cross-Epic Intelligence Integration', () => {
   let service: CrossEpicIntelligenceIntegrationService;

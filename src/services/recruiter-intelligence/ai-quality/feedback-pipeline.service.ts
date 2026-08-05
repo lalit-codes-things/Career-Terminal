@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { FeedbackEntry, InferenceLogEntry } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { FeedbackEntry, InferenceLogEntry } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class FeedbackPipelineService {
   private readonly feedback = new Map<string, FeedbackEntry[]>();

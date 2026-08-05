@@ -1,5 +1,4 @@
-import { randomUUID } from 'crypto';
-import type { ModelEntry, ModelEvaluation, EvaluationDimension, EvaluationResult } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { ModelEntry, ModelEvaluation, EvaluationDimension } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class ModelRegistryService {
   private readonly models = new Map<string, ModelEntry>();

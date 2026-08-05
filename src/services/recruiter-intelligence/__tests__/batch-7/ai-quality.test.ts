@@ -1,11 +1,11 @@
-import { EvaluationFrameworkService } from '../ai-quality/evaluation-framework.service';
-import { PromptRegistryService } from '../ai-quality/prompt-registry.service';
-import { ModelRegistryService } from '../ai-quality/model-registry.service';
-import { HallucinationDetector } from '../ai-quality/hallucination-detector.service';
-import { ConfidenceCalibrator } from '../ai-quality/confidence-calibrator.service';
-import { TracingService } from '../ai-quality/tracing.service';
-import { FeedbackPipelineService } from '../ai-quality/feedback-pipeline.service';
-import { BenchmarkSuiteService } from '../ai-quality/benchmark-suite.service';
+import { EvaluationFrameworkService } from '../../ai-quality/evaluation-framework.service';
+import { PromptRegistryService } from '../../ai-quality/prompt-registry.service';
+import { ModelRegistryService } from '../../ai-quality/model-registry.service';
+import { HallucinationDetector } from '../../ai-quality/hallucination-detector.service';
+import { ConfidenceCalibrator } from '../../ai-quality/confidence-calibrator.service';
+import { TracingService } from '../../ai-quality/tracing.service';
+import { FeedbackPipelineService } from '../../ai-quality/feedback-pipeline.service';
+import { BenchmarkSuiteService } from '../../ai-quality/benchmark-suite.service';
 
 describe('AI Quality Infrastructure', () => {
   let evaluationFramework: EvaluationFrameworkService;

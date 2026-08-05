@@ -11,7 +11,8 @@ import type {
   PromptComparison,
   BenchmarkDefinition,
   BenchmarkSuite,
-} from '../../domain/recruiter-intelligence/ai-quality/contracts';
+  QualityProviderKind,
+} from '../../../domain/recruiter-intelligence/ai-quality/contracts';
 
 export class EvaluationFrameworkService {
   private readonly results = new Map<string, EvaluationResult>();
@@ -131,16 +132,16 @@ export class EvaluationFrameworkService {
   }
 
   async compareProviders(
-    providers: string[],
+    providers: QualityProviderKind[],
     models: string[],
     templateId: string,
     results: Map<string, EvaluationResult[]>,
   ): Promise<ProviderComparison> {
     const comparisonId = randomUUID();
-    const providerResults = new Map<ProviderKind, EvaluationResult[]>();
+    const providerResults = new Map<QualityProviderKind, EvaluationResult[]>();
 
     for (const provider of providers) {
-      const providerKey = provider as ProviderKind;
+      const providerKey = provider as QualityProviderKind;
       const providerResultsList = results.get(provider) ?? [];
       providerResults.set(providerKey, providerResultsList);
     }
@@ -148,23 +149,23 @@ export class EvaluationFrameworkService {
     let winner = providers[0] ?? 'stub';
     let bestScore = -Infinity;
 
-    for (const [provider, providerResults] of providerResults.entries()) {
-      const avgScore = providerResults.length > 0
-        ? providerResults.reduce((s, r) => s + r.score, 0) / providerResults.length
+    for (const [providerKey, resultsList] of providerResults.entries()) {
+      const avgScore = resultsList.length > 0
+        ? resultsList.reduce((s: number, r: EvaluationResult) => s + r.score, 0) / resultsList.length
         : 0;
       if (avgScore > bestScore) {
         bestScore = avgScore;
-        winner = provider;
+        winner = providerKey;
       }
     }
 
     return {
       comparisonId,
-      providers: providers as ProviderKind[],
+      providers,
       models,
       templateId,
-      results: providerResults as Map<ProviderKind, EvaluationResult[]>,
-      winner: winner as ProviderKind,
+      results: providerResults,
+      winner: winner as QualityProviderKind,
       completedAt: new Date(),
     };
   }
@@ -184,9 +185,9 @@ export class EvaluationFrameworkService {
     let winner = modelIds[0] ?? 'unknown';
     let bestScore = -Infinity;
 
-    for (const [modelId, modelResults] of modelResults.entries()) {
-      const avgScore = modelResults.length > 0
-        ? modelResults.reduce((s, r) => s + r.score, 0) / modelResults.length
+    for (const [modelId, resultsList] of modelResults.entries()) {
+      const avgScore = resultsList.length > 0
+        ? resultsList.reduce((s: number, r: EvaluationResult) => s + r.score, 0) / resultsList.length
         : 0;
       if (avgScore > bestScore) {
         bestScore = avgScore;
@@ -219,9 +220,9 @@ export class EvaluationFrameworkService {
     let winner = versions[0] ?? 'unknown';
     let bestScore = -Infinity;
 
-    for (const [version, versionResults] of versionResults.entries()) {
-      const avgScore = versionResults.length > 0
-        ? versionResults.reduce((s, r) => s + r.score, 0) / versionResults.length
+    for (const [version, resultsList] of versionResults.entries()) {
+      const avgScore = resultsList.length > 0
+        ? resultsList.reduce((s: number, r: EvaluationResult) => s + r.score, 0) / resultsList.length
         : 0;
       if (avgScore > bestScore) {
         bestScore = avgScore;

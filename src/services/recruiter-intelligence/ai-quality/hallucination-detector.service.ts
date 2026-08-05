@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto';
-import type { HallucinationDetectionResult, ExtractionOutput } from '../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { HallucinationDetectionResult } from '../../../domain/recruiter-intelligence/ai-quality/contracts';
+import type { ExtractionOutput } from '../../../services/recruiter-intelligence/ai/types';
 
 export class HallucinationDetector {
-  detect(output: ExtractionOutput, evidence: string[]): HallucinationDetectionResult {
+  detect(output: ExtractionOutput, _evidence: string[]): HallucinationDetectionResult {
     const hallucinatedFields: string[] = [];
     const evidenceSupport: Record<string, number> = {};
 
@@ -10,7 +11,7 @@ export class HallucinationDetector {
       const fieldEvidence = field.evidence ?? [];
       const hasEvidence = fieldEvidence.length > 0;
       const evidenceConfidence = hasEvidence
-        ? fieldEvidence.reduce((s, e) => s + e.confidence, 0) / fieldEvidence.length
+        ? fieldEvidence.reduce((s: number, e: { confidence: number }) => s + e.confidence, 0) / fieldEvidence.length
         : 0;
 
       evidenceSupport[field.field] = evidenceConfidence;
@@ -31,7 +32,7 @@ export class HallucinationDetector {
 
     const hasHallucination = hallucinatedFields.length > 0;
     const overallEvidenceSupport = output.fields.length > 0
-      ? output.fields.reduce((s, f) => s + (evidenceSupport[f.field] ?? 0), 0) / output.fields.length
+      ? output.fields.reduce((s: number, f: { field: string }) => s + (evidenceSupport[f.field] ?? 0), 0) / output.fields.length
       : 0;
 
     return {

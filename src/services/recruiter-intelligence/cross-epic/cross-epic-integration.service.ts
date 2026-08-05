@@ -9,7 +9,7 @@ import type {
   CrossEpicIntegrationConfig,
   EpicId,
   IntelligenceDomain,
-} from '../../domain/recruiter-intelligence/cross-epic/contracts';
+} from '../../../domain/recruiter-intelligence/cross-epic/contracts';
 
 const DEFAULT_CONFIG: CrossEpicIntegrationConfig = {
   enabled: true,
@@ -29,16 +29,6 @@ const ALL_EPICS: EpicId[] = [
   'resume-intelligence',
   'company-intelligence',
   'recruiter-intelligence',
-];
-
-const BIDIRECTIONAL_PAIRS: Array<[EpicId, EpicId, IntelligenceDomain[]]> = [
-  ['resume-intelligence', 'recruiter-intelligence', ['identity', 'skills', 'technical']],
-  ['recruiter-intelligence', 'company-intelligence', ['identity', 'behavior', 'decision']],
-  ['company-intelligence', 'opportunity-intelligence', ['company', 'market', 'technical']],
-  ['opportunity-intelligence', 'application-intelligence', ['opportunity', 'application', 'decision']],
-  ['recruiter-intelligence', 'application-intelligence', ['behavior', 'decision', 'communication']],
-  ['resume-intelligence', 'skills', ['skills', 'technical']],
-  ['application-intelligence', 'communication-intelligence', ['communication', 'behavior']],
 ];
 
 export class CrossEpicIntelligenceIntegrationService {
@@ -219,7 +209,6 @@ export class CrossEpicIntelligenceIntegrationService {
   }
 
   removeExpiredLinks(): number {
-    const now = Date.now();
     let removed = 0;
     for (const [linkId, link] of this.links.entries()) {
       if (this.isExpired(link)) {
@@ -251,6 +240,7 @@ export class CrossEpicIntelligenceIntegrationService {
       targetEntityId,
       domain,
       direction: 'bidirectional',
+      intelligenceType: JSON.stringify(intelligence),
       intelligence,
       confidence: Math.max(0, Math.min(1, confidence)),
       evidence: evidence.map((e) => ({
