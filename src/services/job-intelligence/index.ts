@@ -2,12 +2,12 @@
  * Job Intelligence Layer — barrel export.
  *
  * Identifies job-search-related emails from stored inbox messages using
- * a hybrid rules-first architecture with an optional ML fallback.
+ * an AI-first extraction pipeline via OpenRouter.
  *
  * Usage:
  *   import { jobEmailClassifier, JobEmailCategory } from '@/services/job-intelligence';
  *
- *   const result = jobEmailClassifier.classify({
+ *   const result = await jobEmailClassifier.classify({
  *     emailId: message.id,
  *     sender: message.sender,
  *     subject: message.subject,
@@ -15,30 +15,13 @@
  *   });
  */
 
-export {
-  JobEmailClassifier,
-  jobEmailClassifier,
-  type JobEmailClassifierOptions,
-} from './classifier/job-email-classifier';
-
-export {
-  RuleBasedJobEmailClassifier,
-  ruleBasedJobEmailClassifier,
-} from './classifier/rule-based-classifier';
-
-export type { JobEmailMlModel } from './classifier/ml-model.interface';
+export { JobEmailClassifier, jobEmailClassifier } from './classifier/job-email-classifier';
 
 export {
   JobEmailCategory,
   type ClassifiableEmail,
   type JobEmailClassification,
-  type RuleClassificationResult,
 } from './models/job-intelligence.types';
-
-export { extractCompany } from './classifier/extractors/company.extractor';
-export { extractRole } from './classifier/extractors/role.extractor';
-
-export { ATS_PLATFORM_DOMAINS, isAtsPlatformDomain } from './classifier/signals/ats-platforms';
 
 export {
   JobApplicationExtractor,

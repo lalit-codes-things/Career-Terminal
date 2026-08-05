@@ -105,7 +105,7 @@ export class Planner {
       // Record the planner decision as a Prediction row
       const planPrediction = await prisma.prediction.create({
         data: {
-          modelId: 'deepseek-chat',
+          modelId: 'deepseek/deepseek-chat',
           userId: req.userId,
           recruiterId: req.entityType === 'recruiter' ? req.entityId : undefined,
           applicationId: req.entityType === 'application' ? req.entityId : undefined,
@@ -145,7 +145,7 @@ export class Planner {
         } catch {
           await prisma.prediction.create({
             data: {
-              modelId: 'deepseek-chat',
+              modelId: 'deepseek/deepseek-chat',
               userId: req.userId,
               predictionType: `CAPABILITY_${capability.name.toUpperCase()}_ERROR`,
               capability: capability.name,

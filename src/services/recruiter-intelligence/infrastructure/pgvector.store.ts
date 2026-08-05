@@ -17,7 +17,7 @@ import { prisma } from '../../../config/database';
 import type { Embedding } from '../../../domain/recruiter-intelligence/semantic-representation/contracts';
 import type { VectorQuery, VectorSearchResult, VectorStore } from '../../../domain/recruiter-intelligence/vector-search/contracts';
 
-const DEFAULT_EMBEDDING_MODEL_ID = 'deepseek-text-embedding-v1';
+const DEFAULT_EMBEDDING_MODEL_ID = 'openrouter:text-embedding-v1';
 const DEFAULT_CELL_ID = 'default';
 
 type EmbeddingRow = {

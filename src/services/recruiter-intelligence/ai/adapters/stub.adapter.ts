@@ -88,6 +88,14 @@ export class StubAiAdapter implements AiModelAdapter {
     if (prompt.includes('autonomous-recruiter-intelligence') || prompt.includes('identify alerts (ghosting risks')) {
       return this.defaultAutonomousResponse();
     }
+    // ─── Job Email Classification ───────────────────────────────────────────────
+    if (prompt.includes('job-email-classification') || prompt.includes('classify the following email')) {
+      return this.defaultJobEmailClassificationResponse();
+    }
+
+    if (prompt.includes('resume-extraction') || prompt.includes('parse the following resume')) {
+      return this.defaultResumeExtractionResponse();
+    }
 
     return JSON.stringify({ fields: [], inferences: [] });
   }
@@ -441,6 +449,76 @@ export class StubAiAdapter implements AiModelAdapter {
           confidence: 0.82,
           evidence: [{ excerpt: 'No response in 72 hours' }],
         }
+      ],
+    });
+  }
+
+  private defaultJobEmailClassificationResponse(): string {
+    return JSON.stringify({
+      fields: [
+        {
+          field: 'category',
+          value: 'Job Application',
+          rawValue: 'Application received',
+          confidence: 0.85,
+          evidence: [{ excerpt: 'Application received — Software Engineer', confidence: 0.85 }],
+        },
+        {
+          field: 'company',
+          value: 'Example Corp',
+          rawValue: 'Example Corp',
+          confidence: 0.82,
+          evidence: [{ excerpt: 'recruiting@example.com', confidence: 0.82 }],
+        },
+        {
+          field: 'role',
+          value: 'Software Engineer',
+          rawValue: 'Software Engineer',
+          confidence: 0.9,
+           evidence: [{ excerpt: 'Application received — Software Engineer', confidence: 0.9 }],
+        },
+      ],
+    });
+  }
+
+  private defaultResumeExtractionResponse(): string {
+    return JSON.stringify({
+      fields: [
+        {
+          field: 'skill',
+          value: 'Project Management',
+          rawValue: 'Project Management',
+          confidence: 0.85,
+          evidence: [{ excerpt: 'Project Management', confidence: 0.85 }],
+        },
+        {
+          field: 'technology',
+          value: 'Python',
+          rawValue: 'Python',
+          confidence: 0.85,
+          evidence: [{ excerpt: 'Python', confidence: 0.85 }],
+        },
+        {
+          field: 'occupation',
+          value: 'Software Engineer',
+          rawValue: 'Software Engineer',
+          confidence: 0.8,
+          evidence: [{ excerpt: 'Software Engineer', confidence: 0.8 }],
+        },
+        {
+          field: 'experience',
+          value: { role: 'Senior Engineer', company: 'Acme Corp', dates: '2020-Present', years: 4 },
+          rawValue: 'Senior Engineer at Acme Corp (2020-Present)',
+          confidence: 0.82,
+          evidence: [{ excerpt: 'Senior Engineer at Acme Corp', confidence: 0.82 }],
+        },
+        {
+          field: 'education',
+          value: { degree: 'B.S.', field: 'Computer Science', institution: 'Stanford University', year: '2016' },
+          rawValue: 'B.S. Computer Science, Stanford University, 2016',
+          confidence: 0.8,
+          evidence: [{ excerpt: 'Stanford University', confidence: 0.8 }],
+        },
       ],
     });
   }

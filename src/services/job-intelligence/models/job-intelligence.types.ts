@@ -2,6 +2,8 @@
  * Job Intelligence — core type definitions.
  */
 
+import type { EvidenceRef, Provenance } from '../../../domain/recruiter-intelligence/shared-kernel/types';
+
 /** Job-related email categories. */
 export enum JobEmailCategory {
   JOB_APPLICATION = 'Job Application',
@@ -34,11 +36,6 @@ export interface JobEmailClassification {
   confidence: number;
   detectedCompany: string | null;
   detectedRole: string | null;
-}
-
-/** Internal rule-evaluation result before entity extraction. */
-export interface RuleClassificationResult {
-  category: JobEmailCategory;
-  confidence: number;
-  matchedSignals: string[];
+  evidence?: EvidenceRef[];
+  provenance?: Provenance;
 }

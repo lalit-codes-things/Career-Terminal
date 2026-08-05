@@ -1,42 +1,28 @@
 /**
  * pipeline.factory.ts — Composition root for the AI extraction pipeline.
  *
- * Reads API keys from environment, instantiates the concrete adapters
- * (DeepSeek primary, OpenRouter fallback), registers them with ExtractionPipeline,
- * and exports a singleton that every capability module can import.
+ * OpenRouter is the single LLM gateway. Provider-agnostic by design:
+ * OpenRouter unifies 100+ models behind one OpenAI-compatible API.
  *
- * Key design decisions:
- *  - DeepSeek is always the preferred provider when DEEPSEEK_API_KEY is set.
- *  - OpenRouter is registered as the fallback when OPENROUTER_API_KEY is set.
- *  - If neither key is present (test environments), the StubAiAdapter is used.
- *  - Exactly one ExtractionPipeline instance is created per process; callers
- *    import `pipeline` and do not call this factory themselves.
+ * The Stub adapter is always registered so tests and local dev work without
+ * real API keys.
  */
 
 import { ExtractionPipeline } from './extraction-pipeline';
 import type { AiModelAdapter, AiProviderKind } from './types';
-import { DeepSeekAdapter } from './adapters/deepseek.adapter';
 import { OpenRouterAdapter } from './adapters/openrouter.adapter';
 import { StubAiAdapter } from './adapters/stub.adapter';
+import { buildDefaultTemplates } from './prompt-manager';
 
 function buildProviders(): AiModelAdapter[] {
   const providers: AiModelAdapter[] = [];
-
-  const deepseekKey = process.env['DEEPSEEK_API_KEY'];
-  if (deepseekKey) {
-    providers.push(
-      new DeepSeekAdapter({
-        apiKey: deepseekKey,
-        baseUrl: process.env['DEEPSEEK_BASE_URL'],
-      }),
-    );
-  }
 
   const openrouterKey = process.env['OPENROUTER_API_KEY'];
   if (openrouterKey) {
     providers.push(
       new OpenRouterAdapter({
         apiKey: openrouterKey,
+        baseUrl: process.env['OPENROUTER_BASE_URL'],
         siteUrl: process.env['OPENROUTER_SITE_URL'],
         siteName: process.env['OPENROUTER_SITE_NAME'],
       }),
@@ -73,6 +59,11 @@ export const pipeline = new ExtractionPipeline({
   },
   humanReviewThreshold: 0.55,
 });
+
+// Register all built-in prompt templates so the pipeline is ready to use
+for (const template of buildDefaultTemplates()) {
+  pipeline.getPromptManager().register(template);
+}
 
 /** Returns the active primary provider name — useful for logging/metrics. */
 export function activePrimaryProvider(): AiProviderKind {

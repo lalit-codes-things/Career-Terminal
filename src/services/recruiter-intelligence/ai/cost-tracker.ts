@@ -6,10 +6,7 @@ import { randomUUID } from 'crypto';
  * Updated manually when providers change pricing.
  */
 const PRICING_PER_1K_TOKENS: Record<string, { input: number; output: number }> = {
-  // DeepSeek (primary)
-  'deepseek-chat': { input: 0.00014, output: 0.00028 },
-  'deepseek-reasoner': { input: 0.00055, output: 0.00219 },
-  // OpenRouter pass-through (DeepSeek models via OpenRouter)
+  // OpenRouter models (single gateway)
   'deepseek/deepseek-chat': { input: 0.00014, output: 0.00028 },
   'deepseek/deepseek-r1': { input: 0.00055, output: 0.00219 },
   'meta-llama/llama-3.3-70b-instruct': { input: 0.00065, output: 0.00065 },

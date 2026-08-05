@@ -1,63 +1,77 @@
-/**
- * Job Email Classifier — hybrid rules-first classifier with optional ML fallback.
- */
-import type { JobEmailMlModel } from './ml-model.interface';
-import { ruleBasedJobEmailClassifier, RuleBasedJobEmailClassifier } from './rule-based-classifier';
-import type { ClassifiableEmail, JobEmailClassification } from '../models/job-intelligence.types';
-
-export interface JobEmailClassifierOptions {
-  /** Optional ML model invoked when rule confidence is below the threshold. */
-  mlModel?: JobEmailMlModel;
-  /** Minimum rule confidence before attempting ML fallback (default: 0.65). */
-  mlConfidenceThreshold?: number;
-  /** Inject a custom rule engine (useful for testing). */
-  ruleClassifier?: RuleBasedJobEmailClassifier;
-}
-
-const DEFAULT_ML_THRESHOLD = 0.65;
+import { randomUUID } from 'crypto';
+import type { ExtractionInput } from '../../recruiter-intelligence/ai/types';
+import { pipeline } from '../../recruiter-intelligence/ai/pipeline.factory';
+import {
+  type ClassifiableEmail,
+  type JobEmailClassification,
+  JobEmailCategory,
+} from '../models/job-intelligence.types';
 
 export class JobEmailClassifier {
-  private readonly mlModel?: JobEmailMlModel;
-  private readonly mlConfidenceThreshold: number;
-  private readonly ruleClassifier: RuleBasedJobEmailClassifier;
+  async classify(email: ClassifiableEmail): Promise<JobEmailClassification> {
+    const input: ExtractionInput = {
+      extractionId: randomUUID(),
+      tenantId: 'default',
+      sourceType: 'email',
+      sourceId: email.emailId,
+      content: email.bodyText ?? email.bodyHtml ?? '',
+      metadata: { emailId: email.emailId, sender: email.sender },
+      requestedAt: new Date(),
+    };
 
-  constructor(options: JobEmailClassifierOptions = {}) {
-    this.mlModel = options.mlModel;
-    this.mlConfidenceThreshold = options.mlConfidenceThreshold ?? DEFAULT_ML_THRESHOLD;
-    this.ruleClassifier = options.ruleClassifier ?? ruleBasedJobEmailClassifier;
-  }
+    const variables: Record<string, string> = {
+      emailId: email.emailId,
+      sender: email.sender,
+      subject: email.subject,
+      receivedAt: email.receivedAt ? email.receivedAt.toISOString() : '',
+      content: input.content,
+    };
 
-  /** Synchronous rules-only classification. */
-  classify(email: ClassifiableEmail): JobEmailClassification {
-    const { result, detectedCompany, detectedRole } =
-      this.ruleClassifier.classifyWithEntities(email);
+    const output = await pipeline.extract('job-email-classification', input, variables);
+
+    const categoryField = output.fields.find((f) => f.field === 'category');
+    const companyField = output.fields.find((f) => f.field === 'company');
+    const roleField = output.fields.find((f) => f.field === 'role');
+
+    const category = this.normalizeCategory(categoryField?.value ?? '');
+    const detectedCompany = this.normalizeString(companyField?.value);
+    const detectedRole = this.normalizeString(roleField?.value);
 
     return {
       emailId: email.emailId,
-      category: result.category,
-      confidence: result.confidence,
+      category,
+      confidence: output.overallConfidence,
       detectedCompany,
       detectedRole,
+      evidence: output.evidence,
+      provenance: output.provenance,
     };
   }
 
-  /**
-   * Hybrid classification: rules first, ML fallback when confidence is low.
-   * When no ML model is configured, behaves like classify().
-   */
-  async classifyAsync(email: ClassifiableEmail): Promise<JobEmailClassification> {
-    const ruleResult = this.classify(email);
+  private normalizeCategory(raw: unknown): JobEmailCategory {
+    const categoryMap: Record<string, JobEmailCategory> = {
+      'Job Application': JobEmailCategory.JOB_APPLICATION,
+      'Interview Invitation': JobEmailCategory.INTERVIEW_INVITATION,
+      'Rejection': JobEmailCategory.REJECTION,
+      'Offer': JobEmailCategory.OFFER,
+      'Recruiter Outreach': JobEmailCategory.RECRUITER_OUTREACH,
+      'Assessment/Test': JobEmailCategory.ASSESSMENT_TEST,
+      'Networking': JobEmailCategory.NETWORKING,
+      'Career Newsletter': JobEmailCategory.CAREER_NEWSLETTER,
+      'Not Job Related': JobEmailCategory.NOT_JOB_RELATED,
+    };
 
-    if (!this.mlModel || ruleResult.confidence >= this.mlConfidenceThreshold) {
-      return ruleResult;
+    if (typeof raw === 'string') {
+      return categoryMap[raw] ?? JobEmailCategory.NOT_JOB_RELATED;
     }
+    return JobEmailCategory.NOT_JOB_RELATED;
+  }
 
-    const mlResult = await this.mlModel.classify(email);
-    if (!mlResult) {
-      return ruleResult;
+  private normalizeString(value: unknown): string | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
     }
-
-    return mlResult.confidence > ruleResult.confidence ? mlResult : ruleResult;
+    return String(value).trim();
   }
 }
 

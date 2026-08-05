@@ -1,22 +1,21 @@
 import type { AiAdapterRequest, AiAdapterResponse, AiModelAdapter, AiProviderKind } from '../types';
 
 /**
- * OpenRouterAdapter — fallback provider via OpenRouter.
+ * OpenRouterAdapter — the single LLM gateway for Career Terminal.
  *
- * OpenRouter unifies 100+ models behind a single OpenAI-compatible API.
- * We default to DeepSeek-V3 through OpenRouter so we can fail over from
- * direct DeepSeek without changing model logic.  Callers can override the
- * model per-request through the ExtractionPipeline providerOverride mechanism.
+ * OpenRouter unifies 100+ models behind one OpenAI-compatible API.
+ * Callers can override the model per-request through the ExtractionPipeline
+ * providerOverride mechanism.
  *
  * Docs: https://openrouter.ai/docs
  */
 export class OpenRouterAdapter implements AiModelAdapter {
   readonly provider: AiProviderKind = 'openrouter';
   readonly supportedModels = [
-    'deepseek/deepseek-chat',          // fast  — mirrors primary
-    'deepseek/deepseek-r1',            // powerful
-    'meta-llama/llama-3.3-70b-instruct', // balanced fallback
-    'google/gemini-flash-1.5',         // cheap / fast
+    'deepseek/deepseek-chat',            // fast
+    'deepseek/deepseek-r1',              // powerful
+    'meta-llama/llama-3.3-70b-instruct', // balanced
+    'google/gemini-flash-1.5',           // cheap / fast
   ];
 
   private readonly apiKey: string;

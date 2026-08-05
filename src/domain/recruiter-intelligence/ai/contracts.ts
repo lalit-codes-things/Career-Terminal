@@ -1,6 +1,6 @@
 import type { ConfidenceBand, EvidenceRef, RecruiterId } from '../shared-kernel/types';
 
-export type ProviderKind = 'deepseek' | 'openrouter' | 'stub' | 'custom';
+export type ProviderKind = 'openrouter' | 'stub' | 'custom';
 
 export interface LlmRequest {
   tenantId: RecruiterId;

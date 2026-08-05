@@ -18,7 +18,7 @@ import { toConfidenceBand } from '../recruiter-intelligence/ai/utils';
 import type { CapabilityInput, CapabilityName, CapabilityResult } from './types';
 import { withAiSpan, recordAiAttributes } from '../../infrastructure/telemetry/ai-spans';
 
-const DEFAULT_MODEL_ID = 'deepseek-chat';
+const DEFAULT_MODEL_ID = 'deepseek/deepseek-chat';
 
 export abstract class CapabilityBase {
   abstract readonly name: CapabilityName;

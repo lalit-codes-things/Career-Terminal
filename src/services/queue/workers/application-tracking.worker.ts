@@ -74,7 +74,7 @@ export async function processApplicationTrackingJob(
       };
 
       // 3. Classify
-      const classification = jobEmailClassifier.classify(classifiableEmail);
+      const classification = await jobEmailClassifier.classify(classifiableEmail);
 
       // 4. If job-related, process for application tracking
       try {

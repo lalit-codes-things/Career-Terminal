@@ -52,7 +52,7 @@ export class ResumeIntelligenceService {
 
     // 3. Persist findings as FactObservation rows (candidate domain)
     const factIds: string[] = [];
-    const modelId = 'deepseek-chat';
+    const modelId = 'deepseek/deepseek-chat';
 
     // Create extraction run for provenance
     let extractionRunCtx: { runId: string; provenanceId: string } | null = null;
@@ -60,7 +60,7 @@ export class ResumeIntelligenceService {
       extractionRunCtx = await factService.createExtractionRun({
         userId,
         modelId,
-        modelProvider: 'deepseek',
+        modelProvider: 'openrouter',
         modelVersion: 'v3',
         sourceType: 'RESUME',
         sourceId: userResumeId,
@@ -84,8 +84,8 @@ export class ResumeIntelligenceService {
               factData: { value: field.value, confidence: field.confidence, evidence: field.evidence },
               sourceType: 'RESUME',
               sourceId: userResumeId,
-              extractionMethod: 'LLM',
-              modelVersion: 'deepseek-v3',
+          extractionMethod: 'LLM',
+          modelVersion: 'openrouter-deepseek-v3',
               confidence: field.confidence,
               evidenceReference: field.evidence.slice(0, 500),
               observedAt: new Date(),
