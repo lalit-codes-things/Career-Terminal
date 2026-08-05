@@ -161,7 +161,7 @@ describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
 
   it('2d. assertAiDataMinimisation passes for safe structured data', () => {
     const safeData = {
-      company: 'Acme Corp',
+      company: 'example-organization',
       role: 'Software Engineer',
       status: 'INTERVIEW',
       applicationId: 'abc123',
@@ -673,13 +673,13 @@ describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
     logger.info('job application tracked', {
       applicationId: 'app-123',
       status: 'INTERVIEW',
-      company: 'Acme Corp',
+      company: 'example-organization',
     });
 
     const output = capturedOutput.join('');
     expect(output).toContain('app-123');
     expect(output).toContain('INTERVIEW');
-    expect(output).toContain('Acme Corp');
+    expect(output).toContain('example-organization');
   });
 
   it('8f. redaction works on nested objects', async () => {

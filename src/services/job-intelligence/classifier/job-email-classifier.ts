@@ -68,10 +68,10 @@ export class JobEmailClassifier {
   }
 
   private normalizeString(value: unknown): string | null {
-    if (value === null || value === undefined || value === '') {
+    if (typeof value !== 'string' || value === '' || value === undefined || value === null) {
       return null;
     }
-    return String(value).trim();
+    return value.trim();
   }
 }
 

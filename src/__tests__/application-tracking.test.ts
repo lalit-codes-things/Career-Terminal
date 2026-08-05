@@ -91,8 +91,8 @@ describe('ApplicationTrackingService', () => {
         {
           id: '1',
           userId: 'user1',
-          companyName: 'Stripe',
-          companyDomain: 'stripe.com',
+          companyName: 'example-organization',
+          companyDomain: 'example-organization.com',
           roleTitle: 'Engineer',
           roleDepartment: 'Engineering',
           status: JobApplicationStatus.APPLIED,
@@ -126,7 +126,7 @@ describe('ApplicationTrackingService', () => {
         orderBy: { appliedDate: 'desc' },
       });
       expect(result).toHaveLength(1);
-      expect(result[0]?.company.name).toBe('Stripe');
+      expect(result[0]?.company.name).toBe('example-organization');
     });
   });
 

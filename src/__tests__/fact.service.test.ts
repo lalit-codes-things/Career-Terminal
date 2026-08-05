@@ -63,7 +63,7 @@ describe('FactService', () => {
     const input = {
       userId,
       factType: 'EXPERIENCE',
-      factData: { company: 'Acme Corp', title: 'Senior Engineer' },
+      factData: { company: 'example-organization', title: 'Senior Engineer' },
       sourceType: 'RESUME',
       sourceId: 'res-1',
       extractionMethod: 'LLM',

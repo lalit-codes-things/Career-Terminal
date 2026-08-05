@@ -39,8 +39,8 @@ describe('RecruiterService', () => {
   it('syncs a recruiter from an email and links the application', async () => {
     mockedCompanyService.resolveCompany.mockResolvedValue({
       id: 'company-1',
-      name: 'Stripe',
-      domain: 'stripe.com',
+      name: 'example-organization',
+      domain: 'example-organization.com',
       careersUrl: null,
       website: null,
       logoUrl: null,
@@ -60,7 +60,7 @@ describe('RecruiterService', () => {
       email: 'maya@stripe.com',
       title: 'Recruiter',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+      company: { id: 'company-1', name: 'example-organization', domain: 'example-organization.com' },
     });
 
     const result = await recruiterService.syncRecruiterFromEmail({
@@ -68,8 +68,8 @@ describe('RecruiterService', () => {
       application: {
         id: 'app-1',
         userId: 'user-1',
-        companyName: 'Stripe',
-        companyDomain: 'stripe.com',
+        companyName: 'example-organization',
+        companyDomain: 'example-organization.com',
         roleTitle: 'Engineer',
         recruiterName: 'Maya Chen',
         recruiterEmail: 'maya@stripe.com',
@@ -83,8 +83,8 @@ describe('RecruiterService', () => {
         threadId: 'thread-1',
       },
       company: {
-        name: 'Stripe',
-        domain: 'stripe.com',
+        name: 'example-organization',
+        domain: 'example-organization.com',
       },
       recruiter: {
         name: 'Maya Chen',
@@ -133,14 +133,14 @@ describe('RecruiterService', () => {
       email: 'maya@stripe.com',
       title: 'Recruiter',
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      company: { id: 'company-1', name: 'Stripe', domain: 'stripe.com' },
+      company: { id: 'company-1', name: 'example-organization', domain: 'example-organization.com' },
       applications: [
         {
           id: 'app-1',
           appliedDate: new Date(),
           status: 'APPLIED',
           roleTitle: 'Engineer',
-          companyName: 'Stripe',
+          companyName: 'example-organization',
         },
       ],
       emails: [

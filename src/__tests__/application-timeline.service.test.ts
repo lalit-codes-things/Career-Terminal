@@ -45,7 +45,7 @@ describe('ApplicationTimelineService', () => {
         emailId: 'email-1',
         category: JobEmailCategory.INTERVIEW_INVITATION,
         confidence: 0.91,
-        detectedCompany: 'Stripe',
+        detectedCompany: 'example-organization',
         detectedRole: 'Engineer',
       },
     });

@@ -223,7 +223,7 @@ export class ResumeMatcherService {
   private extractStringFields(output: ExtractionOutput, fieldName: string): string[] {
     return output.fields
       .filter((f: ExtractedField) => f.field === fieldName)
-      .map((f: ExtractedField) => String(f.value ?? ''))
+      .map((f: ExtractedField) => (typeof f.value === 'string' ? f.value : ''))
       .filter((v: string) => v.length > 0);
   }
 
@@ -231,7 +231,7 @@ export class ResumeMatcherService {
     return output.fields.filter((f: ExtractedField) => f.field === 'experience').map((f: ExtractedField) => {
       const rawValue = f.rawValue;
       const value = f.value as Record<string, unknown> | undefined;
-      const years = typeof value?.['years'] === 'number' ? value['years'] as number : 0;
+      const years = typeof value?.['years'] === 'number' ? value['years'] : 0;
       const role = typeof value?.['role'] === 'string' ? value['role'] : null;
       const company = typeof value?.['company'] === 'string' ? value['company'] : null;
       const dates = typeof value?.['dates'] === 'string' ? value['dates'] : null;

@@ -17,7 +17,7 @@ describe('ApplicationMergeService', () => {
 
   const mockIncomingData: ExtractedJobData = {
     userId,
-    company: { name: 'Acme Corp', domain: 'acme.com' },
+    company: { name: 'example-organization', domain: 'example-organization.com' },
     role: { title: 'Software Engineer' },
     status: 'APPLIED',
     appliedDate: new Date('2026-07-15'),
@@ -28,7 +28,7 @@ describe('ApplicationMergeService', () => {
 
   const mockSourceEmail: ClassifiableEmail = {
     emailId: 'email-1',
-    subject: 'Your application to Acme Corp',
+    subject: 'Your application to example-organization',
     sender: 'recruiter@acme.com',
     threadId: 'thread-1',
   };
@@ -37,8 +37,8 @@ describe('ApplicationMergeService', () => {
     id: 'app-1',
     userId,
     legacyUserId: userId,
-    companyName: 'Acme Corp',
-    companyDomain: 'acme.com',
+    companyName: 'example-organization',
+    companyDomain: 'example-organization.com',
     roleTitle: 'Software Engineer',
     roleDepartment: 'Engineering',
     status: 'APPLIED',

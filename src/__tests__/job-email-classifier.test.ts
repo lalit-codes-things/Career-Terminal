@@ -75,8 +75,8 @@ describe('JobEmailClassifier (AI-based)', () => {
       makeMockOutput(
         [
           makeField('category', 'Job Application', 'Application received', 0.89),
-          makeField('company', 'Stripe', 'Stripe', 0.85),
-          makeField('role', 'Software Engineer', 'Senior Backend Engineer', 0.92),
+          makeField('company', 'example-organization', 'example-organization', 0.85),
+          makeField('role', 'example-role', 'example-role', 0.92),
         ],
         0.89,
       ),
@@ -101,8 +101,8 @@ describe('JobEmailClassifier (AI-based)', () => {
 
   it('extracts company and role from AI fields', async () => {
     const result = await classifier.classify(makeEmail());
-    expect(result.detectedCompany).toBe('Stripe');
-    expect(result.detectedRole).toBe('Software Engineer');
+    expect(result.detectedCompany).toBe('example-organization');
+    expect(result.detectedRole).toBe('example-role');
   });
 
   it('passes through overall confidence', async () => {

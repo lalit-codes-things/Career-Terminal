@@ -330,7 +330,7 @@ describe('Filter String Length Limits', () => {
   it('enforces max 100 chars on company filter', () => {
     const schema = z.object({ company: z.string().max(100).optional() });
 
-    const ok = schema.safeParse({ company: 'Acme Corp' });
+    const ok = schema.safeParse({ company: 'example-organization' });
     expect(ok.success).toBe(true);
 
     const tooLong = schema.safeParse({ company: 'A'.repeat(101) });

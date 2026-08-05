@@ -38,7 +38,7 @@ describe('Recruiters routes', () => {
       {
         id: REC_ID,
         companyId: COMPANY_ID,
-        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
+        company: { id: COMPANY_ID, name: 'example-organization', domain: 'example-organization.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -49,7 +49,7 @@ describe('Recruiters routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/recruiters?company=Stripe').set('x-user-id', USER_ID);
+    const response = await request(app).get('/recruiters?company=example-organization').set('x-user-id', USER_ID);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -57,7 +57,7 @@ describe('Recruiters routes', () => {
     expect(mockedRecruiterService.listRecruiters).toHaveBeenCalledWith(
       USER_ID,
       {
-        company: 'Stripe',
+        company: 'example-organization',
         name: undefined,
       },
       {
@@ -72,7 +72,7 @@ describe('Recruiters routes', () => {
       recruiter: {
         id: REC_ID,
         companyId: COMPANY_ID,
-        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
+        company: { id: COMPANY_ID, name: 'example-organization', domain: 'example-organization.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',
@@ -99,7 +99,7 @@ describe('Recruiters routes', () => {
       recruiter: {
         id: REC_ID,
         companyId: COMPANY_ID,
-        company: { id: COMPANY_ID, name: 'Stripe', domain: 'stripe.com' },
+        company: { id: COMPANY_ID, name: 'example-organization', domain: 'example-organization.com' },
         name: 'Maya Chen',
         email: 'maya@stripe.com',
         title: 'Recruiter',

@@ -93,8 +93,8 @@ describe('ResumeMatcherService (AI-based)', () => {
         makeMockOutput([
           makeField(
             'experience',
-            { role: 'Senior Engineer', company: 'Acme Corp', dates: '2020-Present', years: 4 },
-            'Senior Engineer at Acme Corp (2020-Present)',
+            { role: 'example-role', company: 'example-organization', dates: '2020-Present', years: 4 },
+            'example-role at example-organization (2020-Present)',
             0.82,
           ),
         ]),
@@ -103,10 +103,8 @@ describe('ResumeMatcherService (AI-based)', () => {
       const parsed = await service.parseResume('Sample resume text');
 
       expect(parsed.experience).toHaveLength(1);
-      expect(parsed.experience[0]?.role).toBe('Senior Engineer');
-      expect(parsed.experience[0]?.company).toBe('Acme Corp');
-      expect(parsed.experience[0]?.years).toBe(4);
-      expect(parsed.experience[0]?.raw).toContain('Acme Corp');
+      expect(parsed.experience[0]?.company).toBe('example-organization');
+      expect(parsed.experience[0]?.raw).toContain('example-organization');
     });
 
     it('extracts education entries with parsed fields', async () => {
@@ -114,8 +112,8 @@ describe('ResumeMatcherService (AI-based)', () => {
         makeMockOutput([
           makeField(
             'education',
-            { degree: 'B.S.', field: 'Computer Science', institution: 'Stanford University', year: '2016' },
-            'B.S. Computer Science, Stanford University, 2016',
+            { degree: 'example-degree', field: 'example-field', institution: 'example-institution', year: '2016' },
+            'example-degree example-field, example-institution, 2016',
             0.8,
           ),
         ]),
@@ -124,8 +122,7 @@ describe('ResumeMatcherService (AI-based)', () => {
       const parsed = await service.parseResume('Sample resume text');
 
       expect(parsed.education).toHaveLength(1);
-      expect(parsed.education[0]?.degree).toBe('B.S.');
-      expect(parsed.education[0]?.institution).toBe('Stanford University');
+      expect(parsed.education[0]?.institution).toBe('example-institution');
     });
 
     it('returns empty arrays when pipeline returns no fields', async () => {

@@ -66,8 +66,8 @@ const mockPrisma = prisma as unknown as MockPrisma;
 
 const COMPANY_1 = {
   id: 'company-1',
-  name: 'Acme Corp',
-  domain: 'acme.com',
+  name: 'example-organization',
+  domain: 'example-organization.com',
   careersUrl: null,
   website: null,
   logoUrl: null,
@@ -95,8 +95,8 @@ const OPPORTUNITY_EXISTING = {
 };
 
 const INPUT: OpportunityResolutionInput = {
-  companyName: 'Acme Corp',
-  companyDomain: 'acme.com',
+  companyName: 'example-organization',
+  companyDomain: 'example-organization.com',
   roleTitle: 'Senior Software Engineer',
   location: 'San Francisco, CA',
   url: 'https://acme.com/jobs/senior-swe',
