@@ -17,9 +17,10 @@
  * before every query and throws a MissingPartitionKeyError (HTTP 500,
  * non-operational) if the caller forgets it.
  */
-import type { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../config/database';
 import { MissingPartitionKeyError } from '../errors/app-errors';
+import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,24 +41,21 @@ export interface FindManyOptions {
   orderBy?: Record<string, 'asc' | 'desc'>;
 }
 
-// ---------------------------------------------------------------------------
-// Prisma Model Delegate Types
-// ---------------------------------------------------------------------------
-
-type PrismaModelDelegates = {
-  jobApplication: Prisma.JobApplicationDelegate;
-  emailMessage: Prisma.EmailMessageDelegate;
-  syncJob: Prisma.SyncJobDelegate;
-  userEmailConnection: Prisma.UserEmailConnectionDelegate;
-  applicationTimeline: Prisma.ApplicationTimelineDelegate;
-  applicationStatusHistory: Prisma.ApplicationStatusHistoryDelegate;
-  applicationSource: Prisma.ApplicationSourceDelegate;
-  company: Prisma.CompanyDelegate;
-  recruiter: Prisma.RecruiterDelegate;
-  resumeHash: Prisma.ResumeHashDelegate;
-};
-
-type ModelName = keyof PrismaModelDelegates;
+/**
+ * Supported model names — extend this union as new Prisma models are added.
+ * Used purely for logging / error messages; not a Prisma delegate type.
+ */
+export type ModelName =
+  | 'jobApplication'
+  | 'emailMessage'
+  | 'syncJob'
+  | 'userEmailConnection'
+  | 'applicationTimeline'
+  | 'applicationStatusHistory'
+  | 'applicationSource'
+  | 'company'
+  | 'recruiter'
+  | 'resumeHash';
 
 // ---------------------------------------------------------------------------
 // BaseRepository
@@ -79,10 +77,9 @@ type ModelName = keyof PrismaModelDelegates;
  */
 export abstract class BaseRepository<TModel extends ModelName> {
   protected readonly db: PrismaClient;
-  protected readonly delegate: PrismaModelDelegates[TModel];
 
   constructor(
-    /** Prisma model name — used for delegate access. */
+    /** Prisma model name — used for delegate access and logging. */
     protected readonly modelName: TModel,
     /** The column that MUST appear in every where clause for this table. */
     protected readonly partitionKey: string,
@@ -90,7 +87,6 @@ export abstract class BaseRepository<TModel extends ModelName> {
     db: PrismaClient = prisma,
   ) {
     this.db = db;
-    this.delegate = db[modelName] as PrismaModelDelegates[TModel];
   }
 
   // -------------------------------------------------------------------------
@@ -118,45 +114,61 @@ export abstract class BaseRepository<TModel extends ModelName> {
    * @param where   - Filter object. MUST include the partition key.
    * @param options - Pagination and sort options.
    */
-  async findMany<
-    TArgs extends Parameters<PrismaModelDelegates[TModel]['findMany']>[0],
-  >(where: WhereClause, options: FindManyOptions = {}): Promise<unknown[]> {
+  async findMany(where: WhereClause, options: FindManyOptions = {}): Promise<unknown[]> {
     this.assertPartitionKey(where);
 
     const { take = 25, skip = 0, orderBy } = options;
 
-    return this.delegate.findMany({
-      where: where as TArgs extends { where?: infer W } ? W : never,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      findMany(args: unknown): Promise<unknown[]>;
+    };
+
+    logger.debug(`[${this.modelName}] findMany`, {
+      partitionValue: String(where[this.partitionKey]),
+      take,
+      skip,
+    });
+
+    return delegate.findMany({
+      where,
       take,
       skip,
       ...(orderBy ? { orderBy } : {}),
-    } as TArgs);
+    });
   }
 
   /**
    * Returns the first record matching the where clause.
    * The partition key is still required to prevent cross-partition reads.
    */
-  async findFirst<
-    TArgs extends Parameters<PrismaModelDelegates[TModel]['findFirst']>[0],
-  >(where: WhereClause): Promise<unknown> {
+  async findFirst(where: WhereClause): Promise<unknown> {
     this.assertPartitionKey(where);
 
-    return this.delegate.findFirst({
-      where: where as TArgs extends { where?: infer W } ? W : never,
-    } as TArgs);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      findFirst(args: unknown): Promise<unknown>;
+    };
+
+    logger.debug(`[${this.modelName}] findFirst`, {
+      partitionValue: String(where[this.partitionKey]),
+    });
+
+    return delegate.findFirst({ where });
   }
 
   /**
    * Creates a new record. No partition key check here — the caller must
    * include it in `data`; Prisma's type system enforces required fields.
    */
-  async create<
-    TArgs extends Parameters<PrismaModelDelegates[TModel]['create']>[0],
-  >(data: Record<string, unknown>): Promise<unknown> {
-    return this.delegate.create({
-      data: data as TArgs extends { data?: infer D } ? D : never,
-    } as TArgs);
+  async create(data: Record<string, unknown>): Promise<unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      create(args: unknown): Promise<unknown>;
+    };
+
+    logger.debug(`[${this.modelName}] create`);
+    return delegate.create({ data });
   }
 
   /**
@@ -166,10 +178,16 @@ export abstract class BaseRepository<TModel extends ModelName> {
   async update(where: WhereClause, data: Record<string, unknown>): Promise<unknown> {
     this.assertPartitionKey(where);
 
-    return this.delegate.updateMany({
-      where: where as Prisma.Args<PrismaModelDelegates[TModel], 'updateMany'>['where'],
-      data: data as Prisma.Args<PrismaModelDelegates[TModel], 'updateMany'>['data'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      updateMany(args: unknown): Promise<Prisma.BatchPayload>;
+    };
+
+    logger.debug(`[${this.modelName}] update`, {
+      partitionValue: String(where[this.partitionKey]),
     });
+
+    return delegate.updateMany({ where, data });
   }
 
   /**
@@ -179,9 +197,16 @@ export abstract class BaseRepository<TModel extends ModelName> {
   async delete(where: WhereClause): Promise<Prisma.BatchPayload> {
     this.assertPartitionKey(where);
 
-    return this.delegate.deleteMany({
-      where: where as Prisma.Args<PrismaModelDelegates[TModel], 'deleteMany'>['where'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      deleteMany(args: unknown): Promise<Prisma.BatchPayload>;
+    };
+
+    logger.debug(`[${this.modelName}] delete`, {
+      partitionValue: String(where[this.partitionKey]),
     });
+
+    return delegate.deleteMany({ where });
   }
 
   /**
@@ -191,9 +216,12 @@ export abstract class BaseRepository<TModel extends ModelName> {
   async count(where: WhereClause): Promise<number> {
     this.assertPartitionKey(where);
 
-    return this.delegate.count({
-      where: where as Prisma.Args<PrismaModelDelegates[TModel], 'count'>['where'],
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const delegate = (this.db as any)[this.modelName] as {
+      count(args: unknown): Promise<number>;
+    };
+
+    return delegate.count({ where });
   }
 }
 
@@ -227,3 +255,8 @@ export class SyncJobRepository extends BaseRepository<'syncJob'> {
     super('syncJob', 'userId', db);
   }
 }
+
+// Singletons — reuse across the application
+export const applicationRepository = new ApplicationRepository();
+export const emailMessageRepository = new EmailMessageRepository();
+export const syncJobRepository = new SyncJobRepository();
