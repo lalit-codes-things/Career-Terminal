@@ -31,7 +31,7 @@ export abstract class CapabilityBase {
       capability: this.name,
       entityType: input.entityType,
       entityId: input.entityId,
-    }, async (span) => {
+    }, async () => {
       const extractionId = randomUUID();
       const templateId = input.templateId ?? this.defaultTemplateId();
 
@@ -123,7 +123,7 @@ export abstract class CapabilityBase {
         predictionType: `CAPABILITY_${this.name.toUpperCase()}`,
         capability: this.name,
         predictionValue: output
-          ? { fields: output.fields.map((f) => ({ field: f.field, value: f.value })) }
+          ? { fields: output.fields.map((f) => ({ field: f.field, value: f.value })) as any }
           : { error: error instanceof Error ? error.message : String(error) },
         confidenceScore: confidence,
         confidenceBand: band,
@@ -132,12 +132,12 @@ export abstract class CapabilityBase {
         inputTokens: output?.usage.inputTokens,
         outputTokens: output?.usage.outputTokens,
         estimatedCostUsd: output?.usage.estimatedCostUsd,
-        rawOutput: output ? { fields: output.fields } : null,
+        rawOutput: output ? { fields: output.fields } as any : null,
         outputValid: output ? !output.requiresHumanReview : false,
         outputErrors: [],
         requiresReview: output?.requiresHumanReview ?? false,
         reviewReason: output?.reviewReason,
-        plannerContext: input.plannerContext ?? {},
+        plannerContext: input.plannerContext ?? {} as any,
         timestamp: new Date(),
       },
     });
@@ -160,7 +160,7 @@ export abstract class CapabilityBase {
           data: {
             recruiterId: input.entityId,
             factType: `${this.name}.${field.field}`,
-            factValue: { value: field.value, rawValue: field.rawValue },
+            factValue: { value: field.value, rawValue: field.rawValue } as any,
             confidence: field.confidence,
             verificationStatus: field.confidence >= 0.8 ? 'VERIFIED' : 'PENDING',
             validFrom: now,

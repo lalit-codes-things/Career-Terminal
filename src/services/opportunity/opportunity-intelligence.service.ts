@@ -107,7 +107,7 @@ export class OpportunityIntelligenceService {
           f.name.toLowerCase().includes('score') || f.name.toLowerCase().includes('match'),
         );
         const aiScore = scoreField
-          ? Math.max(0, Math.min(1, Number(scoreField.value) || result.results[0]?.confidence ?? 0))
+          ? Math.max(0, Math.min(1, (Number(scoreField.value) || result.results[0]?.confidence) ?? 0))
           : result.results[0]?.confidence ?? 0;
 
         ranked.push({

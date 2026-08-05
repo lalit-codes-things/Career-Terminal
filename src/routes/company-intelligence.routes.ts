@@ -6,8 +6,8 @@ export const companyIntelligenceRouter = Router();
 const apiService = new CompanyIntelligenceApiService();
 
 // Middleware placeholder for rate limiting and auth
-const requireAuth = (_req: Request, _res: Response, next: Function) => next();
-const rateLimiter = (_req: Request, _res: Response, next: Function) => next();
+const requireAuth = (_req: Request, _res: Response, next: () => void) => next();
+const rateLimiter = (_req: Request, _res: Response, next: () => void) => next();
 
 companyIntelligenceRouter.use(requireAuth);
 companyIntelligenceRouter.use(rateLimiter);
@@ -92,7 +92,7 @@ companyIntelligenceRouter.get('/:id/authenticity', async (req, res) => {
  */
 companyIntelligenceRouter.post('/:id/intelligence', async (req: Request, res) => {
   const userId = (req as Request & { user?: { id: string } }).user?.id ?? 'system';
-  const companyId = req.params.id;
+  const companyId = String(req.params.id);
   const { content, intent } = req.body as { content?: string; intent?: string };
 
   const [healthResult, hiringResult] = await Promise.allSettled([

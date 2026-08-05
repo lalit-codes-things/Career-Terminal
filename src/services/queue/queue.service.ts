@@ -43,23 +43,8 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
 
 // ---------------------------------------------------------------------------
 // QueueService
-// ---------------------------------------------------------------------------
 
-export interface IQueueService {
-  addEmailJob(payload: EmailJobPayload, opts?: JobsOptions): Promise<string>;
-  addResumeParsingJob(payload: ResumeParsingJobPayload, opts?: JobsOptions): Promise<string>;
-  addMalwareScanJob(payload: MalwareScanJobPayload, opts?: JobsOptions): Promise<string>;
-  addApplicationTrackingJob(
-    payload: ApplicationTrackingJobPayload,
-    opts?: JobsOptions,
-  ): Promise<string>;
-  addIntelligenceJob(payload: IntelligenceJobPayload, opts?: JobsOptions): Promise<string>;
-  addGmailSyncJob(payload: GmailSyncJobPayload, opts?: JobsOptions): Promise<string>;
-  getDepths(): Promise<Record<string, number>>;
-  close(): Promise<void>;
-}
-
-export class QueueService implements IQueueService {
+export class QueueService {
   private readonly emailQueue: Queue<EmailJobPayload>;
   private readonly resumeQueue: Queue<ResumeParsingJobPayload>;
   private readonly trackingQueue: Queue<ApplicationTrackingJobPayload>;

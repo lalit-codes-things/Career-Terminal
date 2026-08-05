@@ -7,7 +7,7 @@ import {
 function makeEmail(overrides: Partial<ClassifiableEmail> = {}): ClassifiableEmail {
   return {
     emailId: 'email-1',
-    sender: 'recruiting@stripe.com',
+    sender: 'recruiting@example-organization.com',
     subject: 'Application received for Senior Backend Engineer',
     bodyText:
       'Hi Maya Chen, thanks for applying to example-organization. We are reviewing your application for the Engineering team in New York. Please complete your assessment by March 15, 2026.',
@@ -34,7 +34,7 @@ describe('JobApplicationExtractor', () => {
     expect(application.status).toBe(JobApplicationStatus.APPLIED);
     expect(application.appliedDate).toBeInstanceOf(Date);
     expect(application.recruiter.name).toBe('Maya Chen');
-    expect(application.recruiter.email).toBe('maya@stripe.com');
+    expect(application.recruiter.email).toBe('maya@example-organization.com');
     expect(application.sourceEmailId).toBe('email-1');
   });
 

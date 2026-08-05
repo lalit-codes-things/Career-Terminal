@@ -214,53 +214,6 @@ export const envSchema = z.object({
 
   // Worker service account
   WORKER_SERVICE_ACCOUNT: z.string().optional(),
-
-  // ── Company Intelligence (Epic: Company Intelligence Foundation) ─────────
-  // Storage backend for company datasets. 'local' = filesystem under
-  // COMPANY_INTEL_LOCAL_DATA_DIR; 's3' = S3-compatible object storage.
-  // All providers read datasets exclusively through this abstraction — the
-  // backend can be switched with configuration only, no code changes.
-  COMPANY_INTEL_STORAGE_BACKEND: z.enum(['local', 's3']).default('local'),
-  COMPANY_INTEL_LOCAL_DATA_DIR: z.string().default('./data/company-intel'),
-  COMPANY_INTEL_S3_BUCKET: z.string().optional(),
-  COMPANY_INTEL_S3_PREFIX: z.string().default('company-intel'),
-  COMPANY_INTEL_S3_ENDPOINT: z.string().optional(),
-  COMPANY_INTEL_IMPORT_BATCH_SIZE: z.coerce.number().int().positive().default(500),
-  COMPANY_INTEL_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
-  COMPANY_INTEL_RETRY_INITIAL_DELAY_MS: z.coerce.number().int().min(0).default(1000),
-  COMPANY_INTEL_RETRY_MAX_DELAY_MS: z.coerce.number().int().min(0).default(30000),
-  COMPANY_INTEL_GLOBAL_RATE_LIMIT_PER_SEC: z.coerce.number().int().positive().default(2),
-
-  // SEC / EDGAR provider (optional). Disabled by default — when disabled or
-  // unconfigured the application continues normally and emits structured logs.
-  SEC_PROVIDER_ENABLED: z.coerce.boolean().default(false),
-  SEC_BASE_URL: z.string().url().optional(),
-  SEC_DATA_DIR: z.string().optional(),
-  SEC_USER_AGENT: z
-    .string()
-    .default('CareerTerminal/1.0 (company intelligence; contact: ops@careerterminal.invalid)'),
-  SEC_RATE_LIMIT_PER_SEC: z.coerce.number().int().positive().default(10),
-  SEC_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-
-  // Companies House provider (optional). Credentials are environment-only.
-  COMPANIES_HOUSE_PROVIDER_ENABLED: z.coerce.boolean().default(false),
-  COMPANIES_HOUSE_API_KEY: z.string().optional(),
-  COMPANIES_HOUSE_STREAMING_API_KEY: z.string().optional(),
-  COMPANIES_HOUSE_BASE_URL: z
-    .string()
-    .url()
-    .default('https://api.company-information.service.gov.uk'),
-  COMPANIES_HOUSE_STREAMING_URL: z.string().url().default('https://stream.companieshouse.gov.uk'),
-  COMPANIES_HOUSE_RATE_LIMIT_PER_SEC: z.coerce.number().int().positive().default(2),
-  COMPANIES_HOUSE_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-
-  // India MCA provider via data.gov.in (optional). Credentials are env-only.
-  INDIA_MCA_PROVIDER_ENABLED: z.coerce.boolean().default(false),
-  INDIA_MCA_API_KEY: z.string().optional(),
-  INDIA_MCA_BASE_URL: z.string().url().default('https://api.data.gov.in'),
-  INDIA_MCA_RESOURCE_ID: z.string().default(''),
-  INDIA_MCA_RATE_LIMIT_PER_SEC: z.coerce.number().int().positive().default(2),
-  INDIA_MCA_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
 });
 
 export type Env = z.infer<typeof envSchema>;

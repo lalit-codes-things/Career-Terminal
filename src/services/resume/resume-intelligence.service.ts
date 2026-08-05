@@ -15,7 +15,6 @@ import { DocumentExtractionService } from '../document/document-extraction.servi
 import { planner } from '../planner';
 import { hybridRetrievalService } from '../recruiter-intelligence/vector-search/hybrid-retrieval.service';
 import { factService } from '../fact.service';
-import { prisma } from '../../config/database';
 
 export interface ParseIntelligenceResult {
   userResumeId: string;
@@ -52,7 +51,7 @@ export class ResumeIntelligenceService {
 
     // 3. Persist findings as FactObservation rows (candidate domain)
     const factIds: string[] = [];
-    const modelId = 'deepseek/deepseek-chat';
+    const modelId = 'example-model';
 
     // Create extraction run for provenance
     let extractionRunCtx: { runId: string; provenanceId: string } | null = null;
@@ -61,7 +60,7 @@ export class ResumeIntelligenceService {
         userId,
         modelId,
         modelProvider: 'openrouter',
-        modelVersion: 'v3',
+        modelVersion: 'v1',
         sourceType: 'RESUME',
         sourceId: userResumeId,
         parserVersion: 'resume-intelligence-v1',
@@ -148,7 +147,7 @@ export class ResumeIntelligenceService {
 
     const allFields = planResult.results.flatMap((r) => r.fields);
     const scoreField = allFields.find((f) => f.name.toLowerCase().includes('match') || f.name.toLowerCase().includes('score'));
-    const aiScore = scoreField ? Number(scoreField.value) || planResult.results[0]?.confidence ?? 0 : 0;
+    const aiScore = scoreField ? (Number(scoreField.value) || planResult.results[0]?.confidence) ?? 0 : 0;
     const aiConfidence = planResult.results[0]?.confidence ?? 0;
 
     return {

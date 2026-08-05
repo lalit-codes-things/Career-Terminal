@@ -1,6 +1,10 @@
+import { prisma } from '../../config/database';
+import { Prisma } from '@prisma/client';
+import { companyIntelligenceService } from './company-intelligence.service';
+
 export interface ApiResponse<T> {
   data: T;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   provenance: string[];
   version: string;
   timestamp: Date;
@@ -27,12 +31,10 @@ export interface SearchOptions {
   filter?: SearchFilters;
 }
 
-import { companyIntelligenceService } from './company-intelligence.service';
-
 const SYSTEM_USER_ID = 'system';
 
 export class CompanyIntelligenceApiService {
-  private wrapResponse<T>(data: T, provenance: string[] = [], metadata: Record<string, any> = {}): ApiResponse<T> {
+  private wrapResponse<T>(data: T, provenance: string[] = [], metadata: Record<string, unknown> = {}): ApiResponse<T> {
     return {
       data,
       metadata: {
@@ -48,19 +50,18 @@ export class CompanyIntelligenceApiService {
   private wrapPaginatedResponse<T>(data: T, provenance: string[] = [], options: SearchOptions = {}): ApiResponse<T> {
     const page = Math.max(1, options.page ?? 1);
     const limit = Math.max(1, options.limit ?? 20);
-    const total = Math.max(data instanceof Array ? data.length : 1, 1);
-    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const count = data instanceof Array ? data.length : 1;
+    const totalPages = Math.max(Math.ceil(count / limit), 1);
     return {
       ...this.wrapResponse(data, provenance, {
         page,
-        limit,
         sort: options.sort ?? 'relevance:desc',
         filter: options.filter ?? {},
       }),
       pagination: {
         page,
         limit,
-        total,
+        total: count,
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
@@ -68,41 +69,131 @@ export class CompanyIntelligenceApiService {
     };
   }
 
-  async lookup(id: string): Promise<ApiResponse<any>> {
-    return this.wrapResponse({ id, name: 'Example Company', normalizedName: 'example company' }, ['internal']);
+  async lookup(id: string): Promise<ApiResponse<unknown>> {
+    const company = await prisma.company.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        industry: true,
+        headquarters: true,
+        website: true,
+      },
+    });
+
+    if (!company) {
+      return this.wrapResponse({ id, found: false }, ['not-found']);
+    }
+
+    return this.wrapResponse({
+      id: company.id,
+      name: company.name,
+      normalizedName: company.name.toLowerCase(),
+      domain: company.domain,
+      industry: company.industry,
+      headquarters: company.headquarters,
+      website: company.website,
+    }, ['database']);
   }
 
-  async search(_query: string, options: SearchOptions = {}): Promise<ApiResponse<any[]>> {
-    const data = [{ id: 'C1', name: 'Example', normalizedName: 'example' }];
-    return this.wrapPaginatedResponse(data, ['internal'], options);
+  async search(query: string, options: SearchOptions = {}): Promise<ApiResponse<unknown[]>> {
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.max(1, options.limit ?? 20);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.CompanyWhereInput = query
+      ? { OR: [{ name: { contains: query, mode: 'insensitive' } }, { domain: { contains: query, mode: 'insensitive' } }] }
+      : {};
+
+    const rows = await prisma.company.findMany({ where, skip, take: limit, select: { id: true, name: true, domain: true } });
+
+    const data = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      normalizedName: row.name.toLowerCase(),
+      domain: row.domain,
+    }));
+
+    return this.wrapPaginatedResponse(data, ['database'], { ...options, page, limit });
   }
 
-  async bulkLookup(ids: string[]): Promise<ApiResponse<any[]>> {
-    const data = ids.map((requestedId) => ({ requestedId, found: true, company: { id: requestedId, name: 'Example Company' } }));
+  async bulkLookup(ids: string[]): Promise<ApiResponse<unknown[]>> {
+    const rows = ids.length
+      ? await prisma.company.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, domain: true },
+        })
+      : [];
+
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const data = ids.map((requestedId) => ({
+      requestedId,
+      found: byId.has(requestedId),
+      company: byId.has(requestedId)
+        ? { id: requestedId, name: byId.get(requestedId)!.name, domain: byId.get(requestedId)!.domain }
+        : null,
+    }));
+
     return this.wrapResponse(data, ['bulk-lookup'], { requestId: `bulk-${Date.now()}` });
   }
 
-  async getIdentifiers(_id: string): Promise<ApiResponse<any[]>> {
-    return this.wrapResponse([], ['market-identity-framework']);
+  async getIdentifiers(id: string): Promise<ApiResponse<unknown[]>> {
+    const canonical = await prisma.canonicalCompany.findUnique({
+      where: { companyId: id },
+      select: { id: true },
+    });
+    if (!canonical) return this.wrapResponse([], ['not-found']);
+
+    const identifiers = await prisma.companyIdentifier.findMany({
+      where: { canonicalCompanyId: canonical.id },
+      select: { id: true, type: true, value: true, normalizedValue: true, jurisdictionCode: true, registrar: true },
+    });
+
+    return this.wrapResponse(identifiers, ['database']);
   }
 
-  async getRelationships(_id: string): Promise<ApiResponse<any[]>> {
-    return this.wrapResponse([], ['relationship-framework']);
+  async getRelationships(_id: string): Promise<ApiResponse<unknown[]>> {
+    return this.wrapResponse([], ['no-relationships']);
   }
 
-  async getLocations(_id: string): Promise<ApiResponse<any[]>> {
-    return this.wrapResponse([], ['geographic-framework']);
+  async getLocations(id: string): Promise<ApiResponse<unknown[]>> {
+    const canonical = await prisma.canonicalCompany.findUnique({
+      where: { companyId: id },
+      select: { id: true },
+    });
+    if (!canonical) return this.wrapResponse([], ['not-found']);
+
+    const addresses = await prisma.companyAddress.findMany({
+      where: { canonicalCompanyId: canonical.id },
+      select: { id: true, addressType: true, addressLines: true, locality: true, region: true, postalCode: true, countryCode: true, latitude: true, longitude: true },
+    });
+
+    return this.wrapResponse(addresses, ['database']);
   }
 
-  async getClassification(_id: string): Promise<ApiResponse<any[]>> {
-    return this.wrapResponse([], ['classification-framework']);
+  async getClassification(id: string): Promise<ApiResponse<unknown[]>> {
+    const canonical = await prisma.canonicalCompany.findUnique({
+      where: { companyId: id },
+      select: { id: true, industryClassifications: true },
+    });
+
+    if (!canonical) return this.wrapResponse([], ['not-found']);
+
+    return this.wrapResponse(canonical.industryClassifications, ['database']);
   }
 
-  async getTimeline(_id: string): Promise<ApiResponse<any[]>> {
-    return this.wrapResponse([], ['timeline-framework']);
+  async getTimeline(id: string): Promise<ApiResponse<unknown[]>> {
+    const signals = await prisma.companySignal.findMany({
+      where: { companyId: id },
+      orderBy: { discoveryTime: 'desc' },
+      select: { id: true, signalType: true, headline: true, description: true, sourceUrl: true, sourceName: true, discoveryTime: true, confidence: true },
+    });
+
+    return this.wrapResponse(signals, ['database']);
   }
 
-  async getHealth(id: string): Promise<ApiResponse<any>> {
+  async getHealth(id: string): Promise<ApiResponse<unknown>> {
     const stabilityResult = await companyIntelligenceService.scoreStability(id, SYSTEM_USER_ID).catch(() => null);
     const hiringResult = await companyIntelligenceService.scoreHiringSignals(id, SYSTEM_USER_ID).catch(() => null);
     return this.wrapResponse({
@@ -115,7 +206,7 @@ export class CompanyIntelligenceApiService {
     }, ['health-framework', 'ai-capability']);
   }
 
-  async getHiring(id: string): Promise<ApiResponse<any>> {
+  async getHiring(id: string): Promise<ApiResponse<unknown>> {
     const result = await companyIntelligenceService.scoreHiringSignals(id, SYSTEM_USER_ID).catch(() => null);
     return this.wrapResponse({
       signals: result?.activeSignals ?? [],
@@ -125,7 +216,7 @@ export class CompanyIntelligenceApiService {
     }, ['hiring-framework', 'ai-capability']);
   }
 
-  async getAuthenticity(id: string): Promise<ApiResponse<any>> {
+  async getAuthenticity(id: string): Promise<ApiResponse<unknown>> {
     const result = await companyIntelligenceService.scoreAuthenticity(id, SYSTEM_USER_ID).catch(() => null);
     return this.wrapResponse({
       trustScore: result?.score ?? 0,
@@ -135,12 +226,12 @@ export class CompanyIntelligenceApiService {
     }, ['authenticity-framework', 'ai-capability']);
   }
 
-  async getMetadata(): Promise<ApiResponse<any>> {
+  async getMetadata(): Promise<ApiResponse<unknown>> {
     return this.wrapResponse({
       apiVersion: 'v1',
       buildDate: new Date().toISOString(),
       registeredProviders: [],
-      registeredJobTypes: ['IMPORT', 'VALIDATION'],
+      registeredJobTypes: [],
       featureFlags: {
         enableBulkLookup: true,
         enableStreamingImports: false,
