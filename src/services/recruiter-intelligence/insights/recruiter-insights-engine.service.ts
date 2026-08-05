@@ -20,7 +20,6 @@ import type {
   InsightSeverity,
   MemoryContext,
   OpportunityAlert,
-  OpportunityAlertType,
   OpportunitySummaryInsight,
   RecruiterInsight,
   RecruiterInsightsResult,
@@ -28,7 +27,6 @@ import type {
   RecruiterSummaryInsight,
   RelationshipRecommendation,
   ReasoningStep,
-  RiskAlertType,
   TimingRecommendation,
   TimelineContext,
 } from '../../../domain/recruiter-intelligence/insights/contracts';
@@ -466,7 +464,7 @@ export class RecruiterInsightsEngine {
         recruiterId,
         recommendation: `Highlight expertise in: ${domains.slice(0, 3).join(', ')}.`,
         rationale: `Recruiter specializes in ${domains.join(', ')} — align your messaging.`,
-        priority: 'normal' as InsightPriority,
+        priority: 'normal',
         confidence: specializationResult?.expertiseProfile.hiringDomains.confidence ?? 0.60,
         evidenceFactIds: specializationResult?.expertiseProfile.hiringDomains.evidenceFactIds ?? [],
       });
@@ -627,7 +625,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'ghosting_risk' as RiskAlertType,
+        alertType: 'ghosting_risk',
         title: 'Elevated Ghosting Risk',
         description: `Ghosting probability is ${(trustResult.trustScore.ghostingProbability * 100).toFixed(0)}%. Recruiter trust score: ${trustResult.trustScore.band}.`,
         severity: trustResult.trustScore.ghostingRisk === 'very_high' ? 'high' : 'medium',
@@ -643,7 +641,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'trust_declining' as RiskAlertType,
+        alertType: 'trust_declining',
         title: 'Low Trust Score',
         description: `Trust score is ${(trustResult.trustScore.score * 100).toFixed(0)}/100 (${trustResult.trustScore.band}).`,
         severity: 'medium',
@@ -659,7 +657,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'engagement_dropping' as RiskAlertType,
+        alertType: 'engagement_dropping',
         title: 'Engagement Declining',
         description: 'Recruiter behavioral engagement is showing a declining trend.',
         severity: 'medium',
@@ -690,7 +688,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'high_urgency_role' as OpportunityAlertType,
+        alertType: 'high_urgency_role',
         title: 'High Urgency Role Detected',
         description: `Recruiter signals ${urgency} hiring urgency. This role may fill quickly.`,
         urgency: urgency === 'critical' ? 'urgent' : 'high',
@@ -705,7 +703,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'offer_imminent' as OpportunityAlertType,
+        alertType: 'offer_imminent',
         title: 'Offer May Be Imminent',
         description: `Offer probability is ${(offerProb * 100).toFixed(0)}%. Compensation signals detected.`,
         urgency: offerProb > 0.60 ? 'high' : 'normal',
@@ -720,7 +718,7 @@ export class RecruiterInsightsEngine {
       alerts.push({
         alertId: randomUUID(),
         recruiterId,
-        alertType: 'interview_window_opening' as OpportunityAlertType,
+        alertType: 'interview_window_opening',
         title: 'Interview Window Opening',
         description: `Interview likelihood is ${(interviewProb * 100).toFixed(0)}%. Recruiter is actively scheduling.`,
         urgency: 'high',
@@ -769,12 +767,12 @@ export class RecruiterInsightsEngine {
     return output.fields.map((f) => ({
       insightId: randomUUID(),
       recruiterId,
-      category: 'recruiter_summary' as RecruiterInsight['category'],
+      category: 'recruiter_summary',
       title: f.field,
       text: String(f.value),
       confidence: f.confidence,
-      severity: 'info' as InsightSeverity,
-      priority: 'normal' as InsightPriority,
+      severity: 'info',
+      priority: 'normal',
       actionable: true,
       suggestedAction: f.evidence[0]?.excerpt,
       evidenceFactIds: [],

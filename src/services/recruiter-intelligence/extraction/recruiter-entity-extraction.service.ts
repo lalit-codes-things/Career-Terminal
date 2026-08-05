@@ -436,11 +436,14 @@ export class RecruiterEntityExtractionService {
       case 'recruiter_name':
         return normalizeText(structuredValue['name'] ?? rawValue);
       case 'recruiter_organization':
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return normalizeOrganizationName(String(structuredValue['name'] ?? rawValue));
       case 'technology':
       case 'skill':
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return normalizeSkillName(String(structuredValue['name'] ?? rawValue));
       case 'hiring_location':
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return normalizeLocation(String(structuredValue['location'] ?? rawValue));
       default:
         return normalizeText(rawValue);
@@ -454,6 +457,7 @@ export class RecruiterEntityExtractionService {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       return value as Record<string, unknown>;
     }
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const strVal = String(value ?? '');
     switch (fieldType) {
       case 'recruiter_name': return { name: strVal };

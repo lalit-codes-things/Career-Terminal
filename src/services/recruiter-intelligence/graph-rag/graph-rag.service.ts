@@ -103,6 +103,7 @@ export class GraphRagService {
       structuredFacts: recruiterFacts.map((f) => ({
         factId: f.id,
         fieldType: f.factType,
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         rawValue: String((f.factValue as Record<string, unknown>)['value'] ?? ''),
       })),
     };
@@ -150,6 +151,7 @@ export class GraphRagService {
 
       const aiResult = await this.pipelineInstance.extract('recruiter-insights-engine', aiInput, {});
       if (aiResult.fields.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         answerText = String(aiResult.fields[0]?.value ?? answerText);
         confidence = aiResult.fields[0]?.confidence ?? 0.5;
       } else {

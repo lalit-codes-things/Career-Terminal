@@ -87,6 +87,7 @@ export class AiTaxonomyService {
       if (!kindFilter.includes(field.field)) continue;
 
       const term = typeof field.value === 'object' && field.value !== null
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         ? String((field.value as Record<string, unknown>)['name'] ?? field.rawValue)
         : field.rawValue;
 

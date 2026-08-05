@@ -129,9 +129,9 @@ export class PgVectorStore implements VectorStore {
     const filtered = query.metadataFilters
       ? allRows.filter((row) => {
           for (const [k, v] of Object.entries(query.metadataFilters!)) {
-            const rowVal = (row.metadata as Record<string, unknown>)[k];
+            const rowVal = row.metadata[k];
             if (Array.isArray(v)) {
-              if (!v.map(String).includes(rowVal as string)) return false;
+              if (!v.map(String).includes(String(rowVal))) return false;
             } else if (rowVal !== v) {
               return false;
             }
@@ -147,6 +147,7 @@ export class PgVectorStore implements VectorStore {
         entityId: row.entity_id,
         entityType: (row.entity_type ?? 'recruiter_profile') as VectorSearchResult['entityType'],
         score: row.score,
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         text: String((row.metadata)['text'] ?? ''),
         metadata: row.metadata,
       }));
