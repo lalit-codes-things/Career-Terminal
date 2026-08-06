@@ -62,9 +62,40 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
         requiresReview: output.requiresHumanReview,
       });
 
+      const extractionRun = await prisma.extractionRun.create({
+        data: {
+          userId: input.userId,
+          sourceType: 'economic-document',
+          sourceId: input.entityId,
+          modelId: 'deepseek/deepseek-chat',
+          modelVersion: output.model,
+          status: 'completed',
+          startedAt: new Date(),
+          completedAt: output.completedAt,
+          parserVersion: output.templateVersion,
+          modelProvider: output.provider,
+          promptVersion: output.templateVersion,
+          schemaVersion: '1.0.0',
+        },
+      });
+
+      const provenance = await prisma.factProvenance.create({
+        data: {
+          userId: input.userId,
+          sourceType: 'economic-document',
+          sourceId: input.entityId,
+          extractionRunId: extractionRun.id,
+          parserVersion: output.templateVersion,
+          modelProvider: output.provider,
+          modelVersion: output.model,
+          promptVersion: output.templateVersion,
+          schemaVersion: '1.0.0',
+        },
+      });
+
       const economicDocumentId = await this.writeEconomicDocument(input, output);
 
-      const factIds = await this.writeEconomicFactObservations(input, output, economicDocumentId);
+      const factIds = await this.writeEconomicFactObservations(input, output, economicDocumentId, extractionRun.id, provenance.id);
 
       const predictionId = await this.writePrediction(input, output, latencyMs, null);
 
@@ -123,12 +154,16 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
     input: CapabilityInput,
     output: ExtractionOutput,
     economicDocumentId: string,
+    extractionRunId: string,
+    provenanceId: string,
   ): Promise<string[]> {
     const now = new Date();
     const factIds: string[] = [];
 
     for (const field of output.fields) {
       if (field.confidence < 0.4) continue;
+
+      const fieldNeedsReview = field.confidence < 0.55;
 
       try {
         const fact = await prisma.factObservation.create({
@@ -148,10 +183,14 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
             modelVersion: output.model,
             confidence: field.confidence,
             evidenceReference: field.evidence.map((e) => e.sourceId).join(',') || null,
+            extractionRunId: extractionRunId,
+            provenanceId: provenanceId,
             validFrom: now,
             observedAt: now,
             extractedAt: now,
             isCurrent: true,
+            needsReview: fieldNeedsReview,
+            reviewStatus: fieldNeedsReview ? 'pending' : 'approved',
             version: 1,
           },
         });
