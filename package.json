@@ -33,6 +33,9 @@
     "db:check": "npm run db:schema:check && npm run db:migrate:check && tsx src/services/recruiter-intelligence/migration/run-startup-validation.ts",
     "generate": "npm run db:generate"
   },
+  "overrides": {
+    "uuid": "^11.1.0"
+  },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1088.0",
     "@aws-sdk/client-s3": "^3.1088.0",

@@ -59,6 +59,7 @@ interface IOAuthStateBackend {
   set(state: string, entry: OAuthStateEntry): Promise<void>;
   get(state: string): Promise<OAuthStateEntry | null>;
   delete(state: string): Promise<void>;
+  getAndDelete(state: string): Promise<OAuthStateEntry | null>;
   size(): Promise<number>;
   destroy(): void;
 }
@@ -86,6 +87,12 @@ class InMemoryStateBackend implements IOAuthStateBackend {
 
   async delete(state: string): Promise<void> {
     this.states.delete(state);
+  }
+
+  async getAndDelete(state: string): Promise<OAuthStateEntry | null> {
+    const entry = this.states.get(state) ?? null;
+    this.states.delete(state);
+    return entry;
   }
 
   async size(): Promise<number> {
@@ -163,6 +170,21 @@ class RedisStateBackend implements IOAuthStateBackend {
   async delete(state: string): Promise<void> {
     const key = `${REDIS_KEY_PREFIX}${state}`;
     await this.getClient().del(key);
+  }
+
+  async getAndDelete(state: string): Promise<OAuthStateEntry | null> {
+    const key = `${REDIS_KEY_PREFIX}${state}`;
+    const lua = `
+      local raw = redis.call('GET', KEYS[1])
+      if raw then
+        redis.call('DEL', KEYS[1])
+        return raw
+      end
+      return nil
+    `;
+    const raw = await this.getClient().eval(lua, 1, key);
+    if (!raw) return null;
+    return JSON.parse(raw) as OAuthStateEntry;
   }
 
   async size(): Promise<number> {
@@ -266,7 +288,7 @@ export class OAuthStateService {
       );
     }
 
-    const entry = await this.backend.get(state);
+    const entry = await this.backend.getAndDelete(state);
 
     if (!entry) {
       throw new OAuthError(
@@ -278,15 +300,12 @@ export class OAuthStateService {
     // Check expiry (belt-and-suspenders; Redis TTL handles it independently)
     const age = Date.now() - entry.createdAt;
     if (age > STATE_TTL_MS) {
-      await this.backend.delete(state);
       throw new OAuthError(
         'OAuth state has expired. Please initiate the connection again.',
         'EXPIRED_OAUTH_STATE',
       );
     }
 
-    // Consume (one-time use) — delete before returning to prevent replay
-    await this.backend.delete(state);
     return entry.userId;
   }
 

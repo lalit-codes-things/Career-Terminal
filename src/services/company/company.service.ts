@@ -319,14 +319,12 @@ export class CompanyService {
   }
 
   public async linkApplicationToCompany(
+    userId: string,
     applicationId: string,
     companyInput: CompanyResolveInput,
     db: DbClient = prisma,
-    userId?: string,
   ): Promise<CompanyRecord> {
-    if (userId) {
-      await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
-    }
+    await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
 
     const company = await this.resolveCompany(companyInput, db);
     await db.jobApplication.update({
