@@ -377,3 +377,116 @@ export function getEffectiveRLSRole(operationRole: OperationRole): string {
       return RLS_ROLES.app_anonymous;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Prisma Client Extension — automatic tenant isolation
+// ---------------------------------------------------------------------------
+
+const USER_SCOPED_MODELS = new Set([
+  'jobApplication',
+  'emailMessage',
+  'syncJob',
+  'userEmailConnection',
+  'applicationTimeline',
+  'applicationStatusHistory',
+  'applicationSource',
+  'userResume',
+  'resumeHash',
+  'applicationResume',
+  'factObservation',
+  'factProvenance',
+  'extractionRun',
+  'canonicalCandidateIntelligence',
+]);
+
+/**
+ * Prisma Client Extension that automatically enforces tenant isolation
+ * by injecting `user_id` filters into queries for user-scoped models.
+ *
+ * When a request context has an authenticated userId, all queries against
+ * user-scoped models are automatically scoped to that user. This eliminates
+ * the need to manually apply `userOwnershipFilter()` in every query.
+ *
+ * The extension works alongside PostgreSQL RLS policies as a defense-in-depth
+ * measure. RLS remains the primary enforcement mechanism; the extension
+ * provides an additional application-level guard.
+ */
+export function attachTenantExtension(client: PrismaClient): PrismaClient {
+  return client.$extends({
+    query: {
+      $allModels: {
+        async findMany({ model, operation, args, query }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+
+          if (userId && USER_SCOPED_MODELS.has(model)) {
+            const existingWhere = (args as Record<string, unknown>).where as Record<string, unknown> | undefined;
+            const ownershipFilter = userOwnershipFilter(userId);
+
+            if (existingWhere && Object.keys(existingWhere).length > 0) {
+              (args as Record<string, unknown>).where = { AND: [existingWhere, ownershipFilter] };
+            } else {
+              (args as Record<string, unknown>).where = ownershipFilter;
+            }
+          }
+
+          return query(args);
+        },
+
+        async findFirst({ model, operation, args, query }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+
+          if (userId && USER_SCOPED_MODELS.has(model)) {
+            const existingWhere = (args as Record<string, unknown>).where as Record<string, unknown> | undefined;
+            const ownershipFilter = userOwnershipFilter(userId);
+
+            if (existingWhere && Object.keys(existingWhere).length > 0) {
+              (args as Record<string, unknown>).where = { AND: [existingWhere, ownershipFilter] };
+            } else {
+              (args as Record<string, unknown>).where = ownershipFilter;
+            }
+          }
+
+          return query(args);
+        },
+
+        async updateMany({ model, operation, args, query }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+
+          if (userId && USER_SCOPED_MODELS.has(model)) {
+            const existingWhere = (args as Record<string, unknown>).where as Record<string, unknown> | undefined;
+            const ownershipFilter = userOwnershipFilter(userId);
+
+            if (existingWhere && Object.keys(existingWhere).length > 0) {
+              (args as Record<string, unknown>).where = { AND: [existingWhere, ownershipFilter] };
+            } else {
+              (args as Record<string, unknown>).where = ownershipFilter;
+            }
+          }
+
+          return query(args);
+        },
+
+        async deleteMany({ model, operation, args, query }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+
+          if (userId && USER_SCOPED_MODELS.has(model)) {
+            const existingWhere = (args as Record<string, unknown>).where as Record<string, unknown> | undefined;
+            const ownershipFilter = userOwnershipFilter(userId);
+
+            if (existingWhere && Object.keys(existingWhere).length > 0) {
+              (args as Record<string, unknown>).where = { AND: [existingWhere, ownershipFilter] };
+            } else {
+              (args as Record<string, unknown>).where = ownershipFilter;
+            }
+          }
+
+          return query(args);
+        },
+      },
+    },
+  });
+}

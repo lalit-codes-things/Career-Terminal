@@ -74,24 +74,20 @@ export function assertFileSignature(buffer: Buffer, mimeType: string, extension:
 }
 
 /**
- * Validate and sanitize a filename
+ * Validate and sanitize a filename using basename and allowlist.
+ * Rejects any path containing traversal sequences rather than stripping them.
  */
 export function sanitizeFilename(filename: string): string {
-  // Remove directory traversal
-  let sanitized = filename.replace(/\.\.\//g, '').replace(/\.\.\\/g, '');
+  const base = path.basename(filename);
 
-  // Remove invalid characters
-  sanitized = sanitized.replace(/[<>:"/\\|?*]/g, '_');
+  if (!base || base === '.' || base === '..') {
+    return 'unnamed';
+  }
 
-  // Trim whitespace
-  sanitized = sanitized.trim();
+  const sanitized = base.replace(/[<>:"|?*]/g, '_');
 
-  // Remove leading/trailing dots
-  sanitized = sanitized.replace(/^\.+|\.+$/g, '');
-
-  // Prevent empty filename
-  if (!sanitized) {
-    sanitized = 'unnamed';
+  if (sanitized.startsWith('.')) {
+    return 'unnamed' + sanitized;
   }
 
   return sanitized;
@@ -100,24 +96,16 @@ export function sanitizeFilename(filename: string): string {
 /**
  * Normalize and validate a path
  */
-export function normalizePath(path: string): string {
-  let normalized = path.trim();
+export function normalizePath(inputPath: string): string {
+  const base = path.basename(inputPath);
 
-  // Normalize separators to forward slashes
-  normalized = normalized.replace(/\\/g, '/');
-
-  // Remove directory traversal
-  while (normalized.includes('../')) {
-    normalized = normalized.replace(/\/[^/]+\/\.\./g, '');
+  if (!base || base === '.' || base === '..') {
+    throw new Error('Invalid path contains dangerous traversal sequences');
   }
-  normalized = normalized.replace(/^\.\.\//g, '');
-  normalized = normalized.replace(/\/\.\.\//g, '/');
 
-  // Prevent leading/trailing slashes issues
-  normalized = normalized.replace(/\/+/g, '/');
+  const normalized = base.replace(/[<>:"|?*]/g, '_');
 
-  // Reject dangerous patterns
-  if (normalized.includes('/../') || normalized.includes('..\\')) {
+  if (normalized.startsWith('.')) {
     throw new Error('Invalid path contains dangerous traversal sequences');
   }
 

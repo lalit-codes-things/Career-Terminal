@@ -39,6 +39,7 @@ import { PrismaClient } from '@prisma/client';
 import { DatabaseRouter } from '../db/database-router';
 import { config } from './index';
 import { attachRlsMiddleware } from '../middleware/rls';
+import { attachTenantExtension } from '../middleware/rls';
 
 // ---------------------------------------------------------------------------
 // Global stash (hot-reload safety)
@@ -114,18 +115,19 @@ export function databaseUrlForRole(role?: string): string {
  * migration process never reuses the runtime credential.
  */
 export function createPrismaClient(role?: string): PrismaClient {
-  const roleOrDefault = role ?? config.databaseRole;
-  const baseUrl = databaseUrlForRole(roleOrDefault);
-  const url = enrichUrl(baseUrl, roleOrDefault);
-  const client = new PrismaClient({
-    datasources: { db: { url: url ?? baseUrl } },
-    log: logLevels,
-  });
+   const roleOrDefault = role ?? config.databaseRole;
+   const baseUrl = databaseUrlForRole(roleOrDefault);
+   const url = enrichUrl(baseUrl, roleOrDefault);
+   let client = new PrismaClient({
+     datasources: { db: { url: url ?? baseUrl } },
+     log: logLevels,
+   });
 
-  attachRlsMiddleware(client);
+   attachRlsMiddleware(client);
+   client = attachTenantExtension(client);
 
-  return client;
-}
+   return client;
+ }
 
 // ---------------------------------------------------------------------------
 // Master client (writes) — default to app_runtime role
@@ -152,7 +154,7 @@ export const prismaReplica: PrismaClient =
           log: logLevels,
         });
         attachRlsMiddleware(client);
-        return client;
+        return attachTenantExtension(client);
       })()
     : prisma);
 

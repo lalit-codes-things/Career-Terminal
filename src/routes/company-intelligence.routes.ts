@@ -1,26 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { CompanyIntelligenceApiService } from '../services/company-intelligence/api.service';
 import { planner } from '../services/planner';
-import { requireAuth, UnauthorizedError } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import { generalApiLimiter, writeLimiter } from '../middleware/rate-limiter';
 
 export const companyIntelligenceRouter = Router();
 const apiService = new CompanyIntelligenceApiService();
-
-const withUserId = (req: Request): string => {
-  const userId = req.user?.id;
-  if (!userId) {
-    throw new UnauthorizedError('Authentication required');
-  }
-  return userId;
-};
 
 const paramId = (req: Request): string => (typeof req.params.id === 'string' ? req.params.id : '');
 
 // Lookup & Search
 companyIntelligenceRouter.get('/lookup/:id', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.lookup(paramId(req));
     res.json(result);
   } catch (error) {
@@ -30,7 +21,6 @@ companyIntelligenceRouter.get('/lookup/:id', generalApiLimiter, requireAuth, asy
 
 companyIntelligenceRouter.get('/search', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const query = req.query.q as string;
     const result = await apiService.search(query, {
       page: Number(req.query.page ?? 1),
@@ -50,7 +40,6 @@ companyIntelligenceRouter.get('/search', generalApiLimiter, requireAuth, async (
 
 companyIntelligenceRouter.post('/bulk-lookup', writeLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const ids = Array.isArray(req.body?.ids) ? (req.body.ids as string[]) : [];
     const result = await apiService.bulkLookup(ids);
     res.json(result);
@@ -71,7 +60,6 @@ companyIntelligenceRouter.get('/metadata', generalApiLimiter, requireAuth, async
 // Sub-resources
 companyIntelligenceRouter.get('/:id/identifiers', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getIdentifiers(paramId(req));
     res.json(result);
   } catch (error) {
@@ -81,7 +69,6 @@ companyIntelligenceRouter.get('/:id/identifiers', generalApiLimiter, requireAuth
 
 companyIntelligenceRouter.get('/:id/relationships', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getRelationships(paramId(req));
     res.json(result);
   } catch (error) {
@@ -91,7 +78,6 @@ companyIntelligenceRouter.get('/:id/relationships', generalApiLimiter, requireAu
 
 companyIntelligenceRouter.get('/:id/locations', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getLocations(paramId(req));
     res.json(result);
   } catch (error) {
@@ -101,7 +87,6 @@ companyIntelligenceRouter.get('/:id/locations', generalApiLimiter, requireAuth, 
 
 companyIntelligenceRouter.get('/:id/classification', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getClassification(paramId(req));
     res.json(result);
   } catch (error) {
@@ -111,7 +96,6 @@ companyIntelligenceRouter.get('/:id/classification', generalApiLimiter, requireA
 
 companyIntelligenceRouter.get('/:id/timeline', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getTimeline(paramId(req));
     res.json(result);
   } catch (error) {
@@ -121,7 +105,6 @@ companyIntelligenceRouter.get('/:id/timeline', generalApiLimiter, requireAuth, a
 
 companyIntelligenceRouter.get('/:id/health', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getHealth(paramId(req));
     res.json(result);
   } catch (error) {
@@ -131,7 +114,6 @@ companyIntelligenceRouter.get('/:id/health', generalApiLimiter, requireAuth, asy
 
 companyIntelligenceRouter.get('/:id/hiring', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getHiring(paramId(req));
     res.json(result);
   } catch (error) {
@@ -141,7 +123,6 @@ companyIntelligenceRouter.get('/:id/hiring', generalApiLimiter, requireAuth, asy
 
 companyIntelligenceRouter.get('/:id/authenticity', generalApiLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    withUserId(req);
     const result = await apiService.getAuthenticity(paramId(req));
     res.json(result);
   } catch (error) {
@@ -156,7 +137,7 @@ companyIntelligenceRouter.get('/:id/authenticity', generalApiLimiter, requireAut
  */
 companyIntelligenceRouter.post('/:id/intelligence', writeLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = withUserId(req);
+    const userId = req.user!.id;
     const companyId = String(paramId(req));
     const { content, intent } = req.body as { content?: string; intent?: string };
 
