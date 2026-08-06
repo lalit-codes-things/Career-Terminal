@@ -32,14 +32,15 @@ export class GraphRagService {
   ) {}
 
   async answer(request: GraphRagRequest): Promise<GraphRagResponse> {
-    // 1. Semantic retrieval via pgvector
+    // 1. Semantic retrieval via pgvector — tenant isolation enforced at the SQL layer
     const hybridQuery: HybridQuery = {
       textQuery: request.queryText,
+      tenantId: request.tenantId,
       vectorQuery: request.queryVector
         ? {
             vector: request.queryVector,
             topK: request.traversalConfig.maxDepth > 0 ? 10 : 5,
-            metadataFilters: { tenantId: request.tenantId },
+            tenantId: request.tenantId,
           }
         : undefined,
     };

@@ -35,23 +35,25 @@ export interface ExtractionResult {
 
 export class DocumentExtractionService {
   private readonly version = 'document-extractor-v1';
+  private readonly defaultParseTimeoutMs = 15_000;
 
   getVersion(): string {
     return this.version;
   }
 
-  async extract(buffer: Buffer, mimetype: string): Promise<ExtractionResult> {
+  async extract(buffer: Buffer, mimetype: string, timeoutMs?: number): Promise<ExtractionResult> {
     const warnings: string[] = [];
+    const timeout = timeoutMs ?? this.defaultParseTimeoutMs;
 
     if (mimetype === 'application/pdf') {
-      return this.extractPdf(buffer, warnings);
+      return this.withTimeout(this.extractPdf(buffer, warnings), timeout, 'PDF extraction timed out');
     }
 
     if (
       mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       mimetype === 'application/msword'
     ) {
-      return this.extractDocx(buffer, warnings);
+      return this.withTimeout(this.extractDocx(buffer), timeout, 'DOCX extraction timed out');
     }
 
     if (mimetype === 'text/plain' || mimetype === 'text/markdown') {
@@ -59,13 +61,28 @@ export class DocumentExtractionService {
       return { rawText, parserVersion: this.version, warnings };
     }
 
-    // Fallback: attempt UTF-8 decode
-    warnings.push(`Unsupported MIME type '${mimetype}', falling back to UTF-8 text decode.`);
-    const rawText = buffer.toString('utf-8');
-    return { rawText, parserVersion: this.version, warnings };
+    throw new Error(`Unsupported document MIME type '${mimetype}'`);
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string,
+  ): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
 
   private async extractPdf(buffer: Buffer, warnings: string[]): Promise<ExtractionResult> {
     try {
@@ -85,31 +102,35 @@ export class DocumentExtractionService {
 
       return { rawText, parserVersion: this.version, warnings };
     } catch (err) {
-      warnings.push(`PDF extraction failed: ${err instanceof Error ? err.message : String(err)}`);
+      const detail = err instanceof Error ? err.message : String(err);
+      if (detail.includes('timed out')) throw err;
+      warnings.push(`PDF extraction failed: ${detail}`);
       return { rawText: '', parserVersion: this.version, warnings };
     }
   }
 
-  private async extractDocx(buffer: Buffer, warnings: string[]): Promise<ExtractionResult> {
+  private async extractDocx(buffer: Buffer): Promise<ExtractionResult> {
+    let result: { value: string; messages: Array<{ type: string; message: string }> };
     try {
-      // @ts-expect-error mammoth has no type declarations
-      const mammothModule = await import('mammoth');
-      const mammoth = mammothModule.default || mammothModule;
-      const result = await mammoth.extractRawText({ buffer });
-
-      if (result.messages?.length) {
-        for (const msg of result.messages) {
-          if (msg.type === 'warning') warnings.push(msg.message);
-        }
-      }
-
-      const rawText = (result.value as string).trim();
-      return { rawText, parserVersion: this.version, warnings };
+      // mammoth ships with its own type declarations since v1.12.
+      const mammoth = await import('mammoth');
+      result = await mammoth.extractRawText({ buffer });
     } catch (err) {
-      warnings.push(`DOCX extraction failed: ${err instanceof Error ? err.message : String(err)}, falling back to UTF-8.`);
-      const rawText = buffer.toString('utf-8');
-      return { rawText, parserVersion: this.version, warnings };
+      const detail = err instanceof Error ? err.message : String(err);
+      // Do NOT silently fall back to UTF-8: a binary DOCX decoded as UTF-8
+      // produces garbage text and hides the real failure. Surface the error.
+      throw new Error(`DOCX extraction failed: ${detail}`);
     }
+
+    const warnings: string[] = [];
+    if (result.messages?.length) {
+      for (const msg of result.messages) {
+        if (msg.type === 'warning') warnings.push(msg.message);
+      }
+    }
+
+    const rawText = (result.value as string).trim();
+    return { rawText, parserVersion: this.version, warnings };
   }
 }
 

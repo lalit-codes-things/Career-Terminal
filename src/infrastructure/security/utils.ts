@@ -19,6 +19,60 @@ export function sanitizeString(input: string): string {
   return result;
 }
 
+// ── Document / resume file validation ─────────────────────────────────────────
+
+/** Magic-byte signatures for supported document formats. */
+export const FILE_SIGNATURES: Record<string, { bytes: number[]; mimeTypes: string[] }> = {
+  pdf: {
+    bytes: [0x25, 0x50, 0x44, 0x46],
+    mimeTypes: ['application/pdf'],
+  },
+  docx: {
+    bytes: [0x50, 0x4b, 0x03, 0x04],
+    mimeTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  },
+  doc: {
+    bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
+    mimeTypes: ['application/msword'],
+  },
+};
+
+export const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+]);
+
+export function fileExtensionForMimeType(mimeType: string): string {
+  const map: Record<string, string> = {
+    'application/pdf': '.pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/msword': '.doc',
+  };
+  return map[mimeType] ?? '';
+}
+
+/**
+ * Verify that a buffer's leading bytes match the declared MIME type / extension.
+ * Throws on mismatch so callers never parse a spoofed payload.
+ */
+export function assertFileSignature(buffer: Buffer, mimeType: string, extension: string): void {
+  const ext = (extension || fileExtensionForMimeType(mimeType)).replace('.', '').toLowerCase();
+  const signature = FILE_SIGNATURES[ext];
+  if (!signature) {
+    return;
+  }
+  if (!signature.mimeTypes.includes(mimeType)) {
+    throw new Error(
+      `File signature for .${ext} does not match declared MIME type '${mimeType}'. Possible file type spoofing.`,
+    );
+  }
+  const matches = signature.bytes.every((byte, index) => buffer[index] === byte);
+  if (!matches) {
+    throw new Error(`File content does not match ${ext} signature. Possible file type spoofing.`);
+  }
+}
+
 /**
  * Validate and sanitize a filename
  */

@@ -62,6 +62,7 @@ export class HybridRetrievalService {
       vectorResults = await this.vectorStore.search({
         ...query.vectorQuery,
         vector: queryVector,
+        tenantId: query.tenantId,
       });
     } else if (query.textQuery) {
       // Text-only query: embed the text and search
@@ -70,6 +71,7 @@ export class HybridRetrievalService {
         vector: queryVector,
         topK,
         minSimilarity: 0.3,
+        tenantId: query.tenantId,
         metadataFilters: undefined,
       });
     }

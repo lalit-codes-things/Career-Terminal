@@ -17,7 +17,10 @@ export class InMemoryVectorStore implements VectorStore {
   async search(query: VectorQuery): Promise<VectorSearchResult[]> {
     let candidates = this.embeddings;
 
-    // Apply metadata filters
+    // Tenant isolation — mirror the pgvector `user_id` predicate.
+    candidates = candidates.filter((emb) => emb.metadata.tenantId === query.tenantId);
+
+    // Apply non-tenant metadata filters
     if (query.metadataFilters) {
       candidates = candidates.filter((emb) => {
         for (const [k, v] of Object.entries(query.metadataFilters!)) {

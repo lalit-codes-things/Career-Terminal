@@ -115,17 +115,20 @@ export class PgVectorStore implements VectorStore {
     const vectorLiteral = `[${query.vector.join(',')}]`;
     const topK = query.topK ?? 10;
     const minSim = query.minSimilarity ?? 0.0;
+    const tenantId = query.tenantId;
 
-    // Search all three tables and merge results
+    // Search all three tables and merge results.
+    // Tenant isolation is enforced in SQL via `user_id` (the canonical tenant
+    // identifier) — never via in-memory metadata filtering, which is unreliable.
     const [candidateRows, opportunityRows, applicationRows] = await Promise.all([
-      this.searchTable('candidate_profile_embeddings', vectorLiteral, topK, minSim),
-      this.searchTable('opportunity_embeddings', vectorLiteral, topK, minSim),
-      this.searchTable('application_embeddings', vectorLiteral, topK, minSim),
+      this.searchTable('candidate_profile_embeddings', vectorLiteral, topK, minSim, tenantId),
+      this.searchTable('opportunity_embeddings', vectorLiteral, topK, minSim, tenantId),
+      this.searchTable('application_embeddings', vectorLiteral, topK, minSim, tenantId),
     ]);
 
     const allRows = [...candidateRows, ...opportunityRows, ...applicationRows];
 
-    // Apply metadata filters
+    // Apply non-tenant metadata filters
     const filtered = query.metadataFilters
       ? allRows.filter((row) => {
           for (const [k, v] of Object.entries(query.metadataFilters!)) {
@@ -176,9 +179,11 @@ export class PgVectorStore implements VectorStore {
     vectorLiteral: string,
     topK: number,
     minSim: number,
+    tenantId: string,
   ): Promise<EmbeddingRow[]> {
     try {
       // cosine distance: 1 - (embedding <=> query) = cosine similarity
+      // Tenant isolation: `user_id` predicate is mandatory on every query.
       if (table === 'candidate_profile_embeddings') {
         return await prisma.$queryRaw<EmbeddingRow[]>`
           SELECT
@@ -188,7 +193,8 @@ export class PgVectorStore implements VectorStore {
             (1 - (embedding <=> ${vectorLiteral}::vector))::float AS score,
             metadata
           FROM candidate_profile_embeddings
-          WHERE embedding IS NOT NULL
+          WHERE user_id = ${tenantId}::uuid
+            AND embedding IS NOT NULL
             AND (1 - (embedding <=> ${vectorLiteral}::vector)) >= ${minSim}
           ORDER BY embedding <=> ${vectorLiteral}::vector
           LIMIT ${topK}
@@ -202,7 +208,8 @@ export class PgVectorStore implements VectorStore {
             (1 - (embedding <=> ${vectorLiteral}::vector))::float AS score,
             metadata
           FROM opportunity_embeddings
-          WHERE embedding IS NOT NULL
+          WHERE user_id = ${tenantId}::uuid
+            AND embedding IS NOT NULL
             AND (1 - (embedding <=> ${vectorLiteral}::vector)) >= ${minSim}
           ORDER BY embedding <=> ${vectorLiteral}::vector
           LIMIT ${topK}
@@ -216,7 +223,8 @@ export class PgVectorStore implements VectorStore {
             (1 - (embedding <=> ${vectorLiteral}::vector))::float AS score,
             metadata
           FROM application_embeddings
-          WHERE embedding IS NOT NULL
+          WHERE user_id = ${tenantId}::uuid
+            AND embedding IS NOT NULL
             AND (1 - (embedding <=> ${vectorLiteral}::vector)) >= ${minSim}
           ORDER BY embedding <=> ${vectorLiteral}::vector
           LIMIT ${topK}

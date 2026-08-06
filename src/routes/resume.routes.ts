@@ -15,7 +15,11 @@ import { ValidationError } from '../errors/app-errors';
 import { resumeMatcherService } from '../services/resume-matcher/resume-matcher.service';
 import { resumeUploadService } from '../services/resume/resume-upload.service';
 import { uploadLimiter, expensiveLimiter } from '../middleware/rate-limiter';
-import { sanitizeFilename } from '../infrastructure/security/utils';
+import {
+  sanitizeFilename,
+  ALLOWED_DOCUMENT_MIME_TYPES,
+  assertFileSignature,
+} from '../infrastructure/security/utils';
 import { parseSizeToBytes } from '../lib/size';
 import { config } from '../config';
 import { planner } from '../services/planner';
@@ -23,13 +27,20 @@ import { documentExtractionService } from '../services/document/document-extract
 
 const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
-const ALLOWED_RESUME_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
+const ALLOWED_RESUME_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES;
 
 const MAX_JOB_DESCRIPTION_LENGTH = 50_000;
+
+/** Shared inline-parse guard: MIME allowlist + magic-byte (anti-spoofing). */
+function assertValidResumeFile(file: Express.Multer.File): void {
+  if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
+    throw new ValidationError(
+      `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX`,
+    );
+  }
+  const ext = path.extname(file.originalname).toLowerCase();
+  assertFileSignature(fs.readFileSync(file.path), file.mimetype, ext);
+}
 
 const tmpDir = path.join(os.tmpdir(), 'career-terminal-uploads');
 fs.mkdirSync(tmpDir, { recursive: true });
@@ -156,6 +167,8 @@ resumeRouter.post(
          );
        }
 
+       assertValidResumeFile(file);
+
        const fileBuffer = fs.readFileSync(file.path);
        fs.unlinkSync(file.path);
 
@@ -237,9 +250,7 @@ resumeRouter.post(
       let entityId = userResumeId ?? 'unknown';
 
       if (file) {
-        if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
-          throw new ValidationError(`File type '${file.mimetype}' is not allowed`);
-        }
+        assertValidResumeFile(file);
         const fileBuffer = fs.readFileSync(file.path);
         fs.unlinkSync(file.path);
         const { rawText } = await documentExtractionService.extract(fileBuffer, file.mimetype);

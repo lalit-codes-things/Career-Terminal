@@ -33,6 +33,7 @@ const mockPrisma = prisma as unknown as {
   companyAddress: { findMany: jest.Mock };
 };
 
+const USER_ID = 'user-123';
 const app = express();
 app.use(express.json());
 app.use('/api/company-intelligence', companyIntelligenceRouter);
@@ -52,7 +53,9 @@ describe('Company Intelligence API', () => {
       website: 'https://example.com',
     });
 
-    const res = await request(app).get('/api/company-intelligence/lookup/C123');
+    const res = await request(app)
+      .get('/api/company-intelligence/lookup/C123')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe('C123');
     expect(res.body.version).toBe('1.0.0');
@@ -63,7 +66,9 @@ describe('Company Intelligence API', () => {
   it('GET /lookup/:id returns not-found for missing company', async () => {
     mockPrisma.company.findUnique.mockResolvedValue(null);
 
-    const res = await request(app).get('/api/company-intelligence/lookup/C999');
+    const res = await request(app)
+      .get('/api/company-intelligence/lookup/C999')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(res.body.data.found).toBe(false);
   });
@@ -73,21 +78,27 @@ describe('Company Intelligence API', () => {
       { id: 'C1', name: 'Test Co', domain: 'test.com' },
     ]);
 
-    const res = await request(app).get('/api/company-intelligence/search?q=test');
+    const res = await request(app)
+      .get('/api/company-intelligence/search?q=test')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.version).toBe('1.0.0');
   });
 
   it('GET /:id/health returns health info', async () => {
-    const res = await request(app).get('/api/company-intelligence/C123/health');
+    const res = await request(app)
+      .get('/api/company-intelligence/C123/health')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(res.body.data.score).toBeDefined();
     expect(res.body.provenance).toContain('health-framework');
   });
 
   it('GET /:id/authenticity returns trust score', async () => {
-    const res = await request(app).get('/api/company-intelligence/C123/authenticity');
+    const res = await request(app)
+      .get('/api/company-intelligence/C123/authenticity')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(res.body.data.trustScore).toBeDefined();
     expect(res.body.provenance).toContain('authenticity-framework');
@@ -98,7 +109,10 @@ describe('Company Intelligence API', () => {
       { id: 'C1', name: 'Company One', domain: 'co1.com' },
     ]);
 
-    const res = await request(app).post('/api/company-intelligence/bulk-lookup').send({ ids: ['C1', 'C2'] });
+    const res = await request(app)
+      .post('/api/company-intelligence/bulk-lookup')
+      .set('x-user-id', USER_ID)
+      .send({ ids: ['C1', 'C2'] });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data[0]).toMatchObject({ requestedId: 'C1' });
@@ -106,8 +120,22 @@ describe('Company Intelligence API', () => {
   });
 
   it('GET /metadata returns metadata envelope', async () => {
-    const res = await request(app).get('/api/company-intelligence/metadata');
+    const res = await request(app)
+      .get('/api/company-intelligence/metadata')
+      .set('x-user-id', USER_ID);
     expect(res.status).toBe(200);
     expect(res.body.data.apiVersion).toBe('v1');
+  });
+
+  it('rejects unauthenticated requests with 401', async () => {
+    const res = await request(app).get('/api/company-intelligence/lookup/C123');
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects unauthenticated POST with 401', async () => {
+    const res = await request(app)
+      .post('/api/company-intelligence/bulk-lookup')
+      .send({ ids: ['C1'] });
+    expect(res.status).toBe(401);
   });
 });

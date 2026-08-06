@@ -15,7 +15,7 @@ export interface MigrationValidationResult {
 type Exec = typeof execFileSync;
 
 const repoRoot = path.resolve(__dirname, '../../../..');
-const prismaSchemaPath = path.join(repoRoot, 'prisma/schema.prisma');
+const prismaSchemaPath = path.join(repoRoot, 'prisma/schema/schema.prisma');
 const migrationsDir = path.join(repoRoot, 'prisma/migrations');
 const generatedClientPath = path.join(repoRoot, 'node_modules/@prisma/client');
 

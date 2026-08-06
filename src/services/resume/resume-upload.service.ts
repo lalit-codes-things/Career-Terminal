@@ -19,7 +19,12 @@ import { eventDispatcher } from '../event/event-dispatcher.service';
 import { EVENT_TYPES } from '../event/event.types';
 import { ValidationError } from '../../errors/app-errors';
 import { logger } from '../../lib/logger';
-import { sanitizeFilename } from '../../infrastructure/security/utils';
+import {
+  sanitizeFilename,
+  ALLOWED_DOCUMENT_MIME_TYPES,
+  fileExtensionForMimeType,
+  assertFileSignature,
+} from '../../infrastructure/security/utils';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 import { setRlsUserIdInTransaction, withRlsTransaction } from '../../middleware/rls';
 import { userService } from '../user';
@@ -34,30 +39,11 @@ import {
 import { config } from '../../config';
 import { parseSizeToBytes } from '../../lib/size';
 
-const ALLOWED_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-]);
+const ALLOWED_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES;
 
 const MAX_FILE_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 const QUARANTINE_BUCKET = config.s3.bucket;
 const CLEAN_BUCKET = config.s3.bucket;
-
-const FILE_SIGNATURES: Record<string, { bytes: number[]; mimeTypes: string[] }> = {
-  pdf: {
-    bytes: [0x25, 0x50, 0x44, 0x46],
-    mimeTypes: ['application/pdf'],
-  },
-  docx: {
-    bytes: [0x50, 0x4b, 0x03, 0x04],
-    mimeTypes: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  },
-  doc: {
-    bytes: [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1],
-    mimeTypes: ['application/msword'],
-  },
-};
 
 export interface ResumeUploadInput {
   userId: string;
@@ -484,24 +470,15 @@ export class ResumeUploadService {
       throw new ValidationError(`Invalid file extension: ${ext}. Allowed: .pdf, .docx, .doc`);
     }
 
-    const signature = FILE_SIGNATURES[ext.replace('.', '')];
-    if (signature) {
-      const matches = signature.bytes.every((byte, index) => buffer[index] === byte);
-      if (!matches) {
-        throw new ValidationError(
-          `File content does not match ${ext} signature. Possible file type spoofing.`,
-        );
-      }
+    try {
+      assertFileSignature(buffer, mimeType, ext);
+    } catch (err) {
+      throw new ValidationError(err instanceof Error ? err.message : String(err));
     }
   }
 
   private mimeToExtension(mimeType: string): string {
-    const map: Record<string, string> = {
-      'application/pdf': '.pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-      'application/msword': '.doc',
-    };
-    return map[mimeType] ?? '';
+    return fileExtensionForMimeType(mimeType);
   }
 }
 

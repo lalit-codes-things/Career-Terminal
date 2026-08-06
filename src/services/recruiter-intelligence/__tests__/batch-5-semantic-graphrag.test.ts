@@ -49,7 +49,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       expect(embedding.vector.length).toBe(384);
       expect(embedding.metadata.entityType).toBe('recruiter_profile');
       
-      const searchRes = await vectorStore.search({ vector: embedding.vector, topK: 1 });
+      const searchRes = await vectorStore.search({ vector: embedding.vector, topK: 1, tenantId: 'tenant-1' });
       expect(searchRes.length).toBe(1);
       expect(searchRes[0]!.entityId).toBe(entityId);
     });
@@ -78,7 +78,9 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       const queryVector = await embeddingAdapter.embedContext('I need a frontend react dev');
       
       const results = await hybridRetrieval.search({
-        vectorQuery: { vector: queryVector, topK: 2 },
+        textQuery: 'I need a frontend react dev',
+        tenantId: 't1',
+        vectorQuery: { vector: queryVector, topK: 2, tenantId: 't1' },
       });
 
       expect(results.length).toBeGreaterThan(0);
@@ -90,7 +92,8 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
       
       const results = await hybridRetrieval.search({
         textQuery: 'Python backend',
-        vectorQuery: { vector: queryVector, topK: 2 },
+        tenantId: 't1',
+        vectorQuery: { vector: queryVector, topK: 2, tenantId: 't1' },
         weights: { text: 0.5, vector: 0.5 },
       });
 

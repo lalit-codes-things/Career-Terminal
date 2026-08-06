@@ -4,6 +4,12 @@ import type { EntityType } from '../semantic-representation/contracts';
 export interface VectorQuery {
   vector: number[];
   topK: number;
+  /**
+   * Tenant scoping — every retrieval path must be constrained to the
+   * caller's tenant. Enforced as a `user_id` predicate at the SQL layer
+   * in PgVectorStore, never via in-memory metadata filtering.
+   */
+  tenantId: string;
   minSimilarity?: number; // e.g. 0.7
   metadataFilters?: Record<string, string | number | boolean | string[]>;
   temporalFilters?: {
@@ -25,6 +31,8 @@ export interface HybridQuery {
   vectorQuery?: VectorQuery;
   weights?: { text: number; vector: number }; // default 0.3 / 0.7
   alpha?: number; // balance parameter for reciprocal rank fusion
+  /** Tenant scoping — propagated into every underlying vector query. */
+  tenantId: string;
 }
 
 export interface HybridSearchResult extends VectorSearchResult {
