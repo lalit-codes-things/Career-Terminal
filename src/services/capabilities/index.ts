@@ -6,3 +6,4 @@ export { inferCapability, InferCapability } from './infer';
 export { predictCapability, PredictCapability } from './predict';
 export { recommendCapability, RecommendCapability } from './recommend';
 export { verifyCapability, VerifyCapability } from './verify';
+export { economicExtractCapability, EconomicDocumentExtractionCapability } from './economic-extraction';

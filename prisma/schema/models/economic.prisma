@@ -1,0 +1,126 @@
+model EconomicDocument {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  documentType      String   @map("document_type")
+  documentCategory  String   @map("document_category")
+  title             String?
+  sourceName        String?  @map("source_name")
+  sourceUri         String?  @map("source_uri")
+  s3Key             String?  @map("s3_key")
+  mimeType          String?  @map("mime_type")
+  rawText           String?  @db.Text
+  extractedJson     Json?    @map("extracted_json")
+  extractionMethod  String?  @map("extraction_method")
+  modelVersion      String?  @map("model_version")
+  confidence        Float    @default(1.0)
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  transactionStart  DateTime? @map("transaction_start") @db.Timestamptz
+  transactionEnd    DateTime? @map("transaction_end") @db.Timestamptz
+  currency          String?
+  locale            String?
+  isCurrent         Boolean  @default(true) @map("is_current")
+  supersededById    String?  @map("superseded_by_id") @db.Uuid
+  supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supersededBy      EconomicDocument?     @relation("EconomicDocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes        EconomicDocument[]    @relation("EconomicDocumentSupersededBy")
+  factObservations  FactObservation[]
+  economicEvents    EconomicEvent[]
+
+  @@index([userId, documentType])
+  @@index([userId, documentCategory])
+  @@index([userId, validFrom, validTo])
+  @@index([userId, isCurrent])
+  @@index([s3Key])
+  @@map("economic_documents")
+}
+
+model EconomicEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  eventType         String   @map("event_type")
+  eventCategory     String   @map("event_category")
+  sourceDocumentId  String?  @map("source_document_id") @db.Uuid
+  sourceOpportunityId String? @map("source_opportunity_id") @db.Uuid
+  sourceApplicationId String? @map("source_application_id") @db.Uuid
+  sourceFactId      String?  @map("source_fact_id") @db.Uuid
+  entityId          String?  @map("entity_id")
+  entityType        String?  @map("entity_type")
+  title             String?
+  description       String?  @db.Text
+  amount            Decimal? @db.Decimal(18, 2)
+  currency          String?
+  effectiveDate     DateTime? @map("effective_date") @db.Timestamptz
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  transactionStart  DateTime? @map("transaction_start") @db.Timestamptz
+  transactionEnd    DateTime? @map("transaction_end") @db.Timestamptz
+  sequenceNumber    Int      @default(0) @map("sequence_number")
+  confidence        Float    @default(1.0)
+  isCurrent         Boolean  @default(true) @map("is_current")
+  supersededById    String?  @map("superseded_by_id") @db.Uuid
+  supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int      @default(1)
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  sourceOpportunity Opportunity?          @relation(fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
+  sourceApplication JobApplication?       @relation(fields: [sourceApplicationId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
+  supersededBy      EconomicEvent?        @relation("EconomicEventSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes        EconomicEvent[]       @relation("EconomicEventSupersededBy")
+  factObservations  FactObservation[]
+  economicSignals   EconomicSignal[]
+
+  @@index([userId, eventType])
+  @@index([userId, eventCategory])
+  @@index([userId, effectiveDate])
+  @@index([userId, validFrom, validTo])
+  @@index([userId, isCurrent])
+  @@index([sourceDocumentId])
+  @@index([sourceOpportunityId])
+  @@index([sourceApplicationId])
+  @@map("economic_events")
+}
+
+model EconomicSignal {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  signalType        String   @map("signal_type")
+  signalCategory    String   @map("signal_category")
+  signalName        String   @map("signal_name")
+  signalValue       Json     @map("signal_value")
+  sourceEventId     String?  @map("source_event_id") @db.Uuid
+  sourceFactId      String?  @map("source_fact_id") @db.Uuid
+  sourceDocumentId  String?  @map("source_document_id") @db.Uuid
+  entityId          String?  @map("entity_id")
+  entityType        String?  @map("entity_type")
+  confidence        Float    @default(1.0)
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  isCurrent         Boolean  @default(true) @map("is_current")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceEvent       EconomicEvent?        @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
+  sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  factObservations  FactObservation[]
+
+  @@index([userId, signalType])
+  @@index([userId, signalCategory])
+  @@index([userId, signalName])
+  @@index([userId, isCurrent])
+  @@index([sourceEventId])
+  @@index([sourceFactId])
+  @@index([sourceDocumentId])
+  @@map("economic_signals")
+}

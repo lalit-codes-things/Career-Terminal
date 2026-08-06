@@ -29,6 +29,7 @@ import {
   predictCapability,
   recommendCapability,
   verifyCapability,
+  economicExtractCapability,
 } from './capabilities';
 import type { CapabilityInput, CapabilityResult } from './capabilities/types';
 import { CapabilityBase } from './capabilities/capability.base';
@@ -43,6 +44,7 @@ export type PlannerIntent =
   | 'predict'
   | 'recommend'
   | 'verify'
+  | 'economic-extract'
   | 'full';
 
 export interface PlannerRequest {
@@ -74,6 +76,7 @@ const INTENT_CHAINS: Record<PlannerIntent, Capability[]> = {
   predict:     [extractCapability, inferCapability, predictCapability],
   recommend:   [understandCapability, inferCapability, recommendCapability],
   verify:      [verifyCapability],
+  'economic-extract': [economicExtractCapability],
   full:        [extractCapability, inferCapability, predictCapability, recommendCapability],
 };
 
@@ -84,6 +87,7 @@ function resolveIntent(req: PlannerRequest): PlannerIntent {
   if (hints.includes('recommend') || hints.includes('suggest')) return 'recommend';
   if (hints.includes('infer') || hints.includes('insight')) return 'infer';
   if (hints.includes('verify') || hints.includes('check')) return 'verify';
+  if (hints.includes('economic') || hints.includes('compensation') || hints.includes('offer') || hints.includes('salary')) return 'economic-extract';
   if (hints.includes('extract') || hints.includes('parse')) return 'extract';
   if (hints.includes('full') || hints.includes('all')) return 'full';
   return 'understand';

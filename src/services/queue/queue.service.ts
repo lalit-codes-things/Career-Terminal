@@ -25,6 +25,7 @@ import {
   type MalwareScanJobPayload,
   type IntelligenceJobPayload,
   type GmailSyncJobPayload,
+  type EconomicDocumentJobPayload,
 } from './queue.types';
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ export class QueueService {
   private readonly malwareQueue: Queue<MalwareScanJobPayload>;
   private readonly intelligenceQueue: Queue<IntelligenceJobPayload>;
   private readonly gmailSyncQueue: Queue<GmailSyncJobPayload>;
+  private readonly economicDocumentQueue: Queue<EconomicDocumentJobPayload>;
 
   constructor() {
     const conn = { connection: bullMQConnection };
@@ -64,6 +66,7 @@ export class QueueService {
     this.malwareQueue = new Queue<MalwareScanJobPayload>(QUEUE_NAMES.MALWARE_SCAN, conn);
     this.intelligenceQueue = new Queue<IntelligenceJobPayload>(QUEUE_NAMES.INTELLIGENCE, conn);
     this.gmailSyncQueue = new Queue<GmailSyncJobPayload>(QUEUE_NAMES.GMAIL_SYNC, conn);
+    this.economicDocumentQueue = new Queue<EconomicDocumentJobPayload>(QUEUE_NAMES.ECONOMIC_DOCUMENT, conn);
 
     logger.info('[QueueService] Queues initialised', {
       queues: Object.values(QUEUE_NAMES),
@@ -201,14 +204,32 @@ export class QueueService {
     return job.id!;
   }
 
+  async addEconomicDocumentJob(
+    payload: EconomicDocumentJobPayload,
+    opts: JobsOptions = {},
+  ): Promise<string> {
+    const job = await this.economicDocumentQueue.add(payload.type, payload, {
+      ...DEFAULT_JOB_OPTIONS,
+      ...opts,
+    });
+    logger.info('[QueueService] Economic document job enqueued', {
+      jobId: job.id,
+      type: payload.type,
+      userId: payload.userId,
+      documentId: payload.documentId,
+    });
+    return job.id!;
+  }
+
   async getDepths(): Promise<Record<string, number>> {
-    const [email, resume, tracking, malware, intelligence, gmailSync] = await Promise.all([
+    const [email, resume, tracking, malware, intelligence, gmailSync, economicDocument] = await Promise.all([
       this.emailQueue.getJobCounts(),
       this.resumeQueue.getJobCounts(),
       this.trackingQueue.getJobCounts(),
       this.malwareQueue.getJobCounts(),
       this.intelligenceQueue.getJobCounts(),
       this.gmailSyncQueue.getJobCounts(),
+      this.economicDocumentQueue.getJobCounts(),
     ]);
     return {
       email: (email.waiting ?? 0) + (email.active ?? 0) + (email.delayed ?? 0),
@@ -218,6 +239,8 @@ export class QueueService {
       intelligence:
         (intelligence.waiting ?? 0) + (intelligence.active ?? 0) + (intelligence.delayed ?? 0),
       gmailSync: (gmailSync.waiting ?? 0) + (gmailSync.active ?? 0) + (gmailSync.delayed ?? 0),
+      economicDocument:
+        (economicDocument.waiting ?? 0) + (economicDocument.active ?? 0) + (economicDocument.delayed ?? 0),
     };
   }
 
@@ -230,6 +253,7 @@ export class QueueService {
       this.malwareQueue.close(),
       this.intelligenceQueue.close(),
       this.gmailSyncQueue.close(),
+      this.economicDocumentQueue.close(),
     ]);
     logger.info('[QueueService] All queues closed');
   }
