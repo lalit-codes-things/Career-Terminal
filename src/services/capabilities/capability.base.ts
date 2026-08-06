@@ -104,7 +104,7 @@ export abstract class CapabilityBase {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-  private async writePrediction(
+  protected async writePrediction(
     input: CapabilityInput,
     output: ExtractionOutput | null,
     latencyMs: number,
@@ -193,6 +193,7 @@ export abstract class CapabilityBase {
   ): ExtractionInput['sourceType'] {
     if (entityType === 'resume') return 'document';
     if (entityType === 'candidate' || entityType === 'recruiter') return 'profile';
+    if (entityType === 'economicDocument') return 'document';
     return 'document';
   }
 }

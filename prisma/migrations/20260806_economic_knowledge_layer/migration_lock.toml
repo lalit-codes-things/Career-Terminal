@@ -1,0 +1,6 @@
+# Prisma Migration Lock
+# This file is used by Prisma Migrate to track migration state.
+# Do not edit manually.
+
+[prisma]
+migration_table = "_prisma_migrations"

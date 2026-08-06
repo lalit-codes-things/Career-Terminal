@@ -16,6 +16,7 @@ export const QUEUE_NAMES = {
   MALWARE_SCAN: 'malware-scan',
   INTELLIGENCE: 'intelligence',
   GMAIL_SYNC: 'gmail-sync',
+  ECONOMIC_DOCUMENT: 'economic-document',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -139,3 +140,36 @@ export const GmailSyncJobPayloadSchema = BaseJobPayloadSchema.extend({
   priority: z.number().int().min(0).max(10).optional(),
 });
 export type GmailSyncJobPayload = z.infer<typeof GmailSyncJobPayloadSchema>;
+
+// ---------------------------------------------------------------------------
+// Economic document job
+// ---------------------------------------------------------------------------
+
+export const EconomicDocumentJobTypeSchema = z.enum([
+  'EXTRACT_ECONOMIC_DOCUMENT',
+  'INFER_ECONOMIC_SIGNALS',
+]);
+export type EconomicDocumentJobType = z.infer<typeof EconomicDocumentJobTypeSchema>;
+
+export const EconomicDocumentJobPayloadSchema = BaseJobPayloadSchema.extend({
+  type: EconomicDocumentJobTypeSchema,
+  userId: z.string().min(1),
+  cellId: z.string().min(1).optional(),
+  documentId: z.string().min(1),
+  documentType: z.string().min(1),
+  documentCategory: z.string().min(1),
+  s3Key: z.string().min(1),
+  mimeType: z.string().min(1),
+  originalFilename: z.string().min(1),
+  content: z.string(),
+  sourceName: z.string().optional(),
+  sourceUri: z.string().optional(),
+  currency: z.string().optional(),
+  locale: z.string().optional(),
+  validFrom: z.string().datetime().optional(),
+  validTo: z.string().datetime().optional(),
+  transactionStart: z.string().datetime().optional(),
+  transactionEnd: z.string().datetime().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type EconomicDocumentJobPayload = z.infer<typeof EconomicDocumentJobPayloadSchema>;
