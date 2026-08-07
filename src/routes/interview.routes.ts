@@ -15,6 +15,7 @@ import { config } from '../config';
 import { dbRouter } from '../config/database';
 import { userOwnershipFilter } from '../utils/user-ownership';
 import { interviewMemoryService } from '../services/interview/interview-memory.service';
+import { interviewSimulateCapability } from '../services/capabilities/interview-simulation';
 
 const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
@@ -335,6 +336,104 @@ interviewRouter.get(
       res.status(200).json({
         success: true,
         data: memory,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+interviewRouter.post(
+  '/simulate',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const { targetCompanyId, targetRoleTitle, targetJobLevel } = req.body;
+
+      if (!targetRoleTitle || typeof targetRoleTitle !== 'string') {
+        throw new ValidationError('targetRoleTitle is required');
+      }
+
+      const result = await interviewSimulateCapability.run({
+        userId,
+        targetCompanyId,
+        targetRoleTitle,
+        targetJobLevel,
+      });
+
+      const prediction = await dbRouter.read().prediction.findUnique({
+        where: { id: result.predictionId },
+        select: {
+          id: true,
+          predictionType: true,
+          predictionValue: true,
+          confidenceScore: true,
+          confidenceBand: true,
+          latencyMs: true,
+          inputTokens: true,
+          outputTokens: true,
+          estimatedCostUsd: true,
+          timestamp: true,
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        data: prediction,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+interviewRouter.post(
+  '/simulate/:predictionId/feedback',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const { predictionId } = req.params;
+      const { correct, comment, outcomeOccurredAt } = req.body as {
+        correct: boolean;
+        comment?: string;
+        outcomeOccurredAt?: string;
+      };
+
+      if (typeof correct !== 'boolean') {
+        throw new ValidationError('correct must be a boolean');
+      }
+
+      const prediction = await dbRouter.read().prediction.findUnique({
+        where: { id: predictionId },
+      });
+
+      if (!prediction || prediction.userId !== userId) {
+        return res.status(404).json({
+          success: false,
+          error: 'Prediction not found',
+        });
+      }
+
+      const feedback = await dbRouter.write().predictionFeedback.create({
+        data: {
+        predictionId,
+        userId,
+        correct,
+        comment: comment ?? null,
+        feedbackType: 'interview_simulation',
+        expectedValue: prediction.predictionValue,
+        actualValue: { correct, outcomeOccurredAt },
+        confidenceAtPred: prediction.confidenceScore,
+        outcomeOccurredAt: outcomeOccurredAt ? new Date(outcomeOccurredAt) : null,
+        metadata: {},
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        data: feedback,
       });
     } catch (error) {
       next(error);

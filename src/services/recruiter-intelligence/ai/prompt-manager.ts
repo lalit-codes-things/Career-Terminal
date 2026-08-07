@@ -844,5 +844,42 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.1,
       createdAt: now,
     },
+    {
+      templateId: 'interview-readiness-plan',
+      name: 'Interview Readiness Preparation Plan',
+      version: '1.0.0',
+      tier: 'powerful',
+      systemPrompt: [
+        'You are an expert interview preparation coach.',
+        'Given a candidate\'s competency gaps for a target role, produce a concise, concrete preparation plan.',
+        'Focus on actionable steps, resources, and time estimates.',
+        'Return ONLY valid JSON.',
+      ].join('\n'),
+      userPromptTemplate: [
+        'Generate an interview preparation plan for the following candidate and target role.',
+        '',
+        'TARGET ROLE: {{targetRoleTitle}}',
+        'TARGET COMPANY: {{targetCompanyId}}',
+        'TARGET LEVEL: {{targetJobLevel}}',
+        '',
+        'COMPETENCY GAPS (competencies where the candidate is below target):',
+        '{{competencyGaps}}',
+        '',
+        'Return JSON with this exact structure:',
+        '{',
+        '  "preparationPlan": "<short concrete plan in prose, 2-3 paragraphs, actionable steps>"',
+        '}',
+      ].join('\n'),
+      outputSchema: {
+        type: 'object',
+        required: ['preparationPlan'],
+        properties: {
+          preparationPlan: { type: 'string' },
+        },
+      },
+      maxTokens: 2048,
+      temperature: 0.3,
+      createdAt: now,
+    },
   ];
 }

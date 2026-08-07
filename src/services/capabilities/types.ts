@@ -18,7 +18,8 @@ export type CapabilityName =
   | 'recommend'
   | 'verify'
   | 'economic-extract'
-  | 'interview-extract';
+  | 'interview-extract'
+  | 'interview-simulate';
 
 export interface CapabilityInput {
   /** User who owns this inference */
