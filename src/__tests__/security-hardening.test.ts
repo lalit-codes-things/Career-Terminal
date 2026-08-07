@@ -10,12 +10,22 @@ import { validateParams } from '../middleware/validate';
 import { JobEmailCategory } from '../services/job-intelligence/models/job-intelligence.types';
 import { errorHandler } from '../middleware/error-handler';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     $disconnect: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 describe('Security Hardening & Middleware Pipeline', () => {
   afterAll(async () => {

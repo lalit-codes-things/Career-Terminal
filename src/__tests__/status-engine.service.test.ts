@@ -3,8 +3,8 @@ import { statusEngine } from '../services/status-engine';
 import { JobEmailCategory } from '../services/job-intelligence';
 import { JobApplicationStatus } from '../services/job-application';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     jobApplication: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -16,8 +16,18 @@ jest.mock('../config/database', () => ({
     applicationTimeline: {
       create: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 const mockPrisma = prisma as unknown as {
   jobApplication: {

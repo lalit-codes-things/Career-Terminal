@@ -17,7 +17,7 @@ import {
   type ApplicationTrackingJobPayload,
   ApplicationTrackingJobPayloadSchema,
 } from '../queue.types';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { config } from '../../../config';
 import {
   jobEmailClassifier,
@@ -53,7 +53,7 @@ export async function processApplicationTrackingJob(
       }
 
       // 1. Fetch email from DB
-      const email = await prisma.emailMessage.findUnique({
+      const email = await dbRouter.read().emailMessage.findUnique({
         where: { id: emailMessageId },
       });
 
@@ -195,12 +195,12 @@ export function startApplicationTrackingWorker(): Worker<ApplicationTrackingJobP
         if (job.attemptsMade >= maxAttempts) {
           try {
             // Fetch providerMessageId for the dead letter record
-            const email = await prisma.emailMessage.findUnique({
+      const email = await dbRouter.read().emailMessage.findUnique({
               where: { id: job.data.emailMessageId },
               select: { providerMessageId: true },
             });
 
-            await prisma.deadLetterEmail.create({
+             await dbRouter.write().deadLetterEmail.create({
               data: {
                 emailId: job.data.emailMessageId,
                 userId: job.data.userId,

@@ -15,8 +15,8 @@
  *  8. SCREENING is an explicit outcome type (not just RECRUITER_CONTACT)
  */
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     outcomeEvent: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -26,8 +26,18 @@ jest.mock('../config/database', () => ({
       update: jest.fn(),
     },
     $transaction: jest.fn(),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },

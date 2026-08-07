@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { ApplicationStatus } from '../../domain/application-status';
 import { ApplicationTimelineEventType } from '../application-timeline';
 
@@ -24,7 +24,7 @@ export interface JobAnalytics {
 
 export class JobAnalyticsService {
   public async getAnalytics(userId: string): Promise<JobAnalytics> {
-    const applications = await prisma.jobApplication.findMany({
+    const applications = await dbRouter.read().jobApplication.findMany({
       where: { userId },
       select: {
         id: true,

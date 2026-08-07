@@ -48,6 +48,9 @@ model FactObservation {
   extractionRun    ExtractionRun?   @relation(fields: [extractionRunId], references: [id], onDelete: SetNull)
   provenance       FactProvenance?  @relation(fields: [provenanceId], references: [id], onDelete: SetNull)
   canonicalLinks   CanonicalCandidateIntelligence[]
+  economicEvents   EconomicEvent[]                  @relation("FactObservationEconomicEvent")
+  economicSignals  EconomicSignal[]                 @relation("FactObservationEconomicSignal")
+  economicDocuments EconomicDocument[]              @relation("EconomicDocumentFacts")
 
   @@index([userId, factType, isCurrent])
   @@index([userId, isCurrent])

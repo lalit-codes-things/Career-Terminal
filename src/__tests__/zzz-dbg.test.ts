@@ -1,11 +1,21 @@
 import { PgVectorStore } from '../services/recruiter-intelligence/infrastructure/pgvector.store';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     $executeRaw: jest.fn().mockResolvedValue([]),
     $queryRaw: jest.fn().mockResolvedValue([]),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 import { prisma } from '../config/database';
 

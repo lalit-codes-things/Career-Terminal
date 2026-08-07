@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import type { RecruiterCreateInput, RecruiterAliasInput } from '../domain/recruiter-data.types';
 import {
   validateRecruiterCreate,
@@ -37,7 +37,7 @@ export class RecruiterRepository
   extends BaseRecruiterRepository<RecruiterRecord>
   implements RecruiterRepositoryContract
 {
-  constructor(protected readonly db: PrismaClient | Prisma.TransactionClient = prisma) {
+  constructor(protected readonly db: PrismaClient | Prisma.TransactionClient = dbRouter.write()) {
     super(db);
   }
 

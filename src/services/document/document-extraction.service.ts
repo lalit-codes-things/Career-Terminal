@@ -129,7 +129,7 @@ export class DocumentExtractionService {
       }
     }
 
-    const rawText = (result.value as string).trim();
+    const rawText = result.value.trim();
     return { rawText, parserVersion: this.version, warnings };
   }
 }

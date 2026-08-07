@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { ownershipGuard } from '../ownership/ownership.guard';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
@@ -126,7 +126,7 @@ const CANONICAL_ALIAS_OVERRIDES: Record<string, string> = {
 export class CompanyService {
   public async resolveCompany(
     input: CompanyResolveInput,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<CompanyRecord> {
     const canonicalName = this.resolveCanonicalName(input.name, input.domain);
     const aliasValues = this.buildAliasValues(
@@ -194,7 +194,7 @@ export class CompanyService {
     pagination?: PaginationInput,
   ): Promise<readonly CompanyListItem[]> {
     const paging = resolvePagination(pagination);
-    const companies = (await withRlsTransaction(prisma, userId, async (tx) => {
+    const companies = (await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       return tx.company.findMany({
         where: {
           ...(filters.name
@@ -236,7 +236,7 @@ export class CompanyService {
   }
 
   public async getCompany(userId: string, companyId: string): Promise<CompanyDetails> {
-    const company = await withRlsTransaction(prisma, userId, async (tx) => {
+    const company = await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       await ownershipGuard.ensureCompanyAccess(userId, companyId, tx);
 
       return tx.company.findFirst({
@@ -283,7 +283,7 @@ export class CompanyService {
   ): Promise<readonly CompanyApplicationListItem[]> {
     const paging = resolvePagination(pagination);
 
-    const applications = await withRlsTransaction(prisma, userId, async (tx) => {
+    const applications = await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       await ownershipGuard.ensureCompanyAccess(userId, companyId, tx);
       return tx.jobApplication.findMany({
         where: {
@@ -322,7 +322,7 @@ export class CompanyService {
     userId: string,
     applicationId: string,
     companyInput: CompanyResolveInput,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<CompanyRecord> {
     await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
 

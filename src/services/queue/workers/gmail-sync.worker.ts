@@ -6,7 +6,7 @@ import { gmailIngestionService } from '../../../services/gmail/ingestion/gmail-i
 import { gmailOAuthService } from '../../../services/gmail/auth/gmail-oauth.service';
 import { durableCheckpointService } from '../../../services/gmail/durable-checkpoint.service';
 import { userOwnershipFilter } from '../../../utils/user-ownership';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { withEventLifecycle } from '../../../services/event/event-worker';
 import { EVENT_TYPES } from '../../../services/event/event.types';
 import { config } from '../../../config';
@@ -38,7 +38,7 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
     }
 
     const userScopeFilter = userOwnershipFilter(payload.userId);
-    const connection = await prisma.userEmailConnection.findFirst({
+    const connection = await dbRouter.read().userEmailConnection.findFirst({
       where: { ...userScopeFilter, id: payload.connectionId },
       select: { id: true, status: true },
     });
@@ -49,7 +49,7 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
 
     await gmailOAuthService.getValidAccessToken(payload.userId, connection.id);
 
-    const claim = await durableCheckpointService.claimCheckpoint(prisma, payload.userId, workerId);
+    const claim = await durableCheckpointService.claimCheckpoint(dbRouter.write(), payload.userId, workerId);
 
     if (!claim.claimed) {
       throw new Error(`Checkpoint already locked: ${claim.reason}`);
@@ -107,8 +107,8 @@ export async function processGmailSyncJob(job: Job<GmailSyncJobPayload>): Promis
         await durableCheckpointService.releaseLease(payload.userId, workerId);
         await durableCheckpointService.failSyncOp(
           claim.checkpoint?.id ??
-            (
-              await prisma.syncOperation.findFirst({
+              (
+                await dbRouter.read().syncOperation.findFirst({
                 where: { userId: payload.userId, status: 'running' },
                 orderBy: { createdAt: 'desc' },
               })

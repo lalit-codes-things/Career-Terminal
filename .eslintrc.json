@@ -27,11 +27,40 @@
     "@typescript-eslint/require-await": "off",
     "no-console": "off",
     "prefer-const": "off",
-    "no-var": "off"
+    "no-var": "off",
+    "no-restricted-imports": ["error", {
+      "paths": [
+        {
+          "name": "prisma",
+          "importNames": ["prisma"],
+          "message": "Use dbRouter.read() or dbRouter.write() instead of importing prisma directly in service code."
+        }
+      ],
+      "patterns": [
+        {
+          "group": ["**/config/database"],
+          "importNames": ["prisma"],
+          "message": "Use dbRouter.read() or dbRouter.write() instead of prisma in service code."
+        }
+      ]
+    }],
+    "no-restricted-syntax": ["error", {
+      "selector": "MemberExpression[object.name='prisma']",
+      "message": "Use dbRouter.read() or dbRouter.write() instead of prisma in service code."
+    }]
   },
   "env": {
     "node": true,
     "jest": true
   },
-  "ignorePatterns": ["dist/", "node_modules/", "*.js"]
+  "ignorePatterns": ["dist/", "node_modules/", "*.js"],
+  "overrides": [
+    {
+      "files": ["**/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "no-restricted-imports": "off",
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
 }

@@ -15,7 +15,7 @@
  *   validate()               — structural integrity check (DB-backed)
  */
 
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { Prisma } from '@prisma/client';
 
 export type KgNodeType =
@@ -70,7 +70,7 @@ export class RecruiterKnowledgeGraphService {
 
   /** Upsert a graph node by (nodeType, externalKey). Returns the DB id. */
   async upsertNode(input: UpsertNodeInput): Promise<string> {
-    const existing = await prisma.recruiterGraphNode.findUnique({
+    const existing = await dbRouter.read().recruiterGraphNode.findUnique({
       where: {
         recruiter_graph_node_key_unique: {
           nodeType: input.nodeType,
@@ -80,7 +80,7 @@ export class RecruiterKnowledgeGraphService {
     });
 
     if (existing) {
-      const updated = await prisma.recruiterGraphNode.update({
+      const updated = await dbRouter.write().recruiterGraphNode.update({
         where: { id: existing.id },
         data: {
           label: input.label || existing.label,
@@ -91,7 +91,7 @@ export class RecruiterKnowledgeGraphService {
       return updated.id;
     }
 
-    const created = await prisma.recruiterGraphNode.create({
+    const created = await dbRouter.write().recruiterGraphNode.create({
       data: {
         nodeType: input.nodeType,
         externalKey: input.externalKey,
@@ -107,7 +107,7 @@ export class RecruiterKnowledgeGraphService {
   async upsertEdge(input: UpsertEdgeInput): Promise<string> {
     const confidence = Math.max(0, Math.min(1, input.confidence));
 
-    const existing = await prisma.recruiterGraphEdge.findFirst({
+    const existing = await dbRouter.read().recruiterGraphEdge.findFirst({
       where: {
         fromNodeId: input.fromNodeId,
         toNodeId: input.toNodeId,
@@ -122,7 +122,7 @@ export class RecruiterKnowledgeGraphService {
         ...(input.evidenceJson ?? []),
       ].slice(-20); // cap evidence list
 
-      const updated = await prisma.recruiterGraphEdge.update({
+      const updated = await dbRouter.write().recruiterGraphEdge.update({
         where: { id: existing.id },
         data: {
           confidence: Math.max(existing.confidence, confidence),
@@ -133,7 +133,7 @@ export class RecruiterKnowledgeGraphService {
       return updated.id;
     }
 
-    const created = await prisma.recruiterGraphEdge.create({
+    const created = await dbRouter.write().recruiterGraphEdge.create({
       data: {
         fromNodeId: input.fromNodeId,
         toNodeId: input.toNodeId,
@@ -153,7 +153,7 @@ export class RecruiterKnowledgeGraphService {
   /** Set validTo = expiredAt on an edge (soft-delete). */
   async expireEdge(edgeId: string, expiredAt = new Date()): Promise<boolean> {
     try {
-      await prisma.recruiterGraphEdge.update({
+      await dbRouter.write().recruiterGraphEdge.update({
         where: { id: edgeId },
         data: { validTo: expiredAt, version: { increment: 1 } },
       });
@@ -167,7 +167,7 @@ export class RecruiterKnowledgeGraphService {
 
   /** Return the DB id for a node by type + externalKey (null if not found). */
   async findNodeId(nodeType: KgNodeType, externalKey: string): Promise<string | null> {
-    const node = await prisma.recruiterGraphNode.findUnique({
+    const node = await dbRouter.read().recruiterGraphNode.findUnique({
       where: {
         recruiter_graph_node_key_unique: { nodeType, externalKey },
       },
@@ -181,7 +181,7 @@ export class RecruiterKnowledgeGraphService {
     nodeId: string,
     options: { includeExpired?: boolean } = {},
   ) {
-    return prisma.recruiterGraphEdge.findMany({
+    return dbRouter.read().recruiterGraphEdge.findMany({
       where: {
         OR: [{ fromNodeId: nodeId }, { toNodeId: nodeId }],
         ...(options.includeExpired ? {} : { validTo: null }),
@@ -195,7 +195,7 @@ export class RecruiterKnowledgeGraphService {
    * Traverses active edges only.
    */
   async getNeighbors(nodeId: string): Promise<Array<{ nodeId: string; relationshipType: string; direction: 'out' | 'in' }>> {
-    const edges = await prisma.recruiterGraphEdge.findMany({
+    const edges = await dbRouter.read().recruiterGraphEdge.findMany({
       where: {
         OR: [{ fromNodeId: nodeId }, { toNodeId: nodeId }],
         validTo: null,
@@ -214,7 +214,7 @@ export class RecruiterKnowledgeGraphService {
    * and their referenced nodes.
    */
   async reconstruct(asOf: Date) {
-    const edges = await prisma.recruiterGraphEdge.findMany({
+    const edges = await dbRouter.read().recruiterGraphEdge.findMany({
       where: {
         validFrom: { lte: asOf },
         OR: [{ validTo: null }, { validTo: { gt: asOf } }],
@@ -224,7 +224,7 @@ export class RecruiterKnowledgeGraphService {
     const nodeIds = new Set(edges.flatMap((e) => [e.fromNodeId, e.toNodeId]));
 
     const nodes = nodeIds.size > 0
-      ? await prisma.recruiterGraphNode.findMany({
+      ? await dbRouter.read().recruiterGraphNode.findMany({
           where: { id: { in: [...nodeIds] } },
         })
       : [];
@@ -239,9 +239,9 @@ export class RecruiterKnowledgeGraphService {
   async validate(): Promise<{ ok: boolean; errors: string[] }> {
     const errors: string[] = [];
 
-    const edges = await prisma.recruiterGraphEdge.findMany({ where: { validTo: null } });
+    const edges = await dbRouter.read().recruiterGraphEdge.findMany({ where: { validTo: null } });
     const nodeIds = new Set(
-      (await prisma.recruiterGraphNode.findMany({ select: { id: true } })).map((n) => n.id),
+      (await dbRouter.read().recruiterGraphNode.findMany({ select: { id: true } })).map((n) => n.id),
     );
 
     for (const edge of edges) {
@@ -265,9 +265,9 @@ export class RecruiterKnowledgeGraphService {
   /** Node + edge counts for monitoring. */
   async stats() {
     const [nodeCount, edgeCount, activeEdgeCount] = await Promise.all([
-      prisma.recruiterGraphNode.count(),
-      prisma.recruiterGraphEdge.count(),
-      prisma.recruiterGraphEdge.count({ where: { validTo: null } }),
+      dbRouter.read().recruiterGraphNode.count(),
+      dbRouter.read().recruiterGraphEdge.count(),
+      dbRouter.read().recruiterGraphEdge.count({ where: { validTo: null } }),
     ]);
     return { nodeCount, edgeCount, activeEdgeCount };
   }

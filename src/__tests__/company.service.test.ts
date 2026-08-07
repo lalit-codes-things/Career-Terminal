@@ -24,7 +24,16 @@ jest.mock('../config/database', () => {
   (prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: unknown) => unknown) =>
     cb(prisma),
   );
-  return { prisma };
+  return {
+    prisma,
+    dbRouter: {
+      read: jest.fn().mockReturnValue(prisma),
+      write: jest.fn().mockReturnValue(prisma),
+      withReplicaFallback: jest.fn(),
+      getHealth: jest.fn(),
+      disconnect: jest.fn(),
+    },
+  };
 });
 
 const mockPrisma = prisma as unknown as {

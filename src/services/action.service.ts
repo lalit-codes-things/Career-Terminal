@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { ActionEvent, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { analyticsService } from './analytics.service';
@@ -150,7 +150,7 @@ export class ActionService {
       confidence: input.confidence,
     };
 
-    const event = await prisma.actionEvent.create({ data });
+    const event = await dbRouter.write().actionEvent.create({ data });
 
     logger.info('[ActionService] Recorded user action', {
       actionEventId: event.id,
@@ -197,7 +197,7 @@ export class ActionService {
       }
     }
 
-    return prisma.actionEvent.findMany({
+    return dbRouter.read().actionEvent.findMany({
       where,
       orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
     });
@@ -207,7 +207,7 @@ export class ActionService {
     if (!applicationId) {
       throw new TypeError('ActionService.getApplicationActions: applicationId is required');
     }
-    return prisma.actionEvent.findMany({
+    return dbRouter.read().actionEvent.findMany({
       where: { applicationId },
       orderBy: [{ occurredAt: 'asc' }, { createdAt: 'asc' }],
     });
@@ -220,7 +220,7 @@ export class ActionService {
     if (!tag) {
       throw new TypeError('ActionService.getActionsByTag: tag is required');
     }
-    return prisma.actionEvent.findMany({
+    return dbRouter.read().actionEvent.findMany({
       where: {
         userId,
         strategyTags: { has: tag },
@@ -233,7 +233,7 @@ export class ActionService {
     if (!opportunityId) {
       throw new TypeError('ActionService.getOpportunityActions: opportunityId is required');
     }
-    return prisma.actionEvent.findMany({
+    return dbRouter.read().actionEvent.findMany({
       where: { opportunityId },
       orderBy: [{ occurredAt: 'asc' }, { createdAt: 'asc' }],
     });
@@ -243,7 +243,7 @@ export class ActionService {
     if (!actionEventId) throw new TypeError('addStrategyTag: actionEventId required');
     if (!tag) throw new TypeError('addStrategyTag: tag required');
 
-    const existing = await prisma.actionEvent.findUnique({
+    const existing = await dbRouter.read().actionEvent.findUnique({
       where: { id: actionEventId },
       select: { strategyTags: true },
     });
@@ -251,12 +251,12 @@ export class ActionService {
       throw new Error(`ActionEvent not found: ${actionEventId}`);
     }
     if (existing.strategyTags.includes(tag)) {
-      return prisma.actionEvent.findUnique({
+      return dbRouter.read().actionEvent.findUnique({
         where: { id: actionEventId },
       }) as Promise<ActionEvent>;
     }
 
-    return prisma.actionEvent.update({
+    return dbRouter.write().actionEvent.update({
       where: { id: actionEventId },
       data: {
         strategyTags: { push: tag },
@@ -266,7 +266,7 @@ export class ActionService {
 
   public async countActionsByType(userId: string): Promise<Record<string, number>> {
     if (!userId) throw new TypeError('countActionsByType: userId required');
-    const rows = await prisma.actionEvent.findMany({
+    const rows = await dbRouter.read().actionEvent.findMany({
       where: { userId },
       select: { actionType: true },
     });

@@ -32,6 +32,8 @@ model EmailMessage {
 
   @@unique([legacyUserId, providerMessageId], name: "unique_user_message")
   @@index([applicationId])
+  @@index([userId, receivedAt])
+  @@index([applicationId, receivedAt])
   @@index([recruiterId])
   @@index([threadId])
   @@index([receivedAt])

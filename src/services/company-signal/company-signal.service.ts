@@ -9,7 +9,7 @@
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import {
   type CompanySignalInput,
   type CompanySignalRecord,
@@ -19,7 +19,7 @@ import {
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export class CompanySignalService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   async recordSignal(
     input: CompanySignalInput,

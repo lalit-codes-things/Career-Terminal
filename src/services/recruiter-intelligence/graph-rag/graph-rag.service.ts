@@ -21,7 +21,7 @@ import type { HybridRetrievalService } from '../vector-search/hybrid-retrieval.s
 import type { ExtractionPipeline } from '../ai/extraction-pipeline';
 import type { ExtractionInput } from '../ai/types';
 import type { HybridQuery } from '../../../domain/recruiter-intelligence/vector-search/contracts';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { pipeline as defaultPipeline } from '../ai/pipeline.factory';
 import { hybridRetrievalService as defaultHybrid } from '../vector-search/hybrid-retrieval.service';
 
@@ -54,7 +54,7 @@ export class GraphRagService {
       const seedIds = semanticResults.map((r) => r.entityId);
 
       // Find nodes whose externalKey matches one of the seed entity IDs
-      const seedNodes = await prisma.recruiterGraphNode.findMany({
+      const seedNodes = await dbRouter.read().recruiterGraphNode.findMany({
         where: { externalKey: { in: seedIds } },
         take: 20,
       });
@@ -63,7 +63,7 @@ export class GraphRagService {
         subgraphNodes.push({ id: node.id, label: node.label, properties: (node.metadata as Record<string, unknown>) ?? {} });
 
         // One-hop neighbourhood
-        const edges = await prisma.recruiterGraphEdge.findMany({
+        const edges = await dbRouter.read().recruiterGraphEdge.findMany({
           where: {
             OR: [{ fromNodeId: node.id }, { toNodeId: node.id }],
             validTo: null,
@@ -81,7 +81,7 @@ export class GraphRagService {
           // Collect neighbor node if not already included
           const neighborId = edge.fromNodeId === node.id ? edge.toNodeId : edge.fromNodeId;
           if (!subgraphNodes.find((n) => n.id === neighborId)) {
-            const neighbor = await prisma.recruiterGraphNode.findUnique({ where: { id: neighborId } });
+            const neighbor = await dbRouter.read().recruiterGraphNode.findUnique({ where: { id: neighborId } });
             if (neighbor) {
               subgraphNodes.push({ id: neighbor.id, label: neighbor.label, properties: (neighbor.metadata as Record<string, unknown>) ?? {} });
             }
@@ -91,7 +91,7 @@ export class GraphRagService {
     }
 
     // 3. Fetch structured facts from RecruiterFact table for the tenantId
-    const recruiterFacts = await prisma.recruiterFact.findMany({
+    const recruiterFacts = await dbRouter.read().recruiterFact.findMany({
       where: { recruiterId: request.tenantId, deletedAt: null },
       orderBy: { confidence: 'desc' },
       take: 20,

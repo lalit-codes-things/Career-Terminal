@@ -10,7 +10,7 @@
 
 import { CapabilityBase } from './capability.base';
 import type { CapabilityName, CapabilityInput, CapabilityResult } from './types';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 
 export class VerifyCapability extends CapabilityBase {
   readonly name: CapabilityName = 'verify';
@@ -29,7 +29,7 @@ export class VerifyCapability extends CapabilityBase {
   ): Promise<CapabilityResult & { verdict: 'confirmed' | 'contradicted' | 'unknown' }> {
     // Check existing RecruiterFact rows first
     if (input.entityType === 'recruiter') {
-      const existing = await prisma.recruiterFact.findFirst({
+      const existing = await dbRouter.read().recruiterFact.findFirst({
         where: {
           recruiterId: input.entityId,
           factType: { contains: input.claim.field },

@@ -9,8 +9,8 @@ jest.mock('@prisma/client', () => ({
   },
 }));
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     $transaction: jest.fn(),
     gmailCheckpoint: {
       findUnique: jest.fn(),
@@ -35,8 +35,18 @@ jest.mock('../config/database', () => ({
       updateMany: jest.fn(),
       count: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../services/user', () => ({
   userService: {

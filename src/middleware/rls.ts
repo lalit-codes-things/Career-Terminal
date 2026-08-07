@@ -26,6 +26,7 @@ import { type Request, type Response, type NextFunction } from 'express';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { userOwnershipFilter } from '../utils/user-ownership';
 
 // ---------------------------------------------------------------------------
 // AsyncLocalStorage — the single source of truth for request-local identity
@@ -415,7 +416,7 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
   return client.$extends({
     query: {
       $allModels: {
-        async findMany({ model, operation, args, query }) {
+        async findMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
           const ctx = requestContextStore.getStore();
           const userId = ctx?.userId;
 
@@ -433,7 +434,7 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
           return query(args);
         },
 
-        async findFirst({ model, operation, args, query }) {
+        async findFirst({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
           const ctx = requestContextStore.getStore();
           const userId = ctx?.userId;
 
@@ -451,7 +452,7 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
           return query(args);
         },
 
-        async updateMany({ model, operation, args, query }) {
+        async updateMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
           const ctx = requestContextStore.getStore();
           const userId = ctx?.userId;
 
@@ -469,7 +470,7 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
           return query(args);
         },
 
-        async deleteMany({ model, operation, args, query }) {
+        async deleteMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
           const ctx = requestContextStore.getStore();
           const userId = ctx?.userId;
 
@@ -488,5 +489,5 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
         },
       },
     },
-  });
+  }) as unknown as PrismaClient;
 }

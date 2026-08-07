@@ -34,7 +34,7 @@ import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import {
   decryptToken,
   encryptToken,
@@ -99,7 +99,7 @@ export async function processReEncryptionJob(job: Job<ReEncryptionJobPayload>): 
         ],
       };
 
-  const records = await prisma.userEmailConnection.findMany({
+  const records = await dbRouter.read().userEmailConnection.findMany({
     where,
     select: {
       id: true,
@@ -132,7 +132,7 @@ export async function processReEncryptionJob(job: Job<ReEncryptionJobPayload>): 
       }
 
       // Decrypt with old key, re-encrypt with active key — inside a transaction
-      await prisma.$transaction(async (tx) => {
+      await dbRouter.write().$transaction(async (tx) => {
         const updateData: {
           accessTokenEncrypted?: string;
           refreshTokenEncrypted?: string;

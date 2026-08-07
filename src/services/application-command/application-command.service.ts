@@ -1,5 +1,5 @@
 import { ApplicationTimelineEventType, Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { DomainValidationError } from '../../errors/domain-errors';
 import { ApplicationSourceProvider } from '../../domain/application-source';
@@ -72,11 +72,11 @@ export class ApplicationCommandService {
     applicationId: string,
     newStatus: string,
     changedByUserId?: string,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<ApplicationStatusUpdateResult> {
     await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
 
-    const result = await executeWithTransientRetry(prisma, async (tx) => {
+    const result = await executeWithTransientRetry(dbRouter.write(), async (tx) => {
       const change = await statusEngine.overrideStatus(
         applicationId,
         newStatus,
@@ -120,7 +120,7 @@ export class ApplicationCommandService {
       metadata?: Prisma.InputJsonValue | null;
       description?: string | null;
     },
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<ApplicationTimelineEvent> {
     await ownershipGuard.ensureTimelineAccess(userId, eventId, db);
     const updated = await applicationTimelineService.patchTimelineEvent(eventId, input, db, userId);
@@ -168,7 +168,7 @@ export class ApplicationCommandService {
       // Legacy dedup guard still runs inside the transaction; with the new
       // unique index it is formally redundant, but we keep it to avoid
       // throwing expensive P2002 errors in the hot path.
-      const existing = await prisma.applicationSource.findFirst({
+      const existing = await dbRouter.read().applicationSource.findFirst({
         where: { sourceEmailId: email.emailId, provider: ApplicationSourceProvider.GMAIL },
       });
       if (existing) {
@@ -216,7 +216,7 @@ export class ApplicationCommandService {
       let finalApplicationId: string | null = null;
       let isNewApplication = false;
 
-      await executeWithTransientRetry(prisma, async (tx) => {
+      await executeWithTransientRetry(dbRouter.write(), async (tx) => {
         let app: JobApplicationRecord | null = null;
 
         if (mergeDecision.targetApplication) {
@@ -407,7 +407,7 @@ export class ApplicationCommandService {
         );
 
         if (snapshotId) {
-          await prisma.jobApplication.update({
+          await dbRouter.write().jobApplication.update({
             where: { id: finalApplicationId },
             data: { snapshotId },
           });

@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { Prisma } from '@prisma/client';
 import { companyIntelligenceService } from './company-intelligence.service';
 
@@ -70,7 +70,7 @@ export class CompanyIntelligenceApiService {
   }
 
   async lookup(id: string): Promise<ApiResponse<unknown>> {
-    const company = await prisma.company.findUnique({
+    const company = await dbRouter.read().company.findUnique({
       where: { id },
       select: {
         id: true,
@@ -106,7 +106,7 @@ export class CompanyIntelligenceApiService {
       ? { OR: [{ name: { contains: query, mode: 'insensitive' } }, { domain: { contains: query, mode: 'insensitive' } }] }
       : {};
 
-    const rows = await prisma.company.findMany({ where, skip, take: limit, select: { id: true, name: true, domain: true } });
+    const rows = await dbRouter.read().company.findMany({ where, skip, take: limit, select: { id: true, name: true, domain: true } });
 
     const data = rows.map((row) => ({
       id: row.id,
@@ -120,7 +120,7 @@ export class CompanyIntelligenceApiService {
 
   async bulkLookup(ids: string[]): Promise<ApiResponse<unknown[]>> {
     const rows = ids.length
-      ? await prisma.company.findMany({
+      ? await dbRouter.read().company.findMany({
           where: { id: { in: ids } },
           select: { id: true, name: true, domain: true },
         })
@@ -139,13 +139,13 @@ export class CompanyIntelligenceApiService {
   }
 
   async getIdentifiers(id: string): Promise<ApiResponse<unknown[]>> {
-    const canonical = await prisma.canonicalCompany.findUnique({
+    const canonical = await dbRouter.read().canonicalCompany.findUnique({
       where: { companyId: id },
       select: { id: true },
     });
     if (!canonical) return this.wrapResponse([], ['not-found']);
 
-    const identifiers = await prisma.companyIdentifier.findMany({
+    const identifiers = await dbRouter.read().companyIdentifier.findMany({
       where: { canonicalCompanyId: canonical.id },
       select: { id: true, type: true, value: true, normalizedValue: true, jurisdictionCode: true, registrar: true },
     });
@@ -158,13 +158,13 @@ export class CompanyIntelligenceApiService {
   }
 
   async getLocations(id: string): Promise<ApiResponse<unknown[]>> {
-    const canonical = await prisma.canonicalCompany.findUnique({
+    const canonical = await dbRouter.read().canonicalCompany.findUnique({
       where: { companyId: id },
       select: { id: true },
     });
     if (!canonical) return this.wrapResponse([], ['not-found']);
 
-    const addresses = await prisma.companyAddress.findMany({
+    const addresses = await dbRouter.read().companyAddress.findMany({
       where: { canonicalCompanyId: canonical.id },
       select: { id: true, addressType: true, addressLines: true, locality: true, region: true, postalCode: true, countryCode: true, latitude: true, longitude: true },
     });
@@ -173,7 +173,7 @@ export class CompanyIntelligenceApiService {
   }
 
   async getClassification(id: string): Promise<ApiResponse<unknown[]>> {
-    const canonical = await prisma.canonicalCompany.findUnique({
+    const canonical = await dbRouter.read().canonicalCompany.findUnique({
       where: { companyId: id },
       select: { id: true, industryClassifications: true },
     });
@@ -184,7 +184,7 @@ export class CompanyIntelligenceApiService {
   }
 
   async getTimeline(id: string): Promise<ApiResponse<unknown[]>> {
-    const signals = await prisma.companySignal.findMany({
+    const signals = await dbRouter.read().companySignal.findMany({
       where: { companyId: id },
       orderBy: { discoveryTime: 'desc' },
       select: { id: true, signalType: true, headline: true, description: true, sourceUrl: true, sourceName: true, discoveryTime: true, confidence: true },

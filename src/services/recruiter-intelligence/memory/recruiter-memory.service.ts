@@ -15,7 +15,7 @@
  * pure utility functions for unit-testing; they are no longer the live path.
  */
 
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { Prisma } from '@prisma/client';
 
 export interface MemoryWriteInput {
@@ -63,7 +63,7 @@ export class RecruiterMemoryService {
    * (idempotent upsert semantics).
    */
   async write(input: MemoryWriteInput): Promise<MemoryObservation> {
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       const existing = await tx.recruiterMemoryObservation.findFirst({
         where: {
           recruiterId: input.recruiterId,
@@ -135,7 +135,7 @@ export class RecruiterMemoryService {
     const asOf = query.asOf ?? new Date();
     const includeSuperseded = query.includeSuperseded ?? false;
 
-    const rows = await prisma.recruiterMemoryObservation.findMany({
+    const rows = await dbRouter.read().recruiterMemoryObservation.findMany({
       where: {
         recruiterId,
         ...(query.factType ? { factType: query.factType } : {}),
@@ -159,7 +159,7 @@ export class RecruiterMemoryService {
   async timeline(
     recruiterId: string,
   ): Promise<Array<{ occurredAt: Date; type: string; observationId: string; confidence: number }>> {
-    const rows = await prisma.recruiterMemoryObservation.findMany({
+    const rows = await dbRouter.read().recruiterMemoryObservation.findMany({
       where: { recruiterId },
       orderBy: { validFrom: 'asc' },
     });

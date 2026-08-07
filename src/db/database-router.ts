@@ -186,6 +186,14 @@ export class DatabaseRouter {
     };
   }
 
+  async disconnect(): Promise<void> {
+    await Promise.allSettled([
+      this.master.$disconnect(),
+      this.replica.$disconnect(),
+    ]);
+    logger.info('[DatabaseRouter] All database connections closed');
+  }
+
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------

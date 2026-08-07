@@ -9,7 +9,7 @@ import { config } from './config';
 import { cryptoService } from './infrastructure/crypto/crypto-service';
 import { queueService } from './services/queue/queue.service';
 import { startAllWorkers, stopAllWorkers } from './services/queue/workers';
-import { prisma } from './config/database';
+import { dbRouter } from './config/database';
 import { cacheService, RedisCacheService } from './services/cache/cache.service';
 import { healthRouter } from './infrastructure/health/health.router';
 import { requestLogger } from './infrastructure/logger/request-logger.middleware';
@@ -85,7 +85,7 @@ async function runStartupDiagnostics(): Promise<void> {
 
   // Test database connection
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await dbRouter.write().$queryRaw`SELECT 1`;
     logger.info('Database connection successful');
   } catch (err) {
     logger.error('Database connection failed', {
@@ -316,7 +316,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
       shutdownTracing(),
       stopAllWorkers(),
       queueService.close(),
-      prisma.$disconnect(),
+      dbRouter.disconnect(),
       cacheService instanceof RedisCacheService ? cacheService.disconnect() : Promise.resolve(),
     ]);
 

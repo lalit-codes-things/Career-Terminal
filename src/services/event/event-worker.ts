@@ -1,5 +1,5 @@
 import { Job } from 'bullmq';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { BaseJobPayload } from '../queue/queue.types';
 
@@ -17,7 +17,7 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
 
   // Increment retry count
   if (job.attemptsMade > 0) {
-    await prisma.event.update({
+    await dbRouter.write().event.update({
       where: { id: eventId },
       data: {
         retryCount: { increment: 1 },
@@ -29,7 +29,7 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
     await processor(job);
 
     // Mark event as processed
-    await prisma.event.update({
+    await dbRouter.write().event.update({
       where: { id: eventId },
       data: {
         status: 'processed',
@@ -46,7 +46,7 @@ export async function withEventLifecycle<T extends BaseJobPayload>(
     const errorMsg = err instanceof Error ? err.message : String(err);
     const isPermanent = job.attemptsMade >= (job.opts.attempts || 3) - 1;
 
-    await prisma.event.update({
+    await dbRouter.write().event.update({
       where: { id: eventId },
       data: {
         status: isPermanent ? 'dlq' : 'failed',

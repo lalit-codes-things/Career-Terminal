@@ -10,31 +10,31 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: career-terminal-api
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 3
+  maxReplicas: 100
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 65
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80
+          averageUtilization: 75
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 30
       policies:
         - type: Pods
-          value: 2
+          value: 4
           periodSeconds: 60
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
         - type: Pods
-          value: 1
+          value: 2
           periodSeconds: 120

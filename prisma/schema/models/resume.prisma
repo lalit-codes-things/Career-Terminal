@@ -21,6 +21,7 @@ model UserResume {
   applicationLinks ApplicationResume[]
 
   @@index([userId])
+  @@index([userId, isActive])
   @@index([isActive])
   @@map("user_resumes")
 }
@@ -71,6 +72,7 @@ model Resume {
   extractionRuns   ExtractionRun[]
 
   @@index([userId])
+  @@index([userId, applicationId])
   @@index([applicationId])
   @@map("resumes")
 }

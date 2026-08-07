@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { pipeline } from '../recruiter-intelligence/ai/pipeline.factory';
 import type { ExtractionInput, ExtractionOutput } from '../recruiter-intelligence/ai/types';
 import { toConfidenceBand } from '../recruiter-intelligence/ai/utils';
@@ -62,7 +62,7 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
         requiresReview: output.requiresHumanReview,
       });
 
-      const extractionRun = await prisma.extractionRun.create({
+      const extractionRun = await dbRouter.write().extractionRun.create({
         data: {
           userId: input.userId,
           sourceType: 'economic-document',
@@ -79,7 +79,7 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
         },
       });
 
-      const provenance = await prisma.factProvenance.create({
+      const provenance = await dbRouter.write().factProvenance.create({
         data: {
           userId: input.userId,
           sourceType: 'economic-document',
@@ -124,7 +124,7 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
     input: CapabilityInput,
     output: ExtractionOutput,
   ): Promise<string> {
-    const doc = await prisma.economicDocument.create({
+    const doc = await dbRouter.write().economicDocument.create({
       data: {
         userId: input.userId,
         documentType: input.context?.['documentType'] ?? 'unknown',
@@ -166,7 +166,7 @@ export class EconomicDocumentExtractionCapability extends CapabilityBase {
       const fieldNeedsReview = field.confidence < 0.55;
 
       try {
-        const fact = await prisma.factObservation.create({
+        const fact = await dbRouter.write().factObservation.create({
           data: {
             userId: input.userId,
             factType: `economic.${field.field}`,

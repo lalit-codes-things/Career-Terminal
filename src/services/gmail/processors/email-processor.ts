@@ -1,4 +1,4 @@
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { logger } from '../../../lib/logger';
 import {
   jobEmailClassifier,
@@ -14,7 +14,7 @@ export interface EmailProcessor {
 
 export class GmailEmailProcessor implements EmailProcessor {
   async processMessage(messageId: string): Promise<void> {
-    const email = await prisma.emailMessage.findUnique({
+    const email = await dbRouter.read().emailMessage.findUnique({
       where: { id: messageId },
     });
     if (!email) {

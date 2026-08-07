@@ -5,8 +5,8 @@ import { acquireLock, releaseLock } from '../lib/mutex';
 import { executeWithTransientRetry } from '../db/transaction-utils';
 import { prisma } from '../config/database';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     opportunity: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -23,8 +23,18 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../lib/mutex', () => ({
   acquireLock: jest.fn(() => Promise.resolve('mock-lock-token')),

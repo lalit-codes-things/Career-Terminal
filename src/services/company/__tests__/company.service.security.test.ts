@@ -8,8 +8,8 @@ jest.mock('../ownership/ownership.guard', () => ({
   },
 }));
 
-jest.mock('../../config/database', () => ({
-  prisma: {
+jest.mock('../../config/database', () => {
+  const prisma = {
     company: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
     companyAlias: { findFirst: jest.fn(), upsert: jest.fn() },
     jobApplication: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
@@ -19,8 +19,18 @@ jest.mock('../../config/database', () => ({
     applicationResume: { findFirst: jest.fn(), findUnique: jest.fn(), upsert: jest.fn() },
     $transaction: jest.fn(),
     $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
-  },
-}));
+  };
+  return {
+    prisma,
+    dbRouter: {
+      read: jest.fn().mockReturnValue(prisma),
+      write: jest.fn().mockReturnValue(prisma),
+      withReplicaFallback: jest.fn(),
+      getHealth: jest.fn(),
+      disconnect: jest.fn(),
+    },
+  };
+});
 
 import { prisma } from '../../config/database';
 

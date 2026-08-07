@@ -29,8 +29,8 @@
  *  - If no snapshot exists the caller can fall back to FactService.getFactsValidAt.
  */
 
-import { prisma } from '../config/database';
-import { FactObservation, Prisma, Snapshot } from '@prisma/client';
+import { dbRouter } from '../config/database';
+import { FactObservation, Prisma, PrismaClient, Snapshot } from '@prisma/client';
 import { logger } from '../lib/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ export class SnapshotService {
     referenceId?: string,
     description?: string,
   ): Promise<Snapshot> {
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       // 1. Create the snapshot record
       const snapshot = await tx.snapshot.create({
         data: {
@@ -182,7 +182,7 @@ export class SnapshotService {
     const { userId, snapshotType, referenceId, description } = input;
     const capturedAt = new Date();
 
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       // 1. Find the most recent active FactObservation ID at capture time.
       //    This is the "last included event/fact" required by Prompt 10.
       const lastFact = await tx.factObservation.findFirst({
@@ -195,7 +195,7 @@ export class SnapshotService {
       //    We select only the fields we need — raw factData is NOT included
       //    because it lives in the immutable FactObservation history.
       const canonicalFacts = await (
-        tx as unknown as typeof prisma
+        tx as unknown as PrismaClient
       ).canonicalCandidateIntelligence.findMany({
         where: { userId, isActive: true },
         include: {
@@ -268,7 +268,7 @@ export class SnapshotService {
    * Snapshot isolation is enforced by userId — never returns another user's data.
    */
   async reconstructStateAt(userId: string, timestamp: Date): Promise<TemporalSnapshot | null> {
-    const snapshot = await prisma.snapshot.findFirst({
+    const snapshot = await dbRouter.read().snapshot.findFirst({
       where: {
         userId,
         schemaVersion: 'v1',
@@ -293,7 +293,7 @@ export class SnapshotService {
    * Snapshot isolation is enforced by userId.
    */
   async getSnapshotHistory(userId: string): Promise<Snapshot[]> {
-    return prisma.snapshot.findMany({
+    return dbRouter.read().snapshot.findMany({
       where: { userId, schemaVersion: 'v1' },
       orderBy: { capturedAt: 'asc' },
     });
@@ -307,7 +307,7 @@ export class SnapshotService {
    * Get all facts for a snapshot (legacy snapshots that copied FactObservation rows).
    */
   async getSnapshotFacts(snapshotId: string): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: { snapshotId },
       orderBy: { factType: 'asc' },
     });
@@ -317,7 +317,7 @@ export class SnapshotService {
    * Get the snapshot at the time of an application (for historical analysis).
    */
   async getSnapshotForApplication(applicationId: string): Promise<Snapshot | null> {
-    return prisma.snapshot.findFirst({
+    return dbRouter.read().snapshot.findFirst({
       where: {
         referenceId: applicationId,
         snapshotType: 'APPLICATION',
@@ -329,7 +329,7 @@ export class SnapshotService {
    * Get all snapshots for a user of a specific type, newest first.
    */
   async getSnapshotsByType(userId: string, snapshotType: string): Promise<Snapshot[]> {
-    return prisma.snapshot.findMany({
+    return dbRouter.read().snapshot.findMany({
       where: { userId, snapshotType },
       orderBy: { capturedAt: 'desc' },
     });
@@ -339,7 +339,7 @@ export class SnapshotService {
    * Get a specific snapshot by ID.
    */
   async getSnapshot(snapshotId: string): Promise<Snapshot | null> {
-    return prisma.snapshot.findUnique({
+    return dbRouter.read().snapshot.findUnique({
       where: { id: snapshotId },
     });
   }

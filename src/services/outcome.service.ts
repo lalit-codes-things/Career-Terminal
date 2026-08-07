@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { OutcomeEvent, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { analyticsService } from './analytics.service';
@@ -114,7 +114,7 @@ export class OutcomeService {
    * Record a new outcome event for an application.
    */
   async recordOutcome(input: RecordOutcomeInput): Promise<OutcomeEvent> {
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       // 1. Determine the outcomeCategory based on outcomeType
       const outcomeCategory =
         OUTCOME_TYPE_TO_CATEGORY[input.outcomeType] || OUTCOME_CATEGORIES.NEUTRAL;
@@ -194,7 +194,7 @@ export class OutcomeService {
    * Get all outcome events for an application in chronological order.
    */
   async getApplicationTimeline(applicationId: string): Promise<OutcomeEvent[]> {
-    return prisma.outcomeEvent.findMany({
+    return dbRouter.read().outcomeEvent.findMany({
       where: { applicationId, isCurrent: true },
       orderBy: { occurredAt: 'asc' },
     });
@@ -204,7 +204,7 @@ export class OutcomeService {
    * Get the last outcome event for an application (current state).
    */
   async getCurrentStatus(applicationId: string): Promise<OutcomeEvent | null> {
-    return prisma.outcomeEvent.findFirst({
+    return dbRouter.read().outcomeEvent.findFirst({
       where: { applicationId, isCurrent: true },
       orderBy: { occurredAt: 'desc' },
     });
@@ -219,7 +219,7 @@ export class OutcomeService {
     startDate: Date,
     endDate: Date,
   ): Promise<OutcomeEvent[]> {
-    return prisma.outcomeEvent.findMany({
+    return dbRouter.read().outcomeEvent.findMany({
       where: {
         userId,
         outcomeType: { in: outcomeTypes },
@@ -234,7 +234,7 @@ export class OutcomeService {
    * Get all outcomes for a user
    */
   async getUserOutcomes(userId: string, limit: number = 100): Promise<OutcomeEvent[]> {
-    return prisma.outcomeEvent.findMany({
+    return dbRouter.read().outcomeEvent.findMany({
       where: { userId, isCurrent: true },
       orderBy: { occurredAt: 'desc' },
       take: limit,
@@ -249,7 +249,7 @@ export class OutcomeService {
     category: string,
     limit: number = 100,
   ): Promise<OutcomeEvent[]> {
-    return prisma.outcomeEvent.findMany({
+    return dbRouter.read().outcomeEvent.findMany({
       where: { userId, outcomeCategory: category, isCurrent: true },
       orderBy: { occurredAt: 'desc' },
       take: limit,
@@ -260,7 +260,7 @@ export class OutcomeService {
    * Get terminal outcomes (final states)
    */
   async getTerminalOutcomes(userId: string, limit: number = 100): Promise<OutcomeEvent[]> {
-    return prisma.outcomeEvent.findMany({
+    return dbRouter.read().outcomeEvent.findMany({
       where: {
         userId,
         outcomeCategory: OUTCOME_CATEGORIES.TERMINAL,
@@ -275,7 +275,7 @@ export class OutcomeService {
    * Count outcomes by type for a user
    */
   async countOutcomesByType(userId: string): Promise<Record<string, number>> {
-    const outcomes = await prisma.outcomeEvent.findMany({
+    const outcomes = await dbRouter.read().outcomeEvent.findMany({
       where: { userId, isCurrent: true },
       select: { outcomeType: true },
     });

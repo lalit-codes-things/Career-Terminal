@@ -19,7 +19,7 @@
 
 import { randomUUID } from 'crypto';
 import { pipeline } from '../recruiter-intelligence/ai/pipeline.factory';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import type { ExtractionInput } from '../recruiter-intelligence/ai/types';
 
 export interface TaxonomyMatch {
@@ -98,7 +98,7 @@ export class AiTaxonomyService {
 
       if (entityId !== 'system') {
         try {
-          const fact = await prisma.recruiterFact.create({
+          const fact = await dbRouter.write().recruiterFact.create({
             data: {
               recruiterId: entityId,
               factType: `ai_taxonomy.${kind}`,

@@ -18,7 +18,7 @@ import { planner, type PlannerIntent } from './planner';
 import { recruiterIntelligenceConnectorService } from './recruiter-intelligence/recruiter-intelligence-connector.service';
 import { opportunityIntelligenceService } from './opportunity/opportunity-intelligence.service';
 import { recruiterMemoryService } from './recruiter-intelligence/memory/recruiter-memory.service';
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 
 export type IntelligenceEntityType =
   | 'recruiter'
@@ -147,7 +147,7 @@ export class CareerIntelligenceService {
     switch (req.entityType) {
       case 'recruiter': {
         // Load existing recruiter facts to provide context
-        const facts = await prisma.recruiterFact.findMany({
+        const facts = await dbRouter.read().recruiterFact.findMany({
           where: { recruiterId: req.entityId, deletedAt: null },
           select: { factType: true, factValue: true, confidence: true },
           orderBy: { confidence: 'desc' },
@@ -156,14 +156,14 @@ export class CareerIntelligenceService {
         return { recruiterFactCount: facts.length, topFacts: facts.slice(0, 3) };
       }
       case 'opportunity': {
-        const opp = await prisma.opportunity.findUnique({
+        const opp = await dbRouter.read().opportunity.findUnique({
           where: { id: req.entityId },
           select: { title: true, company: { select: { name: true } } },
         }).catch(() => null);
         return opp ? { opportunityTitle: opp.title, companyName: opp.company.name } : undefined;
       }
       case 'company': {
-        const company = await prisma.company.findUnique({
+        const company = await dbRouter.read().company.findUnique({
           where: { id: req.entityId },
           select: { name: true, industry: true, domain: true },
         }).catch(() => null);

@@ -1,8 +1,8 @@
 /**
- * Helpers for user ownership queries during the legacy → FK migration period.
+ * Helpers for user ownership queries.
  *
- * Matches rows by the new UUID FK (`userId`) or the preserved legacy string
- * (`legacyUserId`) so ownership checks work before and after backfill.
+ * Matches rows by the UUID FK (`userId`). The legacy `legacyUserId` migration
+ * is complete; ownership checks no longer need dual FK/legacy matching.
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,24 +10,15 @@ export function isValidUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
-/** Build a Prisma `OR` filter that matches either FK or legacy user id. */
+/** Build a Prisma filter that matches by resolved user ID. */
 export function userOwnershipFilter(externalUserId: string, resolvedUserId?: string) {
   const resolved = resolvedUserId ?? externalUserId;
-  const clauses: Array<{ userId: string } | { legacyUserId: string }> = [{ userId: resolved }];
-
-  if (externalUserId !== resolved || !isValidUuid(externalUserId)) {
-    clauses.push({ legacyUserId: externalUserId });
-  } else {
-    clauses.push({ legacyUserId: externalUserId });
-  }
-
-  return { OR: clauses };
+  return { userId: resolved };
 }
 
 /** Fields to set when creating user-scoped records. */
-export function userScopeFields(externalUserId: string, resolvedUserId: string) {
+export function userScopeFields(resolvedUserId: string) {
   return {
     userId: resolvedUserId,
-    legacyUserId: externalUserId,
   };
 }

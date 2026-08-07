@@ -2,13 +2,23 @@ import { jobAnalyticsService } from '../services/job-analytics/job-analytics.ser
 import { prisma } from '../config/database';
 import { JobApplicationStatus } from '../services/job-application';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     jobApplication: {
       findMany: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 describe('JobAnalyticsService', () => {
   beforeEach(() => {

@@ -75,11 +75,15 @@ model JobApplication {
   predictions         Prediction[]
   outcomeEvents       OutcomeEvent[]
   actionEvents        ActionEvent[]
+  economicEvents      EconomicEvent[]
   applicationSource   ApplicationSource?
   statusHistory       ApplicationStatusHistory[]
   applicationResumes  ApplicationResume[]
 
   @@index([userId])
+  @@index([userId, status])
+  @@index([userId, companyId])
+  @@index([userId, appliedDate])
   @@index([companyId])
   @@index([opportunityId])
   @@index([status])
@@ -100,6 +104,7 @@ model ApplicationTimeline {
   application   JobApplication               @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
+  @@index([applicationId, occurredAt])
   @@index([occurredAt])
   @@map("application_timeline_events")
 }

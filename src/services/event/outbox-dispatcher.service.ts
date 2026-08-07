@@ -20,7 +20,7 @@
  */
 
 import { Event } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { queueService } from '../queue/queue.service';
 import { logger } from '../../lib/logger';
 import { EVENT_TYPES } from './event.types';
@@ -123,7 +123,7 @@ export class OutboxDispatcher {
   private async claimBatch(): Promise<Event[]> {
     const leaseExpiresAt = new Date(Date.now() + this.options.leaseTtlMs);
 
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       // Find claimable events:
       //   1. status = 'pending' (never claimed), OR
       //   2. status = 'failed' AND next_attempt_at <= NOW() AND
@@ -260,7 +260,7 @@ export class OutboxDispatcher {
   // -------------------------------------------------------------------------
 
   private async markProcessed(eventId: string, userId: string): Promise<void> {
-    await withRlsTransaction(prisma, userId, async (tx) => {
+    await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -274,7 +274,7 @@ export class OutboxDispatcher {
   }
 
   private async markFailed(eventId: string, errorMsg: string): Promise<void> {
-    const event = await prisma.event.findUnique({
+    const event = await dbRouter.read().event.findUnique({
       where: { id: eventId },
       select: { retryCount: true, userId: true },
     });
@@ -290,7 +290,7 @@ export class OutboxDispatcher {
     );
     const nextAttempt = new Date(Date.now() + backoffMs);
 
-    await withRlsTransaction(prisma, ownerUserId ?? '', async (tx) => {
+    await withRlsTransaction(dbRouter.write(), ownerUserId ?? '', async (tx) => {
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -321,12 +321,12 @@ export class OutboxDispatcher {
    * Sets status back to 'pending' and clears retry count.
    */
   async requeueDlqEvent(eventId: string): Promise<void> {
-    const event = await prisma.event.findUnique({
+    const event = await dbRouter.read().event.findUnique({
       where: { id: eventId },
       select: { userId: true },
     });
 
-    await withRlsTransaction(prisma, event?.userId ?? '', async (tx) => {
+    await withRlsTransaction(dbRouter.write(), event?.userId ?? '', async (tx) => {
       await tx.event.update({
         where: { id: eventId },
         data: {
@@ -352,11 +352,11 @@ export class OutboxDispatcher {
     processed: number;
   }> {
     const [pending, processing, failed, dlq, processed] = await Promise.all([
-      prisma.event.count({ where: { status: 'pending' } }),
-      prisma.event.count({ where: { status: 'processing' } }),
-      prisma.event.count({ where: { status: 'failed' } }),
-      prisma.event.count({ where: { status: 'dlq' } }),
-      prisma.event.count({ where: { status: 'processed' } }),
+      dbRouter.read().event.count({ where: { status: 'pending' } }),
+      dbRouter.read().event.count({ where: { status: 'processing' } }),
+      dbRouter.read().event.count({ where: { status: 'failed' } }),
+      dbRouter.read().event.count({ where: { status: 'dlq' } }),
+      dbRouter.read().event.count({ where: { status: 'processed' } }),
     ]);
 
     return { pending, processing, failed, dlq, processed };

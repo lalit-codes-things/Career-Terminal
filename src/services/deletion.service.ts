@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { logger } from '../lib/logger';
 import { cacheService } from './cache/cache.service';
 import { storageService } from './storage/storage.service';
@@ -9,7 +9,7 @@ import { dataRetentionService } from './retention/data-retention.service';
 type DbClient = PrismaClient;
 
 export class DeletionService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   async requestDeletion(userId: string): Promise<void> {
     await userService.markForDeletion(userId);

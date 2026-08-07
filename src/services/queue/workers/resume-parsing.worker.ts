@@ -9,7 +9,7 @@ import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
 import { storageService } from '../../storage/storage.service';
 import { resumeIntelligenceService } from '../../resume/resume-intelligence.service';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { cellService } from '../../cell/cell.service';
 import { placementService } from '../../placement/placement.service';
 import { config } from '../../../config';
@@ -41,7 +41,7 @@ export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>)
     }
 
     const fileBuffer = await storageService.download(storageKey);
-    const matchingResume = await prisma.userResume.findFirst({
+    const matchingResume = await dbRouter.read().userResume.findFirst({
       where: {
         legacyUserId: userId,
         resumeHash: { hash: fileHash },
@@ -72,7 +72,7 @@ export async function processResumeParsingJob(job: Job<ResumeParsingJobPayload>)
       });
     });
 
-    await prisma.userResume.update({
+    await dbRouter.write().userResume.update({
       where: { id: matchingResume.id },
       data: { scanningStatus: 'clean', status: 'ready' },
     });

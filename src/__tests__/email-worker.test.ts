@@ -4,13 +4,23 @@ import { jobEmailClassifier } from '../services/job-intelligence';
 import { applicationCommandService } from '../services/application-command/application-command.service';
 import { Job } from 'bullmq';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     emailMessage: {
       findUnique: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../services/job-intelligence', () => ({
   jobEmailClassifier: {

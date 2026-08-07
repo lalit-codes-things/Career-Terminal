@@ -12,7 +12,7 @@
  *   predictionHistory()      — paginated prediction history for a user/entity
  */
 
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ export class PredictionEvaluationService {
   } = {}): Promise<AccuracyReport[]> {
     const where = this.buildWhereClause(options);
 
-    const predictions = await prisma.prediction.findMany({
+    const predictions = await dbRouter.read().prediction.findMany({
       where: { ...where, isCorrect: { not: null } },
       select: {
         capability: true,
@@ -98,7 +98,7 @@ export class PredictionEvaluationService {
     }
 
     // Also count total predictions (including non-evaluated) per capability
-    const totalPerCap = await prisma.prediction.groupBy({
+    const totalPerCap = await dbRouter.read().prediction.groupBy({
       by: ['capability'],
       where,
       _count: { id: true },
@@ -129,7 +129,7 @@ export class PredictionEvaluationService {
     const bucketCount = options.bucketCount ?? 10;
     const where = this.buildWhereClause(options);
 
-    const predictions = await prisma.prediction.findMany({
+    const predictions = await dbRouter.read().prediction.findMany({
       where: { ...where, isCorrect: { not: null } },
       select: { confidenceScore: true, isCorrect: true },
     });
@@ -192,7 +192,7 @@ export class PredictionEvaluationService {
     const periodDays = options.periodDays ?? 30;
     const since = options.sinceDate ?? new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
 
-    const predictions = await prisma.prediction.findMany({
+    const predictions = await dbRouter.read().prediction.findMany({
       where: {
         ...(options.userId ? { userId: options.userId } : {}),
         timestamp: { gte: since },
@@ -254,9 +254,9 @@ export class PredictionEvaluationService {
     const where = options.userId ? { userId: options.userId } : {};
 
     const [total, requiresReview, byCapabilityRaw] = await Promise.all([
-      prisma.prediction.count({ where }),
-      prisma.prediction.count({ where: { ...where, requiresReview: true } }),
-      prisma.prediction.groupBy({
+      dbRouter.read().prediction.count({ where }),
+      dbRouter.read().prediction.count({ where: { ...where, requiresReview: true } }),
+      dbRouter.read().prediction.groupBy({
         by: ['capability'],
         where: { ...where, requiresReview: true },
         _count: { id: true },
@@ -304,7 +304,7 @@ export class PredictionEvaluationService {
     };
 
     const [items, total] = await Promise.all([
-      prisma.prediction.findMany({
+      dbRouter.read().prediction.findMany({
         where,
         select: {
           id: true,
@@ -323,7 +323,7 @@ export class PredictionEvaluationService {
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      prisma.prediction.count({ where }),
+      dbRouter.read().prediction.count({ where }),
     ]);
 
     return {

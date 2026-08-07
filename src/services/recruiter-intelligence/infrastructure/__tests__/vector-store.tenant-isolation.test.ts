@@ -18,6 +18,13 @@ jest.mock('../../../../config/database', () => ({
     $executeRaw: jest.fn().mockResolvedValue([]),
     $queryRaw: jest.fn().mockResolvedValue([]),
   },
+  dbRouter: {
+    read: jest.fn(),
+    write: jest.fn(),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
+  },
 }));
 
 import { prisma } from '../../../../config/database';

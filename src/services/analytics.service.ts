@@ -1,12 +1,13 @@
 import { ApplicationStatus } from '../domain/application-status';
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
+import { PrismaClient } from '@prisma/client';
 import { cacheService } from './cache/cache.service';
 
 const ANALYTICS_CACHE_TTL_MS = 60 * 60 * 1000;
 const MIN_BENCHMARK_APPLICATIONS = 25;
 const MIN_SEGMENT_APPLICATIONS = 3;
 
-type DbClient = typeof prisma;
+type DbClient = PrismaClient;
 
 export interface RateInterval {
   readonly rate: number;
@@ -45,7 +46,7 @@ export interface BenchmarkSummary {
 export class AnalyticsService {
   constructor(private readonly cache = cacheService) {}
 
-  async getResumePerformance(userId: string, db: DbClient = prisma): Promise<PerformanceRow[]> {
+  async getResumePerformance(userId: string, db: DbClient = dbRouter.read()): Promise<PerformanceRow[]> {
     return this.cached(`resume:${userId}`, async () => {
       const applications = await db.jobApplication.findMany({
         where: { userId },
@@ -95,7 +96,7 @@ export class AnalyticsService {
     });
   }
 
-  async getActionPerformance(userId: string, db: DbClient = prisma): Promise<PerformanceRow[]> {
+  async getActionPerformance(userId: string, db: DbClient = dbRouter.read()): Promise<PerformanceRow[]> {
     return this.cached(`action:${userId}`, async () => {
       const actions = await db.actionEvent.findMany({
         where: { userId },
@@ -143,7 +144,7 @@ export class AnalyticsService {
     });
   }
 
-  async getStrategyPerformance(userId: string, db: DbClient = prisma): Promise<PerformanceRow[]> {
+  async getStrategyPerformance(userId: string, db: DbClient = dbRouter.read()): Promise<PerformanceRow[]> {
     return this.cached(`strategy:${userId}`, async () => {
       const actions = await db.actionEvent.findMany({
         where: { userId },
@@ -195,7 +196,7 @@ export class AnalyticsService {
     });
   }
 
-  async getTimingPerformance(userId: string, db: DbClient = prisma): Promise<PerformanceRow[]> {
+  async getTimingPerformance(userId: string, db: DbClient = dbRouter.read()): Promise<PerformanceRow[]> {
     return this.cached(`timing:${userId}`, async () => {
       const applications = await db.jobApplication.findMany({
         where: { userId },
@@ -250,7 +251,7 @@ export class AnalyticsService {
     });
   }
 
-  async getOverallFunnel(userId: string, db: DbClient = prisma): Promise<FunnelSummary> {
+  async getOverallFunnel(userId: string, db: DbClient = dbRouter.read()): Promise<FunnelSummary> {
     return this.cached(`funnel:${userId}`, async () => {
       const totalApplications = await db.jobApplication.count({ where: { userId } });
       const interviews = await db.jobApplication.count({
@@ -279,7 +280,7 @@ export class AnalyticsService {
     });
   }
 
-  async getBenchmarks(userId: string, db: DbClient = prisma): Promise<BenchmarkSummary> {
+  async getBenchmarks(userId: string, db: DbClient = dbRouter.read()): Promise<BenchmarkSummary> {
     return this.cached(`benchmarks:${userId}`, async () => {
       const populationApplications = await db.jobApplication.count();
       if (populationApplications < MIN_BENCHMARK_APPLICATIONS) {

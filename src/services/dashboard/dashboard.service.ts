@@ -1,12 +1,12 @@
-import { ApplicationTimelineEventType, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { ApplicationTimelineEventType, Prisma, PrismaClient } from '@prisma/client';
+import { dbRouter } from '../../config/database';
 import { ApplicationStatus } from '../../domain/application-status';
 import { DEFAULT_ACTIVITY_LIMIT, DEFAULT_UPCOMING_LIMIT } from '../../lib/constants';
 import { InMemoryCacheStore, type CacheStore } from '../../lib/cache';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 
-type DbClient = typeof prisma;
+type DbClient = PrismaClient;
 
 export interface DashboardSummary {
   readonly totalApplications: number;
@@ -49,7 +49,7 @@ const UPCOMING_CACHE_TTL_MS = 15_000;
 export class DashboardService {
   constructor(private readonly cache: CacheStore = new InMemoryCacheStore()) {}
 
-  public async getDashboard(userId: string, db: DbClient = prisma): Promise<DashboardSummary> {
+  public async getDashboard(userId: string, db: DbClient = dbRouter.write()): Promise<DashboardSummary> {
     const cached = this.getCache<DashboardSummary>(this.cacheKey('summary', userId));
     if (cached) {
       return cached;
@@ -100,7 +100,7 @@ export class DashboardService {
   public async getActivity(
     userId: string,
     limitOrPagination: number | PaginationInput = DEFAULT_ACTIVITY_LIMIT,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<readonly DashboardActivityItem[]> {
     const pagination =
       typeof limitOrPagination === 'number'
@@ -160,7 +160,7 @@ export class DashboardService {
   public async getUpcomingInterviews(
     userId: string,
     limitOrPagination: number | PaginationInput = DEFAULT_UPCOMING_LIMIT,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<readonly DashboardUpcomingInterviewItem[]> {
     const pagination =
       typeof limitOrPagination === 'number'

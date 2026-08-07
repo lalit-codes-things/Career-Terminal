@@ -2,8 +2,8 @@ import { gmailCheckpointService } from '../services/gmail/checkpoint.service';
 import { prisma } from '../config/database';
 import { userService } from '../services/user';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     $transaction: jest.fn(),
     syncBatch: {
       create: jest.fn(),
@@ -19,8 +19,18 @@ jest.mock('../config/database', () => ({
     batchEmailJob: {
       upsert: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../services/user', () => ({
   userService: {

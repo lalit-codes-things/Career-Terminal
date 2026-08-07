@@ -11,8 +11,7 @@ import type {
 export class ApplicationReadModelService {
   public toApplication(record: {
     id: string;
-    userId: string | null;
-    legacyUserId?: string | null;
+    userId: string;
     companyName: string | null;
     companyDomain: string | null;
     roleTitle: string | null;
@@ -30,7 +29,7 @@ export class ApplicationReadModelService {
   }): ApplicationDetailsView['application'] {
     return {
       id: record.id,
-      userId: record.userId ?? record.legacyUserId ?? '',
+      userId: record.userId,
       company: {
         name: record.companyName ?? '',
         domain: record.companyDomain ?? '',

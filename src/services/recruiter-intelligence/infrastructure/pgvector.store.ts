@@ -13,7 +13,7 @@
  * search() — cosine similarity search via pgvector <=> operator
  */
 
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import type { Embedding } from '../../../domain/recruiter-intelligence/semantic-representation/contracts';
 import type { VectorQuery, VectorSearchResult, VectorStore } from '../../../domain/recruiter-intelligence/vector-search/contracts';
 
@@ -42,7 +42,7 @@ export class PgVectorStore implements VectorStore {
       const { entityId, entityType, tenantId } = emb.metadata;
 
       if (entityType === 'opportunity') {
-        await prisma.$executeRaw`
+        await dbRouter.write().$executeRaw`
           INSERT INTO opportunity_embeddings (id, user_id, cell_id, model_id, embedding, source_type, source_id, metadata, created_at, updated_at)
           VALUES (
             gen_random_uuid(),
@@ -63,7 +63,7 @@ export class PgVectorStore implements VectorStore {
             updated_at  = now()
         `;
       } else if (entityType === 'communication' || entityType === 'observation') {
-        await prisma.$executeRaw`
+        await dbRouter.write().$executeRaw`
           INSERT INTO application_embeddings (id, user_id, cell_id, model_id, embedding, source_type, source_id, metadata, created_at, updated_at)
           VALUES (
             gen_random_uuid(),
@@ -85,7 +85,7 @@ export class PgVectorStore implements VectorStore {
         `;
       } else {
         // candidate_profile_embeddings handles: recruiter_profile, resume, candidate, skill, etc.
-        await prisma.$executeRaw`
+        await dbRouter.write().$executeRaw`
           INSERT INTO candidate_profile_embeddings (id, user_id, cell_id, model_id, embedding, source_type, source_id, metadata, created_at, updated_at)
           VALUES (
             gen_random_uuid(),
@@ -158,17 +158,17 @@ export class PgVectorStore implements VectorStore {
 
   async deleteByEntityId(entityId: string): Promise<void> {
     await Promise.all([
-      prisma.$executeRaw`DELETE FROM candidate_profile_embeddings WHERE source_id = ${entityId}::uuid`,
-      prisma.$executeRaw`DELETE FROM opportunity_embeddings WHERE source_id = ${entityId}::uuid`,
-      prisma.$executeRaw`DELETE FROM application_embeddings WHERE source_id = ${entityId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM candidate_profile_embeddings WHERE source_id = ${entityId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM opportunity_embeddings WHERE source_id = ${entityId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM application_embeddings WHERE source_id = ${entityId}::uuid`,
     ]);
   }
 
   async deleteByTenantId(tenantId: string): Promise<void> {
     await Promise.all([
-      prisma.$executeRaw`DELETE FROM candidate_profile_embeddings WHERE user_id = ${tenantId}::uuid`,
-      prisma.$executeRaw`DELETE FROM opportunity_embeddings WHERE user_id = ${tenantId}::uuid`,
-      prisma.$executeRaw`DELETE FROM application_embeddings WHERE user_id = ${tenantId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM candidate_profile_embeddings WHERE user_id = ${tenantId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM opportunity_embeddings WHERE user_id = ${tenantId}::uuid`,
+      dbRouter.write().$executeRaw`DELETE FROM application_embeddings WHERE user_id = ${tenantId}::uuid`,
     ]);
   }
 
@@ -185,7 +185,7 @@ export class PgVectorStore implements VectorStore {
       // cosine distance: 1 - (embedding <=> query) = cosine similarity
       // Tenant isolation: `user_id` predicate is mandatory on every query.
       if (table === 'candidate_profile_embeddings') {
-        return await prisma.$queryRaw<EmbeddingRow[]>`
+        return await dbRouter.write().$queryRaw<EmbeddingRow[]>`
           SELECT
             id,
             source_id::text AS entity_id,
@@ -200,7 +200,7 @@ export class PgVectorStore implements VectorStore {
           LIMIT ${topK}
         `;
       } else if (table === 'opportunity_embeddings') {
-        return await prisma.$queryRaw<EmbeddingRow[]>`
+        return await dbRouter.write().$queryRaw<EmbeddingRow[]>`
           SELECT
             id,
             source_id::text AS entity_id,
@@ -215,7 +215,7 @@ export class PgVectorStore implements VectorStore {
           LIMIT ${topK}
         `;
       } else {
-        return await prisma.$queryRaw<EmbeddingRow[]>`
+        return await dbRouter.write().$queryRaw<EmbeddingRow[]>`
           SELECT
             id,
             source_id::text AS entity_id,
