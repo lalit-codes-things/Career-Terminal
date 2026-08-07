@@ -2,7 +2,7 @@ import type { Embedding } from '../../../domain/recruiter-intelligence/semantic-
 import type { VectorQuery, VectorSearchResult, VectorStore } from '../../../domain/recruiter-intelligence/vector-search/contracts';
 
 /**
- * InMemoryVectorStore — Prompt 22 implementation backing.
+ * InMemoryVectorStore —  implementation backing.
  *
  * In-memory implementation of the VectorStore interface.
  * Supports basic cosine similarity search and metadata filtering for testing.

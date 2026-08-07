@@ -1,14 +1,14 @@
 /**
- * Epic 0.7 — Privacy & Security Infrastructure Tests (Phase 32).
+ * Privacy & Security Infrastructure Tests.
  *
  * Covers:
- *   - PII Inventory helpers (Phase 20)
- *   - AI data protection guard (Phase 26)
- *   - Workload identity policy enforcement (Phases 2-3)
- *   - CryptoService — SoftwareCryptoService (Phase 15)
- *   - Request logger privacy controls (Phase 22)
- *   - Cryptographic token utilities (Phases 12 & 28)
- *   - Timing-safe comparison utilities (Phase 29)
+ *   - PII Inventory helpers
+ *   - AI data protection guard
+ *   - Workload identity policy enforcement
+ *   - CryptoService — SoftwareCryptoService
+ *   - Request logger privacy controls
+ *   - Cryptographic token utilities
+ *   - Timing-safe comparison utilities
  */
 
 // ── Module imports ────────────────────────────────────────────────────────────
@@ -60,10 +60,10 @@ import { REDACTED_REQUEST_HEADERS } from '../infrastructure/logger/request-logge
 const TEST_KEY = 'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899';
 
 // =============================================================================
-// 1. PII INVENTORY (Phase 20)
+// 1. PII INVENTORY
 // =============================================================================
 
-describe('Epic 0.7 — PII Inventory (Phase 20)', () => {
+describe('PII Inventory', () => {
   it('1a. inventory is non-empty', () => {
     expect(PII_INVENTORY.length).toBeGreaterThan(0);
   });
@@ -143,10 +143,10 @@ describe('Epic 0.7 — PII Inventory (Phase 20)', () => {
 });
 
 // =============================================================================
-// 2. AI DATA PROTECTION GUARD (Phase 26)
+// 2. AI DATA PROTECTION GUARD
 // =============================================================================
 
-describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
+describe('AI Data Protection Guard', () => {
   it('2a. policy declares no external AI providers currently in use', () => {
     expect(AI_DATA_PROTECTION_POLICY.externalProviders).toHaveLength(0);
   });
@@ -220,10 +220,10 @@ describe('Epic 0.7 — AI Data Protection Guard (Phase 26)', () => {
 });
 
 // =============================================================================
-// 3. WORKLOAD IDENTITY POLICY (Phases 2-3)
+// 3. WORKLOAD IDENTITY POLICY
 // =============================================================================
 
-describe('Epic 0.7 — Workload Identity Policy (Phases 2-3)', () => {
+describe('Workload Identity Policy', () => {
   const originalEnv = process.env.WORKLOAD_IDENTITY;
 
   afterEach(() => {
@@ -305,10 +305,10 @@ describe('Epic 0.7 — Workload Identity Policy (Phases 2-3)', () => {
 });
 
 // =============================================================================
-// 4. CRYPTO SERVICE — SoftwareCryptoService (Phase 15)
+// 4. CRYPTO SERVICE — SoftwareCryptoService
 // =============================================================================
 
-describe('Epic 0.7 — CryptoService: SoftwareCryptoService (Phase 15)', () => {
+describe('CryptoService: SoftwareCryptoService', () => {
   let svc: SoftwareCryptoService;
 
   beforeEach(() => {
@@ -386,7 +386,7 @@ describe('Epic 0.7 — CryptoService: SoftwareCryptoService (Phase 15)', () => {
   });
 });
 
-describe('Epic 0.7 — CryptoService: KMSCryptoService stub (Phase 15)', () => {
+describe('CryptoService: KMSCryptoService stub', () => {
   it('4i. KMSCryptoService.encrypt throws with clear message', async () => {
     const kms = new KMSCryptoService();
     await expect(kms.encrypt('test')).rejects.toThrow(/KMSCryptoService is not yet configured/);
@@ -418,10 +418,10 @@ describe('Epic 0.7 — CryptoService: KMSCryptoService stub (Phase 15)', () => {
 });
 
 // =============================================================================
-// 5. CRYPTOGRAPHIC TOKEN UTILITIES (Phases 12 & 28)
+// 5. CRYPTOGRAPHIC TOKEN UTILITIES
 // =============================================================================
 
-describe('Epic 0.7 — Cryptographic Token Utilities (Phases 12 & 28)', () => {
+describe('Cryptographic Token Utilities', () => {
   it('5a. generateOpaqueToken returns 64-char hex by default (32 bytes)', () => {
     const token = generateOpaqueToken();
     expect(token).toHaveLength(64);
@@ -492,10 +492,10 @@ describe('Epic 0.7 — Cryptographic Token Utilities (Phases 12 & 28)', () => {
 });
 
 // =============================================================================
-// 6. TIMING-SAFE COMPARISON UTILITIES (Phase 29)
+// 6. TIMING-SAFE COMPARISON UTILITIES
 // =============================================================================
 
-describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
+describe('Timing-Safe Comparison', () => {
   describe('timingSafeStringEqual', () => {
     it('6a. returns true for identical strings', () => {
       expect(timingSafeStringEqual('secret-api-key', 'secret-api-key')).toBe(true);
@@ -575,10 +575,10 @@ describe('Epic 0.7 — Timing-Safe Comparison (Phase 29)', () => {
 });
 
 // =============================================================================
-// 7. REQUEST LOGGER PRIVACY CONTROLS (Phase 22)
+// 7. REQUEST LOGGER PRIVACY CONTROLS
 // =============================================================================
 
-describe('Epic 0.7 — Request Logger Privacy Controls (Phase 22)', () => {
+describe('Request Logger Privacy Controls', () => {
   it('7a. REDACTED_REQUEST_HEADERS includes authorization', () => {
     expect(REDACTED_REQUEST_HEADERS.has('authorization')).toBe(true);
   });
@@ -611,10 +611,10 @@ describe('Epic 0.7 — Request Logger Privacy Controls (Phase 22)', () => {
 });
 
 // =============================================================================
-// 8. LOGGER SENSITIVE KEY REDACTION (Phase 0)
+// 8. LOGGER SENSITIVE KEY REDACTION
 // =============================================================================
 
-describe('Epic 0.7 — Logger Sensitive Key Redaction (Phase 0)', () => {
+describe('Logger Sensitive Key Redaction', () => {
   // We test the logger's redaction behaviour by capturing console output.
   let consoleSpy: jest.SpyInstance;
   let capturedOutput: string[] = [];

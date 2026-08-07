@@ -9,14 +9,14 @@ export class RelationshipEngine {
     if (!typeDef) {
       throw new Error(`Unknown relationship type: ${rel.relationshipType}`);
     }
-    
+
     if (rel.sourceEntityId === rel.targetEntityId) {
       throw new Error(`Self-referencing relationship not allowed for ${rel.relationshipType}`);
     }
   }
 
   public detectConflict(rel1: EntityRelationship, rel2: EntityRelationship): boolean {
-    if (rel1.sourceEntityId === rel2.sourceEntityId && 
+    if (rel1.sourceEntityId === rel2.sourceEntityId &&
         rel1.targetEntityId === rel2.targetEntityId &&
         rel1.relationshipType === rel2.relationshipType) {
       const start1 = rel1.metadata.validFrom.getTime();
@@ -44,7 +44,7 @@ export class RelationshipEngine {
       if (!graph.has(r.sourceEntityId)) graph.set(r.sourceEntityId, []);
       graph.get(r.sourceEntityId)!.push(r.targetEntityId);
     }
-    
+
     return this.dfsCycle(newRel.sourceEntityId, graph, new Set(), new Set());
   }
 

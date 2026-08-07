@@ -1,7 +1,7 @@
 /**
  * Candidate Intelligence service layer — barrel export.
  *
- * Exposes the two primary services that implement the Epic 4 Prompt 3
+ * Exposes the two primary services that implement the
  * domain contracts:
  *
  *   ExtractionRunService  — create / transition extraction runs,

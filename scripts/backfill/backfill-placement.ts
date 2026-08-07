@@ -1,5 +1,5 @@
 /**
- * Placement metadata backfill script — Prompt 4.
+ * Placement metadata backfill script.
  *
  * For every row in `users`, ensures three placement columns are populated:
  *   - region              (set to default `us-east-1` if somehow empty — the

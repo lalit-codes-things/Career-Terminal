@@ -1,13 +1,13 @@
 /**
- * Batch 3 — AI Recruiter Intelligence
+ *  — AI Recruiter Intelligence
  *
  * Covers:
- *   Prompt 11 — AI Extraction Pipeline (pipeline, prompt manager, output validator,
+ *   AI Extraction Pipeline (pipeline, prompt manager, output validator,
  *               cost tracker, rate limiter, human review, batch, streaming, providers)
- *   Prompt 12 — Recruiter Entity Extraction (15 field types, normalization, hybrid merge)
- *   Prompt 13 — AI Reasoning & Enrichment (12 inferred attributes, explainability)
- *   Prompt 14 — Knowledge Graph Population (nodes, edges, temporal, versioning, reconstruct)
- *   Prompt 15 — Recruiter Intelligence Engine (full profile, memory/timeline/graph plans)
+ *   Recruiter Entity Extraction (15 field types, normalization, hybrid merge)
+ *   AI Reasoning & Enrichment (12 inferred attributes, explainability)
+ *   Knowledge Graph Population (nodes, edges, temporal, versioning, reconstruct)
+ *   Recruiter Intelligence Engine (full profile, memory/timeline/graph plans)
  *
  * Design principles:
  *   - No database. All services are pure in-memory for unit tests.
@@ -111,7 +111,7 @@ function makePipeline(stub?: StubAiAdapter): ExtractionPipeline {
 // PROMPT 11 — AI EXTRACTION PIPELINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Prompt 11 — AI extraction pipeline', () => {
+describe('AI extraction pipeline', () => {
   describe('PromptManager', () => {
     it('registers and retrieves templates by id', () => {
       const mgr = new PromptManager();
@@ -488,7 +488,7 @@ describe('Prompt 11 — AI extraction pipeline', () => {
 // PROMPT 12 — RECRUITER ENTITY EXTRACTION
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Prompt 12 — Recruiter entity extraction', () => {
+describe('Recruiter entity extraction', () => {
   function makeService(): RecruiterEntityExtractionService {
     return new RecruiterEntityExtractionService(makePipeline());
   }
@@ -683,7 +683,7 @@ describe('Prompt 12 — Recruiter entity extraction', () => {
 // PROMPT 13 — AI REASONING & ENRICHMENT
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Prompt 13 — AI reasoning & enrichment', () => {
+describe('AI reasoning & enrichment', () => {
   function makeReasoningService(): RecruiterReasoningEnrichmentService {
     return new RecruiterReasoningEnrichmentService(makePipeline());
   }
@@ -867,7 +867,7 @@ describe('Prompt 13 — AI reasoning & enrichment', () => {
 // PROMPT 14 — KNOWLEDGE GRAPH POPULATION
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Prompt 14 — Knowledge graph population', () => {
+describe('Knowledge graph population', () => {
   function makeGraphService(): any {
     return new KnowledgeGraphPopulationService();
   }
@@ -1138,7 +1138,7 @@ describe('Prompt 14 — Knowledge graph population', () => {
 // PROMPT 15 — RECRUITER INTELLIGENCE ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Prompt 15 — Recruiter intelligence engine', () => {
+describe('Recruiter intelligence engine', () => {
   async function buildFullInput() {
     const pipeline = makePipeline();
     const entitySvc = new RecruiterEntityExtractionService(pipeline);

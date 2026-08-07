@@ -1,5 +1,5 @@
 /**
- * Secret Provider Abstraction — Phase 1 (Epic 0.7)
+ * Secret Provider Abstraction —
  *
  * Provider-agnostic interface for secret retrieval. The application requests
  * secrets by logical identity and never embeds provider-specific logic in
@@ -24,7 +24,7 @@
  *
  * Caching:
  *   Each provider implementation may cache values for a bounded TTL to avoid
- *   hitting the secret manager on every request at scale. See Phase 27.
+ *   hitting the secret manager on every request at scale. See .
  *   The EnvironmentSecretProvider reads process.env once on startup, which
  *   is already correct for the current k8s secretRef injection pattern.
  *
@@ -169,7 +169,7 @@ export class EnvironmentSecretProvider implements ISecretProvider {
  *
  * Workload identity (k8s):
  *   - Each ServiceAccount (api, gmail-worker, resume-worker) has a distinct
- *     Vault policy granting access only to its required secrets (Phase 3).
+ *     Vault policy granting access only to its required secrets .
  *   - No static master credential is embedded in the pod or image.
  *
  * To activate: install node-vault or @hashicorp/vault-client, implement

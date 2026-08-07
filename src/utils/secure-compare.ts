@@ -1,5 +1,5 @@
 /**
- * Timing-safe comparison utilities (Epic 0.7, Phase 29).
+ * Timing-safe comparison utilities  .
  *
  * Standard string comparison (===) is vulnerable to timing attacks because
  * JavaScript short-circuits on the first differing character, leaking

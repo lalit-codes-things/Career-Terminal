@@ -8,7 +8,7 @@ import type {
 } from '../../../domain/recruiter-intelligence/reasoning-orchestrator/contracts';
 
 /**
- * ReasoningOrchestratorService — Prompt 25 implementation.
+ * ReasoningOrchestratorService —  implementation.
  *
  * Coordinates complex reasoning workflows across multiple steps.
  * Handles model routing, fallback strategies, explainability, and evidence preservation.
@@ -54,9 +54,9 @@ export class ReasoningOrchestratorService {
         const extractionResult = await this.pipeline.extract('recruiter-insights-engine', input, {}); // using insights as proxy template for now
 
         const latencyMs = Date.now() - stepStartTime;
-        
+
         // Mock token calculation based on content length
-        const stepTokens = Math.floor(input.content.length / 4); 
+        const stepTokens = Math.floor(input.content.length / 4);
 
         const stepOutput = extractionResult.fields.reduce((acc, f) => {
           acc[f.field] = f.value;

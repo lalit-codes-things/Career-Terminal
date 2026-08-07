@@ -397,7 +397,7 @@ export class ApplicationCommandService {
       });
       committed = true;
 
-      // ── Prompt 10 + 12 integrations for NEW applications ────────────────
+      // ──  + 12 integrations for NEW applications ────────────────
       if (isNewApplication && finalApplicationId) {
         const snapshotId = await createApplicationSnapshot(
           userId,

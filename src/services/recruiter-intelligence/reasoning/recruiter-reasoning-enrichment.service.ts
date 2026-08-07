@@ -63,7 +63,7 @@ export interface RecruiterReasoningResult {
 }
 
 /**
- * RecruiterReasoningEnrichmentService — Prompt 13 implementation.
+ * RecruiterReasoningEnrichmentService —  implementation.
  *
  * Infers recruiter attributes beyond what is explicitly stated:
  *   seniority, specialization, hiring focus, technical/business domains,

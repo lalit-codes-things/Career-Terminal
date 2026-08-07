@@ -1,5 +1,5 @@
 /**
- * Temporal Snapshots & Fact Versioning — Epic 4 Prompt 10
+ * Temporal Snapshots & Fact Versioning
  *
  * Verifies the historical candidate-state snapshot system so Career Terminal
  * can answer "What did the system know about this user at time X?"

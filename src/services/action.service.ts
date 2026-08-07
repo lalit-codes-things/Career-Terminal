@@ -27,7 +27,7 @@ export interface GetUserActionsFilters {
 }
 
 /**
- * User action taxonomy — Epic 4 Prompt 13
+ * User action taxonomy
  *
  * Tracks meaningful user decisions for recommendation/prediction systems.
  *

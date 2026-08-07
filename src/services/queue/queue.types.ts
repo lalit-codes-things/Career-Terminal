@@ -22,7 +22,7 @@ export const QUEUE_NAMES = {
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
 // ---------------------------------------------------------------------------
-// Base job payload (Epic 4 Prompt 5)
+// Base job payload
 // ---------------------------------------------------------------------------
 
 export const BaseJobPayloadSchema = z.object({

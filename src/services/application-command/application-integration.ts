@@ -1,8 +1,8 @@
 /**
  * Integration hooks for application creation with Prompts 10, 11, and 12.
  * These functions are called after an application is created to:
- * - Create a snapshot of user facts (Prompt 10)
- * - Record an initial outcome event (Prompt 12)
+ * - Create a snapshot of user facts ()
+ * - Record an initial outcome event ()
  */
 
 import { snapshotService } from '../snapshot.service';

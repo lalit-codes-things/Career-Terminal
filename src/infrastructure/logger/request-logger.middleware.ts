@@ -1,7 +1,7 @@
 /**
- * Request logger and metrics middleware (Epic 0.7 privacy hardened).
+ * Request logger and metrics middleware (hardened).
  *
- * Privacy controls added (Phase 22):
+ * Privacy controls added:
  *   - Authorization header value is never logged (only presence noted).
  *   - Cookie header value is never logged.
  *   - Request body is NOT logged (prevents PII / token leakage).

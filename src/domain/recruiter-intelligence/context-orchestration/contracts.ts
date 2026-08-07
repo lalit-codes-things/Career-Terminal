@@ -1,4 +1,4 @@
-// Prompt 24 — Context Orchestration Engine Contracts
+// Context Orchestration Engine Contracts
 
 export type ContextSourceType =
   | 'memory'

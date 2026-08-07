@@ -53,7 +53,7 @@ function makePrediction(
 }
 
 /**
- * RecruiterDecisionIntelligenceService — Prompt 19 implementation.
+ * RecruiterDecisionIntelligenceService —  implementation.
  *
  * Predicts 9 decision probabilities with full explainability:
  *   interview_likelihood, response_likelihood, follow_up_likelihood,

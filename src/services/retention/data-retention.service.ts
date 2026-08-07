@@ -1,5 +1,5 @@
 /**
- * Data Retention Service — Epic 0.7, Phases 24 & 25.
+ * Data Retention Service.
  *
  * Manages lifecycle of sensitive data according to retention policies.
  * All cleanup operations are:
@@ -59,7 +59,7 @@ export class DataRetentionService {
   constructor(private readonly db: PrismaClient = dbRouter.write()) {}
 
   // ─────────────────────────────────────────────────────────────────
-  // Phase 24: User Data Deletion
+  // User Data Deletion
   // ─────────────────────────────────────────────────────────────────
 
   /**
@@ -224,7 +224,7 @@ export class DataRetentionService {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Phase 25: Retention-based cleanup jobs
+  // Retention-based cleanup jobs
   // ─────────────────────────────────────────────────────────────────
 
   /**
@@ -337,7 +337,7 @@ export class DataRetentionService {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Key rotation helpers (Phase 16)
+  // Key rotation helpers
   // ─────────────────────────────────────────────────────────────────
 
   /**

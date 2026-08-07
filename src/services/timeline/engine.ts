@@ -14,7 +14,7 @@ export class TimelineEngine {
     return [...events].sort((a, b) => {
       const timeDiff = a.date.getTime() - b.date.getTime();
       if (timeDiff !== 0) return timeDiff;
-      
+
       // Secondary sort by confidence if exact same time
       return b.confidence - a.confidence;
     });

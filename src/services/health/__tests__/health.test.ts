@@ -35,7 +35,7 @@ describe('Company Health Intelligence Framework', () => {
     engine.registerCalculator(new MockCalculator('data_freshness', 50));
 
     const profile = await engine.computeHealthProfile('C123', {});
-    
+
     expect(profile.indicators).toHaveLength(2);
     expect(profile.indicators[0]!.score).toBe(80);
     expect(profile.overallScore).toBeGreaterThan(0);

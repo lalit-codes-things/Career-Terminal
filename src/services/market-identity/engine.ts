@@ -19,7 +19,7 @@ export class MarketIdentityEngine {
   }
 
   public detectTickerReuse(history: ListingHistory[], newListing: ListingHistory): boolean {
-    return history.some(h => 
+    return history.some(h =>
       h.symbol === newListing.symbol &&
       h.exchange === newListing.exchange &&
       ((!h.validTo && newListing.validFrom > h.validFrom) || (h.validTo && newListing.validFrom > h.validTo))

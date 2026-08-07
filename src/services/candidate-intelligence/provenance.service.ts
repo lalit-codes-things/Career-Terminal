@@ -1,5 +1,5 @@
 /**
- * ProvenanceService — Epic 4 Prompt 3
+ * ProvenanceService
  *
  * Manages read access and ownership validation for FactProvenance records.
  *

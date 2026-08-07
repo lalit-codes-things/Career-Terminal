@@ -1,4 +1,4 @@
-// Prompt 26 — AI Recruiter Copilot Contracts
+// AI Recruiter Copilot Contracts
 import type { GraphRagContext } from '../graph-rag/contracts';
 
 export type CopilotIntent =

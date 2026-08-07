@@ -1,5 +1,5 @@
 /**
- * Tests for DurableCheckpointService (Epic 4 Prompt 8)
+ * Tests for DurableCheckpointService
  *
  * Covers:
  *   1. initial sync checkpoint creation with advisory lock

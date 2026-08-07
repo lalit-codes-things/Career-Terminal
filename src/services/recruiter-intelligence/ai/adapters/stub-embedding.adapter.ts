@@ -1,7 +1,7 @@
 import type { EmbeddingDimensions, EmbeddingProvider } from '../../../../domain/recruiter-intelligence/semantic-representation/contracts';
 
 /**
- * StubEmbeddingAdapter — Prompt 21 implementation.
+ * StubEmbeddingAdapter —  implementation.
  *
  * In-memory stub for embedding generation that creates deterministic vectors for tests.
  * Generates pseudo-random but deterministic vectors based on input text length.

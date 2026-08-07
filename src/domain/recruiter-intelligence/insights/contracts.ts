@@ -256,11 +256,11 @@ export interface InsightsEngineService {
 export interface InsightsEngineInput {
   facts: unknown[];                  // RecruiterEntityFact[]
   reasoning: unknown;                // RecruiterReasoningResult
-  engineResult?: unknown;            // IntelligenceEngineResult (Batch 3)
-  behavioralResult?: unknown;        // BehavioralIntelligenceResult (Prompt 16)
-  trustResult?: unknown;             // TrustReputationResult (Prompt 17)
-  specializationResult?: unknown;    // SpecializationIntelligenceResult (Prompt 18)
-  decisionResult?: unknown;          // DecisionIntelligenceResult (Prompt 19)
+  engineResult?: unknown;            // IntelligenceEngineResult 
+  behavioralResult?: unknown;        // BehavioralIntelligenceResult
+  trustResult?: unknown;             // TrustReputationResult
+  specializationResult?: unknown;    // SpecializationIntelligenceResult
+  decisionResult?: unknown;          // DecisionIntelligenceResult
   memoryContext?: MemoryContext;
   timelineContext?: TimelineContext;
   graphContext?: GraphContext;

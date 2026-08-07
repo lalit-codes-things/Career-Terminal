@@ -63,7 +63,7 @@ function makeInsight(
 }
 
 /**
- * RecruiterInsightsEngine — Prompt 20 implementation.
+ * RecruiterInsightsEngine —  implementation.
  *
  * Generates 12 categories of actionable recruiter intelligence:
  *   Summaries: recruiter, communication, hiring, engagement, opportunity
@@ -74,7 +74,7 @@ function makeInsight(
  * Every insight cites structured evidence. Never hallucinate facts.
  *
  * Architecture:
- *   1. Aggregates all Batch 3 + Batch 4 intelligence into a unified context
+ *   1. Aggregates all  +  intelligence into a unified context
  *   2. Deterministic insight generation from structured signals
  *   3. AI synthesis adds nuanced, contextual insights
  *   4. All insights have: confidence, reasoning, evidenceFactIds

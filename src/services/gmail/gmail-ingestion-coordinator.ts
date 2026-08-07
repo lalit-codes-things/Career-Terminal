@@ -1,5 +1,5 @@
 /**
- * Gmail Ingestion Coordinator — Orchestrates async Gmail ingestion (Epic 4 Prompt 7)
+ * Gmail Ingestion Coordinator — Orchestrates async Gmail ingestion
  *
  * Provides the explicit async ingestion boundary:
  *   1. Validates user ownership of the connection

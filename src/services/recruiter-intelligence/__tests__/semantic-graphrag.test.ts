@@ -31,7 +31,7 @@ jest.mock('../../../config/database', () => ({
   },
 }));
 
-describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
+describe('Semantic Intelligence & GraphRAG', () => {
   let embeddingAdapter: StubEmbeddingAdapter;
   let vectorStore: InMemoryVectorStore;
   let embeddingOrchestrator: EmbeddingOrchestratorService;
@@ -46,19 +46,19 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
     vectorStore = new InMemoryVectorStore();
     embeddingOrchestrator = new EmbeddingOrchestratorService(embeddingAdapter, vectorStore);
     hybridRetrieval = new HybridRetrievalService(embeddingAdapter, vectorStore);
-    
+
     const aiAdapter = new StubAiAdapter();
     pipeline = new ExtractionPipeline({ providers: [aiAdapter] });
     for (const template of buildDefaultTemplates()) {
       pipeline.getPromptManager().register(template);
     }
-    
+
     graphRag = new GraphRagService(hybridRetrieval, pipeline);
     contextOrchestrator = new ContextOrchestratorService();
     reasoningOrchestrator = new ReasoningOrchestratorService(pipeline);
   });
 
-  describe('Prompt 21: Embedding Orchestrator', () => {
+  describe('Embedding Orchestrator', () => {
     it('should generate and store embeddings', async () => {
       const entityId = randomUUID();
       const embedding = await embeddingOrchestrator.embedAndStore({
@@ -70,7 +70,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
 
       expect(embedding.vector.length).toBe(384);
       expect(embedding.metadata.entityType).toBe('recruiter_profile');
-      
+
       const searchRes = await vectorStore.search({ vector: embedding.vector, topK: 1, tenantId: 'tenant-1' });
       expect(searchRes.length).toBe(1);
       expect(searchRes[0]!.entityId).toBe(entityId);
@@ -88,7 +88,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
     });
   });
 
-  describe('Prompt 22: Hybrid Retrieval', () => {
+  describe('Hybrid Retrieval', () => {
     beforeEach(async () => {
       await embeddingOrchestrator.embedBatch([
         { tenantId: 't1', entityId: 'rec-1', entityType: 'recruiter_profile', text: 'Looking for a senior frontend developer with React experience.' },
@@ -98,7 +98,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
 
     it('should retrieve relevant items using vector search', async () => {
       const queryVector = await embeddingAdapter.embedContext('I need a frontend react dev');
-      
+
       const results = await hybridRetrieval.search({
         textQuery: 'I need a frontend react dev',
         tenantId: 't1',
@@ -111,7 +111,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
 
     it('should perform hybrid search combining text and vector', async () => {
       const queryVector = await embeddingAdapter.embedContext('Python backend');
-      
+
       const results = await hybridRetrieval.search({
         textQuery: 'Python backend',
         tenantId: 't1',
@@ -125,7 +125,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
     });
   });
 
-  describe('Prompt 23: GraphRAG Foundation', () => {
+  describe('GraphRAG Foundation', () => {
     it('should answer questions using graph traversal and semantic context', async () => {
       // Seed some semantic context
       await embeddingOrchestrator.embedAndStore({
@@ -173,17 +173,17 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
 
       expect(response.answerText).toBeTruthy();
       expect(response.evidence.length).toBeGreaterThan(0);
-      
+
       const hasSemanticEvidence = response.evidence.some(e => e.sourceType === 'vector');
       const hasFactEvidence = response.evidence.some(e => e.sourceType === 'structured_fact');
-      
+
       expect(hasSemanticEvidence).toBe(true);
       expect(hasFactEvidence).toBe(false);
       expect(response.contextUsed.subgraph.nodes.length).toBeGreaterThanOrEqual(0);
     });
   });
 
-  describe('Prompt 24: Context Orchestration Engine', () => {
+  describe('Context Orchestration Engine', () => {
     it('should assemble, deduplicate, and token-optimize context', async () => {
       const rawItems: ContextItem[] = [
         { itemId: '1', sourceType: 'memory', content: 'Prefers email.', relevanceScore: 0.9, tokenCount: 10 },
@@ -208,7 +208,7 @@ describe('Epic 6 — Batch 5: Semantic Intelligence & GraphRAG', () => {
     });
   });
 
-  describe('Prompt 25: AI Reasoning Orchestrator', () => {
+  describe('AI Reasoning Orchestrator', () => {
     it('should orchestrate multi-step iterative reasoning', async () => {
       const workflow: ReasoningWorkflow = {
         workflowId: 'wf-1',

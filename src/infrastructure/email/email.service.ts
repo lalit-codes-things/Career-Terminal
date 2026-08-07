@@ -24,6 +24,6 @@ export class MockEmailProvider implements IEmailProvider {
   }
 }
 
-// Default export acts as the current active provider. In a real environment, 
+// Default export acts as the current active provider. In a real environment,
 // this would be determined by configuration (e.g., SendGrid, SES).
 export const emailProvider: IEmailProvider = new MockEmailProvider();

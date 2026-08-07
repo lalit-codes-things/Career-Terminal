@@ -175,7 +175,7 @@ export interface IntelligenceEngineResult {
 }
 
 /**
- * RecruiterIntelligenceEngineService — Prompt 15 implementation.
+ * RecruiterIntelligenceEngineService —  implementation.
  *
  * Generates the full recruiter intelligence profile from structured facts.
  * No hallucinated facts — every conclusion references evidence.

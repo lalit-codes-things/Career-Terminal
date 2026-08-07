@@ -2,7 +2,7 @@
  * Encryption utility — legacy test suite (updated for versioned envelope format).
  *
  * The new versioned envelope format is: v<N>:iv:authTag:ciphertext (4 parts).
- * Tests for the full Epic 0.7 encryption suite are in epic-0.7-encryption.test.ts.
+ * Tests for the versioned envelope format are in encryption-compliance.test.ts.
  */
 export {};
 

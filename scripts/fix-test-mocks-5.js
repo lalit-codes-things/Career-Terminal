@@ -4,7 +4,7 @@ const path = require('path');
 const files = [
   'src/__tests__/application-merge.service.test.ts',
   'src/__tests__/user-action-log.test.ts',
-  'src/__tests__/temporal-snapshots.test.ts',
+  'src/__tests__/snapshot-versioning.test.ts',
   'src/__tests__/status-engine.service.test.ts',
   'src/__tests__/snapshot.service.test.ts',
   'src/services/recruiter-intelligence/infrastructure/__tests__/vector-store.tenant-isolation.test.ts',

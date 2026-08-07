@@ -31,7 +31,7 @@ jest.mock('../../../config/database', () => ({
   },
 }));
 
-describe('Epic 6 — Batch 6: Copilot & Autonomous Intelligence', () => {
+describe('Copilot & Autonomous Intelligence', () => {
   let embeddingAdapter: StubEmbeddingAdapter;
   let vectorStore: InMemoryVectorStore;
   let hybridRetrieval: HybridRetrievalService;
@@ -39,7 +39,7 @@ describe('Epic 6 — Batch 6: Copilot & Autonomous Intelligence', () => {
   let graphRag: GraphRagService;
   let contextOrchestrator: ContextOrchestratorService;
   let reasoningOrchestrator: ReasoningOrchestratorService;
-  
+
   let copilotService: RecruiterCopilotService;
   let autonomousService: AutonomousIntelligenceService;
 
@@ -47,13 +47,13 @@ describe('Epic 6 — Batch 6: Copilot & Autonomous Intelligence', () => {
     embeddingAdapter = new StubEmbeddingAdapter();
     vectorStore = new InMemoryVectorStore();
     hybridRetrieval = new HybridRetrievalService(embeddingAdapter, vectorStore);
-    
+
     const aiAdapter = new StubAiAdapter();
     pipeline = new ExtractionPipeline({ providers: [aiAdapter] });
     for (const template of buildDefaultTemplates()) {
       pipeline.getPromptManager().register(template);
     }
-    
+
     graphRag = new GraphRagService(hybridRetrieval, pipeline);
     contextOrchestrator = new ContextOrchestratorService();
     reasoningOrchestrator = new ReasoningOrchestratorService(pipeline);
@@ -62,7 +62,7 @@ describe('Epic 6 — Batch 6: Copilot & Autonomous Intelligence', () => {
     autonomousService = new AutonomousIntelligenceService(reasoningOrchestrator);
   });
 
-  describe('Prompt 26: Recruiter Copilot Service', () => {
+  describe('Recruiter Copilot Service', () => {
     it('should provide context-aware, cited answers to user queries', async () => {
       const conversation: CopilotConversation = {
         conversationId: randomUUID(),
@@ -81,15 +81,15 @@ describe('Epic 6 — Batch 6: Copilot & Autonomous Intelligence', () => {
       expect(response.intentDetected).toBe('general_query');
       expect(response.answerText).toBeTruthy();
       expect(response.confidence).toBeGreaterThan(0.5);
-      
+
       // Ensure citations are mapped properly
       expect(response.citations.length).toBeGreaterThanOrEqual(0); // Stub AI might not inject evidence directly to the top level, but GraphRAG does
-      
+
       expect(Array.isArray(response.suggestedFollowUps)).toBe(true);
     });
   });
 
-  describe('Prompt 27: Autonomous Intelligence Service', () => {
+  describe('Autonomous Intelligence Service', () => {
     it('should proactively generate alerts based on continuous events', async () => {
       const tenantId = 'tenant-1';
       const events: ContinuousIntelligenceEvent[] = [

@@ -1,4 +1,4 @@
-// Prompt 22 — Vector Search & Hybrid Retrieval Contracts
+// Vector Search & Hybrid Retrieval Contracts
 import type { EntityType } from '../semantic-representation/contracts';
 
 export interface VectorQuery {

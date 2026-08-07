@@ -1,5 +1,5 @@
 /**
- * Canonical Opportunity Backfill Script — Prompt 2.
+ * Canonical Opportunity Backfill Script.
  *
  * Iterates every existing `job_applications` row that still lacks an
  * `opportunity_id` and — using the same canonical-resolution logic from

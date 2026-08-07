@@ -1,5 +1,5 @@
 /**
- * User Identity Backfill Script — Prompt 1.
+ * User Identity Backfill Script.
  *
  * Idempotently creates `users` and `candidate_profiles` rows for every
  * distinct `legacyUserId` found in the existing user-scoped tables:

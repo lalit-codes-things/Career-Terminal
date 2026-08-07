@@ -29,7 +29,7 @@ export class HealthScoringEngine {
 
       const result = await calculator.calculate(companyId, contextData);
       results.push(result);
-      
+
       weightedScoreSum += (result.score * def.weight);
       totalWeight += def.weight;
     }

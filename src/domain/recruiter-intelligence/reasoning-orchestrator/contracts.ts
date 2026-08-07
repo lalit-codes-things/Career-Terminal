@@ -1,4 +1,4 @@
-// Prompt 25 — AI Reasoning Orchestrator Contracts
+// AI Reasoning Orchestrator Contracts
 
 export type ReasoningStrategy =
   | 'single_step'
