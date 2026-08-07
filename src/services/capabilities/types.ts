@@ -17,14 +17,15 @@ export type CapabilityName =
   | 'predict'
   | 'recommend'
   | 'verify'
-  | 'economic-extract';
+  | 'economic-extract'
+  | 'interview-extract';
 
 export interface CapabilityInput {
   /** User who owns this inference */
   userId: string;
   /** The entity being analysed (recruiter, opportunity, resume, company…) */
   entityId: string;
-  entityType: 'recruiter' | 'opportunity' | 'resume' | 'application' | 'company' | 'candidate' | 'economicDocument';
+  entityType: 'recruiter' | 'opportunity' | 'resume' | 'application' | 'company' | 'candidate' | 'economicDocument' | 'interviewSession';
   /** Raw text or structured content to analyse */
   content: string;
   /** Extra k/v context forwarded to the prompt template */
