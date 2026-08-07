@@ -97,7 +97,7 @@ describe('AI Quality Infrastructure', () => {
       expect(result.passed).toBe(true);
       expect(result.score).toBe(0.92);
       expect(result.threshold).toBe(0.85);
-      expect(result.delta).toBe(0.07);
+      expect(result.delta).toBeCloseTo(0.07, 5);
     });
 
     test('compareProviders returns the best provider', async () => {

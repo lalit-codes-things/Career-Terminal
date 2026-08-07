@@ -45,6 +45,9 @@ describe('OAuthStateService', () => {
         return null;
       },
       async delete(): Promise<void> {},
+      async getAndDelete(): Promise<null> {
+        return null;
+      },
       async size(): Promise<number> {
         return 0;
       },

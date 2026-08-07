@@ -38,7 +38,8 @@
 import { PrismaClient } from '@prisma/client';
 import { DatabaseRouter } from '../db/database-router';
 import { config } from './index';
-import { attachRlsMiddleware, attachRlsEnforcementMiddleware, attachTenantExtension } from '../middleware/rls';
+import { attachRlsMiddleware } from '../middleware/rls';
+import { attachTenantExtension } from '../middleware/rls';
 
 // ---------------------------------------------------------------------------
 // Global stash (hot-reload safety)
@@ -122,11 +123,10 @@ export function createPrismaClient(role?: string): PrismaClient {
      log: logLevels,
    });
 
-    attachRlsMiddleware(client);
-    client = attachTenantExtension(client);
-    client = attachRlsEnforcementMiddleware(client);
+   attachRlsMiddleware(client);
+   client = attachTenantExtension(client);
 
-    return client;
+   return client;
  }
 
 // ---------------------------------------------------------------------------

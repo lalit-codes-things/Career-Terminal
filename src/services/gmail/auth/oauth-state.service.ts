@@ -184,7 +184,7 @@ class RedisStateBackend implements IOAuthStateBackend {
     `;
     const raw = await this.getClient().eval(lua, 1, key);
     if (!raw) return null;
-    return JSON.parse(raw) as OAuthStateEntry;
+    return JSON.parse(raw as string) as OAuthStateEntry;
   }
 
   async size(): Promise<number> {
