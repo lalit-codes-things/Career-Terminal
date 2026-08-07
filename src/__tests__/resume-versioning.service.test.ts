@@ -681,7 +681,7 @@ describe('ResumeUploadService — deleteVersion (guarded against linkage)', () =
     const args = firstCall?.[0];
     expect(args).toBeDefined();
     expect(args?.where?.id).toBe(USER_RESUME_V1_ID);
-    expect(args?.where?.OR).toBeDefined();
+    expect(args?.where?.userId).toBe(OTHER_USER);
     expect(mockPrisma.userResume.delete).not.toHaveBeenCalled();
   });
 });

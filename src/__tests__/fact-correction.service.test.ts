@@ -2,7 +2,7 @@ import { factCorrectionService } from '../services/fact-correction.service';
 import { prisma } from '../config/database';
 
 jest.mock('../config/database', () => {
-  const prisma = {
+  const prisma: any = {
     factObservation: {
       create: jest.fn(),
       update: jest.fn(),
@@ -15,17 +15,17 @@ jest.mock('../config/database', () => {
     factProvenance: {
       create: jest.fn(),
     },
-    $transaction: jest.fn((callback) => callback(prisma)),
+    $transaction: jest.fn((callback: any) => callback(prisma)),
   };
   return {
     prisma,
-  dbRouter: {
-    read: jest.fn().mockReturnValue(prisma),
-    write: jest.fn().mockReturnValue(prisma),
-    withReplicaFallback: jest.fn(),
-    getHealth: jest.fn(),
-    disconnect: jest.fn(),
-  },
+    dbRouter: {
+      read: jest.fn().mockReturnValue(prisma),
+      write: jest.fn().mockReturnValue(prisma),
+      withReplicaFallback: jest.fn(),
+      getHealth: jest.fn(),
+      disconnect: jest.fn(),
+    },
   };
 });
 

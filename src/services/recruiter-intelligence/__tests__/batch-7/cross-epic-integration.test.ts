@@ -181,7 +181,7 @@ describe('Cross-Epic Intelligence Integration', () => {
 
     test('removeExpiredLinks prunes expired links', async () => {
       const expiredService = new CrossEpicIntelligenceIntegrationService({
-        defaultTtlMs: 0,
+        defaultTtlMs: -1,
       });
 
       await expiredService.publish(

@@ -27,8 +27,8 @@ jest.mock('../services/gmail/durable-checkpoint.service', () => ({
   },
 }));
 jest.mock('../config/database', () => {
-  const prisma = {
-    $transaction: jest.fn((fn) => fn(prisma)),
+  const prisma: any = {
+    $transaction: jest.fn((fn: any) => fn(prisma)),
     userEmailConnection: { findFirst: jest.fn(), update: jest.fn() },
     emailMessage: { findUnique: jest.fn(), upsert: jest.fn() },
     gmailSyncState: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -39,13 +39,13 @@ jest.mock('../config/database', () => {
   };
   return {
     prisma,
-  dbRouter: {
-    read: jest.fn().mockReturnValue(prisma),
-    write: jest.fn().mockReturnValue(prisma),
-    withReplicaFallback: jest.fn(),
-    getHealth: jest.fn(),
-    disconnect: jest.fn(),
-  },
+    dbRouter: {
+      read: jest.fn().mockReturnValue(prisma),
+      write: jest.fn().mockReturnValue(prisma),
+      withReplicaFallback: jest.fn(),
+      getHealth: jest.fn(),
+      disconnect: jest.fn(),
+    },
   };
 });
 jest.mock('../services/gmail/auth/gmail-oauth.service', () => ({
