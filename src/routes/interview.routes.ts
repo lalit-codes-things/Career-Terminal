@@ -14,6 +14,7 @@ import { parseSizeToBytes } from '../lib/size';
 import { config } from '../config';
 import { dbRouter } from '../config/database';
 import { userOwnershipFilter } from '../utils/user-ownership';
+import { interviewMemoryService } from '../services/interview/interview-memory.service';
 
 const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
@@ -317,6 +318,23 @@ interviewRouter.patch(
       res.status(200).json({
         success: true,
         data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+interviewRouter.get(
+  '/memory',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const memory = await interviewMemoryService.getInterviewMemory(userId);
+      res.status(200).json({
+        success: true,
+        data: memory,
       });
     } catch (error) {
       next(error);
