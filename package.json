@@ -53,6 +53,7 @@
     "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@prisma/client": "^6.9.0",
+    "@prisma/config": "^7.9.1",
     "@types/jsonwebtoken": "^9.0.10",
     "blocked-at": "^1.2.0",
     "bullmq": "^5.80.5",
