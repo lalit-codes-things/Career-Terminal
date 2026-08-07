@@ -261,6 +261,9 @@ function validateSecrets(cfg: {
   if (allZeros && cfg.nodeEnv === 'production') {
     throw new Error('ENCRYPTION_KEY is set to the all-zeros placeholder value.');
   }
+  if (cfg.nodeEnv === 'production' && process.env.ALLOW_TEST_AUTH_BYPASS === 'true') {
+    throw new Error('ALLOW_TEST_AUTH_BYPASS must not be set in production.');
+  }
   if (cfg.nodeEnv === 'production' && !cfg.internalApiKey) {
     throw new Error('INTERNAL_API_KEY is required in production.');
   }

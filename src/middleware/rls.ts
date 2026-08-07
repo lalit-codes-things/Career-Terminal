@@ -41,6 +41,8 @@ export interface RequestContext {
   tenantId: string | null;
   /** Operation privilege level. */
   privilege: 'anonymous' | 'authenticated' | 'privileged_internal';
+  /** Whether a transaction-scoped RLS GUC has been set in this context. */
+  rlsTransactionActive: boolean;
 }
 
 export const requestContextStore = new AsyncLocalStorage<RequestContext>();
@@ -97,6 +99,7 @@ export const withRlsContext = (req: Request, _res: Response, next: NextFunction)
       cellId: ((req as unknown as Record<string, unknown>).cellId as string | null) ?? null,
       tenantId: ((req as unknown as Record<string, unknown>).tenantId as string | null) ?? null,
       privilege,
+      rlsTransactionActive: false,
     };
 
     requestContextStore.enterWith(context);
@@ -122,6 +125,7 @@ export const withPrivilegedInternalContext = (
       cellId: null,
       tenantId: null,
       privilege: 'privileged_internal',
+      rlsTransactionActive: false,
     };
 
     requestContextStore.enterWith(context);
@@ -150,6 +154,7 @@ export function setWorkerRlsContext(userId: string): void {
     cellId: null,
     tenantId: null,
     privilege: 'authenticated',
+    rlsTransactionActive: false,
   });
 }
 
@@ -162,6 +167,7 @@ export function clearWorkerRlsContext(): void {
     cellId: null,
     tenantId: null,
     privilege: 'anonymous',
+    rlsTransactionActive: false,
   });
 }
 
@@ -274,7 +280,19 @@ export async function withRlsTransaction<T>(
 
   return db.$transaction(async (tx) => {
     await setRlsUserIdInTransaction(tx, userId);
-    return callback(tx);
+    
+    const ctx = requestContextStore.getStore();
+    if (ctx) {
+      requestContextStore.enterWith({ ...ctx, rlsTransactionActive: true });
+    }
+    
+    try {
+      return await callback(tx);
+    } finally {
+      if (ctx) {
+        requestContextStore.enterWith({ ...ctx, rlsTransactionActive: false });
+      }
+    }
   });
 }
 
@@ -337,7 +355,17 @@ export async function withRequestContextTransaction<T>(
       }
     }
 
-    return callback(tx);
+    if (ctx) {
+      requestContextStore.enterWith({ ...ctx, rlsTransactionActive: true });
+    }
+
+    try {
+      return await callback(tx);
+    } finally {
+      if (ctx) {
+        requestContextStore.enterWith({ ...ctx, rlsTransactionActive: false });
+      }
+    }
   });
 }
 
@@ -398,6 +426,31 @@ const USER_SCOPED_MODELS = new Set([
   'factProvenance',
   'extractionRun',
   'canonicalCandidateIntelligence',
+  'actionEvent',
+  'applicationEmbedding',
+  'candidateProfile',
+  'candidateProfileEmbedding',
+  'deadLetterEmail',
+  'economicDocument',
+  'economicEvent',
+  'economicSignal',
+  'event',
+  'gmailCheckpoint',
+  'gmailSyncQueue',
+  'gmailSyncState',
+  'malwareScanResult',
+  'opportunityEmbedding',
+  'opportunityObservation',
+  'outcomeEvent',
+  'prediction',
+  'predictionFeedback',
+  'recommendation',
+  'recruiterConversation',
+  'resume',
+  'snapshot',
+  'syncBatch',
+  'syncOperation',
+  'userIdMapping',
 ]);
 
 /**
@@ -485,6 +538,73 @@ export function attachTenantExtension(client: PrismaClient): PrismaClient {
             }
           }
 
+           return query(args);
+        },
+      },
+    },
+  }) as unknown as PrismaClient;
+}
+
+/**
+ * Prisma Client Extension that enforces transaction-scoped RLS for user-scoped
+ * models. Throws if a query targets a user-scoped model without an active
+ * transaction-scoped GUC, preventing silent RLS bypass under PgBouncer
+ * transaction pooling.
+ */
+export function attachRlsEnforcementMiddleware(client: PrismaClient): PrismaClient {
+  return client.$extends({
+    query: {
+      $allModels: {
+        async findMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+          
+          if (userId && USER_SCOPED_MODELS.has(model) && !ctx?.rlsTransactionActive) {
+            throw new Error(
+              `RLS enforcement: query on user-scoped model "${model}" outside an active RLS transaction. ` +
+              `Wrap in withRlsTransaction() or withRequestContextTransaction().`,
+            );
+          }
+          
+          return query(args);
+        },
+        async findFirst({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+          
+          if (userId && USER_SCOPED_MODELS.has(model) && !ctx?.rlsTransactionActive) {
+            throw new Error(
+              `RLS enforcement: query on user-scoped model "${model}" outside an active RLS transaction. ` +
+              `Wrap in withRlsTransaction() or withRequestContextTransaction().`,
+            );
+          }
+          
+          return query(args);
+        },
+        async updateMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+          
+          if (userId && USER_SCOPED_MODELS.has(model) && !ctx?.rlsTransactionActive) {
+            throw new Error(
+              `RLS enforcement: query on user-scoped model "${model}" outside an active RLS transaction. ` +
+              `Wrap in withRlsTransaction() or withRequestContextTransaction().`,
+            );
+          }
+          
+          return query(args);
+        },
+        async deleteMany({ model, args, query }: { model: string; args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          const ctx = requestContextStore.getStore();
+          const userId = ctx?.userId;
+          
+          if (userId && USER_SCOPED_MODELS.has(model) && !ctx?.rlsTransactionActive) {
+            throw new Error(
+              `RLS enforcement: query on user-scoped model "${model}" outside an active RLS transaction. ` +
+              `Wrap in withRlsTransaction() or withRequestContextTransaction().`,
+            );
+          }
+          
           return query(args);
         },
       },

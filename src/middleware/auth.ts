@@ -57,7 +57,7 @@ export class UnauthorizedError extends AppError {
 export const requireAuth = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     // ── Test escape-hatch (never active in production) ─────────────────────
-    if (process.env.NODE_ENV === 'test') {
+    if (process.env.NODE_ENV === 'test' && process.env.ALLOW_TEST_AUTH_BYPASS === 'true') {
       const xUserId = req.headers['x-user-id'];
       const testUserId = Array.isArray(xUserId) ? xUserId[0] : xUserId;
       if (testUserId) {
