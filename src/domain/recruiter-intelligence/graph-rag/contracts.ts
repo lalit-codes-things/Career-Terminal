@@ -1,4 +1,4 @@
-// Prompt 23 — GraphRAG Foundation Contracts
+// GraphRAG Foundation Contracts
 import type { HybridSearchResult } from '../vector-search/contracts';
 
 export interface GraphTraversalConfig {

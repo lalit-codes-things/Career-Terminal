@@ -1,4 +1,4 @@
-// Prompt 27 — Autonomous Recruiter Intelligence Contracts
+// Autonomous Recruiter Intelligence Contracts
 import type { Citation } from '../copilot/contracts';
 
 export type IntelligenceCategory =

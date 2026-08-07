@@ -59,7 +59,7 @@ function toGhostingRisk(ghostingProb: number): GhostingRisk {
 }
 
 /**
- * RecruiterReputationTrustEngine — Prompt 17 implementation.
+ * RecruiterReputationTrustEngine —  implementation.
  *
  * Estimates recruiter trustworthiness from 10 signal dimensions:
  *   response_reliability, communication_professionalism, hiring_consistency,

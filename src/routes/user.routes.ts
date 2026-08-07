@@ -1,5 +1,5 @@
 /**
- * User account routes — Epic 0.7, Phase 24 & Prompt 1 Identity.
+ * User account routes &  Identity.
  *
  * Endpoints:
  *   GET    /user/profile   — Fetch candidate profile.

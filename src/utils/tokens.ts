@@ -1,5 +1,5 @@
 /**
- * Cryptographic token utilities — Epic 0.7, Phases 12 & 28.
+ * Cryptographic token utilities.
  *
  * Centralises all token generation so every caller uses the same
  * cryptographically strong source of randomness.  Math.random(),
@@ -8,7 +8,7 @@
  * All functions use Node.js crypto.randomBytes(), which reads from
  * the OS CSPRNG (/dev/urandom on Linux, CryptGenRandom on Windows).
  *
- * Token classification (Phase 9):
+ * Token classification :
  *
  *   CATEGORY B — RECOVERABLE TOKENS (must be stored and later retrieved)
  *     generateOpaqueToken()  — refresh tokens, API keys, OAuth state

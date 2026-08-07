@@ -386,7 +386,7 @@ export class StubAiAdapter implements AiModelAdapter {
     });
   }
 
-  // ─── Batch 6 ──────────────────────────────────────────────────────────────
+  // ───  ──────────────────────────────────────────────────────────────
   private defaultCopilotResponse(): string {
     return JSON.stringify({
       fields: [

@@ -17,7 +17,7 @@ export interface RecordOutcomeInput {
 }
 
 /**
- * Outcome type taxonomy — Epic 4 Prompt 12
+ * Outcome type taxonomy
  *
  * Every outcome event must be representable as one of these explicit types.
  * Outcome events are historical records and must never be deleted or mutated.

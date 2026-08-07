@@ -255,7 +255,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.15,
       createdAt: now,
     },
-    // ─── Batch 4: Prompt 16 — Behavioral Intelligence ───────────────────────────
+    // ─── : Behavioral Intelligence ───────────────────────────
     {
       templateId: 'recruiter-behavioral-intelligence',
       name: 'Recruiter Behavioral Intelligence',
@@ -298,7 +298,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.15,
       createdAt: now,
     },
-    // ─── Batch 4: Prompt 17 — Reputation & Trust ────────────────────────────────
+    // ─── : Reputation & Trust ────────────────────────────────
     {
       templateId: 'recruiter-reputation-trust',
       name: 'Recruiter Reputation & Trust Engine',
@@ -339,7 +339,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.10,
       createdAt: now,
     },
-    // ─── Batch 4: Prompt 18 — Specialization Intelligence ───────────────────────
+    // ─── : Specialization Intelligence ───────────────────────
     {
       templateId: 'recruiter-specialization-intelligence',
       name: 'Recruiter Specialization Intelligence',
@@ -378,7 +378,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.10,
       createdAt: now,
     },
-    // ─── Batch 4: Prompt 19 — Decision Intelligence ──────────────────────────────
+    // ─── : Decision Intelligence ──────────────────────────────
     {
       templateId: 'recruiter-decision-intelligence',
       name: 'Recruiter Decision Intelligence',
@@ -419,7 +419,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.10,
       createdAt: now,
     },
-    // ─── Batch 4: Prompt 20 — Insights Engine ────────────────────────────────────
+    // ─── : Insights Engine ────────────────────────────────────
     {
       templateId: 'recruiter-insights-engine',
       name: 'Recruiter AI Insights Engine',
@@ -459,7 +459,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.20,
       createdAt: now,
     },
-    // ─── Batch 6: Prompt 26 — AI Recruiter Copilot ───────────────────────────────
+    // ─── : AI Recruiter Copilot ───────────────────────────────
     {
       templateId: 'recruiter-copilot',
       name: 'Recruiter Copilot Conversation Engine',
@@ -498,7 +498,7 @@ export function buildDefaultTemplates(): PromptTemplate[] {
       temperature: 0.20,
       createdAt: now,
     },
-    // ─── Batch 6: Prompt 27 — Autonomous Recruiter Intelligence ────────────────
+    // ─── : Autonomous Recruiter Intelligence ────────────────
     {
       templateId: 'autonomous-recruiter-intelligence',
       name: 'Autonomous Intelligence Pipeline',

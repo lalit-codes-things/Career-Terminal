@@ -1,5 +1,5 @@
 /**
- * AES-256-GCM encryption utility — with key versioning (Epic 0.7 retrofit).
+ * AES-256-GCM encryption utility — with key versioning (retrofit).
  *
  * Design decisions:
  *   - AES-256-GCM: authenticated encryption (confidentiality + integrity).

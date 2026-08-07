@@ -1,5 +1,5 @@
 /**
- * ExtractionRunService — Epic 4 Prompt 3
+ * ExtractionRunService
  *
  * Manages the full lifecycle of extraction runs and their paired provenance
  * records.  This is the authoritative entry-point for all candidate

@@ -1,5 +1,5 @@
 /**
- * CanonicalIntelligenceService — Epic 4 Prompt 4
+ * CanonicalIntelligenceService
  *
  * Converts validated extracted facts into the canonical read model and
  * provides the query surface for product features.
@@ -17,7 +17,7 @@
  * Invariants:
  *   - All writes are transactional.
  *   - Cross-user ownership is rejected before any DB write.
- *   - Cell boundary is enforced using the Prompt 2 routing contract.
+ *   - Cell boundary is enforced using the  routing contract.
  *   - FactObservation rows are never mutated by this service.
  *   - Raw fact data (factData JSON) is NOT copied into the canonical table.
  */

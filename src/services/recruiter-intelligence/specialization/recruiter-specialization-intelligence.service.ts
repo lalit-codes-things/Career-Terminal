@@ -101,7 +101,7 @@ function inferSeniority(text: string): SeniorityFocus[] {
 }
 
 /**
- * RecruiterSpecializationIntelligenceService — Prompt 18 implementation.
+ * RecruiterSpecializationIntelligenceService —  implementation.
  *
  * Infers recruiter expertise across 10 dimensions:
  *   hiringDomains, technicalSpecialization, businessSpecialization,

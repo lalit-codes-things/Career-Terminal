@@ -2,7 +2,7 @@
  * Centralized application configuration.
  * Loads and validates all environment variables at startup using zod schema.
  *
- * Epic 0.7: This module is the sole gateway between the application and its
+ * This module is the sole gateway between the application and its
  * secrets. All services must access secrets through this config object or
  * through the cryptoService/secretProvider abstractions — never via
  * process.env directly in business logic.

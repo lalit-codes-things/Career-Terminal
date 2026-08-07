@@ -1,5 +1,5 @@
 /**
- * CryptoService — KMS/HSM integration boundary (Epic 0.7, Phase 15).
+ * CryptoService — KMS/HSM integration boundary  .
  *
  * This module provides the abstraction layer between the application's
  * cryptographic needs and the key management backend.

@@ -69,7 +69,7 @@ gmailRouter.post(
       const timeWindow = Date.now() - (Date.now() % 3600000); // Hourly window
       const idempotencyKey = `gmail:${userId}:${connection.id}:${mode}:${timeWindow}`;
 
-      // Enqueue ingestion with Epic 4 Prompt 7 guarantees
+      // Enqueue ingestion with ingestion guarantees
       await enqueueGmailIngestion({
         userId,
         connectionId: connection.id,

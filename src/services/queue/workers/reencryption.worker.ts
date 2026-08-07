@@ -1,5 +1,5 @@
 /**
- * Re-encryption Worker — Epic 0.7, Phase 16.
+ * Re-encryption Worker.
  *
  * Migrates encrypted OAuth tokens from old key versions to the current
  * active key version during zero-downtime key rotation.

@@ -4,7 +4,7 @@ import { logger } from '../lib/logger';
 import { cellRoutingService } from './routing/cell-routing.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prompt 11 — Data Quality / Confidence / Evidence
+// Data Quality / Confidence / Evidence
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

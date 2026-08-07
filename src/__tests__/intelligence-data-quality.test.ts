@@ -1,5 +1,5 @@
 /**
- * Data Quality / Confidence / Evidence — Epic 4 Prompt 11
+ * Data Quality / Confidence / Evidence
  *
  * Verifies explicit quality semantics for FactObservation:
  *  1. getFactQualityStatus derives correct status from existing fields

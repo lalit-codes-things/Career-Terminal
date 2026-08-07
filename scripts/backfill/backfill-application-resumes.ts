@@ -1,5 +1,5 @@
 /**
- * Application ↔ Resume Link Backfill Script — Prompt 3.
+ * Application ↔ Resume Link Backfill Script.
  *
  * Iterates every existing `job_applications` row that still lacks a matching
  * `application_resumes` row and — for each — resolves the most likely resume

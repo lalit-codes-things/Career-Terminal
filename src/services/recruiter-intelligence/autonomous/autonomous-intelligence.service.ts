@@ -4,7 +4,7 @@ import type { ReasoningOrchestratorService } from '../reasoning/reasoning-orches
 import type { ReasoningWorkflow } from '../../../domain/recruiter-intelligence/reasoning-orchestrator/contracts';
 
 /**
- * AutonomousIntelligenceService — Prompt 27 implementation.
+ * AutonomousIntelligenceService —  implementation.
  *
  * Proactive AI intelligence pipeline. Continuously monitors events and generates
  * alerts, recommendations, and insights.
@@ -63,7 +63,7 @@ export class AutonomousIntelligenceService {
         // Map AI output to structured ProactiveAlerts
         if (result.finalOutput?.alerts && Array.isArray(result.finalOutput.alerts)) {
           for (const a of result.finalOutput.alerts) {
-            
+
             const actions: SuggestedAction[] = (a.suggestedActions || []).map((sa: any) => ({
               actionId: randomUUID(),
               type: sa.type || 'draft_message',

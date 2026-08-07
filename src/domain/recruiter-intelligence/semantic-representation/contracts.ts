@@ -1,4 +1,4 @@
-// Prompt 21 — Embedding & Semantic Representation Contracts
+// Embedding & Semantic Representation Contracts
 
 export type EmbeddingDimensions = 384 | 768 | 1024 | 1536 | 3072;
 export type EntityType =

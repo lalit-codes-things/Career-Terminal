@@ -1,5 +1,5 @@
 /**
- * User Action / Strategy Log — Epic 4 Prompt 13
+ * User Action / Strategy Log
  *
  * Verifies the action event system tracks meaningful user decisions and
  * preserves the distinction between stated preference and observed behaviour.

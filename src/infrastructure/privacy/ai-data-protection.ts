@@ -1,5 +1,5 @@
 /**
- * AI Data Protection Policy — Epic 0.7, Phase 26.
+ * AI Data Protection Policy.
  *
  * Documents the data protection rules that govern how Career Terminal
  * interacts with AI/ML systems. The current matcher uses local taxonomy

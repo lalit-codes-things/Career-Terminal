@@ -1,5 +1,5 @@
 /**
- * Canonical Candidate Intelligence — Focused Tests (Epic 4 Prompt 4)
+ * Canonical Candidate Intelligence — Focused Tests
  *
  * Covers every completion criterion:
  *  1. Valid extracted facts can materialise into canonical intelligence.
@@ -11,7 +11,7 @@
  *  7. Cross-user access is rejected.
  *  8. Cross-cell access is rejected.
  *  9. Candidate intelligence queries do not expose raw extraction data by default.
- * 10. Existing Epic 0–3 tests remain compatible.
+ * 10. Existing module tests remain compatible.
  */
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
@@ -905,9 +905,9 @@ describe('9. Read model does not expose raw extraction data by default', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 10. Existing Epic 0–3 behaviour remains compatible
+// 10. Existing module behaviour remains compatible
 // ─────────────────────────────────────────────────────────────────────────────
-describe('10. Existing Epic 0-3 compatibility', () => {
+describe('10. Backward compatibility', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('FactService.getCurrentFacts still works (unchanged API)', async () => {

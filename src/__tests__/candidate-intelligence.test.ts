@@ -1,5 +1,5 @@
 /**
- * Candidate Intelligence Domain — Focused Tests (Epic 4 Prompt 3)
+ * Candidate Intelligence Domain — Focused Tests
  *
  * Covers the eight completion criteria:
  *  1. Multiple extraction runs can exist for one source.
@@ -7,7 +7,7 @@
  *  3. Facts trace back to their extraction run.
  *  4. Provenance traces back to the original source.
  *  5. Cross-user ownership is rejected.
- *  6. Cell ownership is enforced using Prompt 2's routing contract.
+ *  6. Cell ownership is enforced using 's routing contract.
  *  7. Invalid source/run relationships are rejected.
  *  8. Existing candidate/user behaviour remains compatible.
  */
@@ -534,7 +534,7 @@ describe('5. Cross-user ownership rejection', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. Cell ownership is enforced using Prompt 2's routing contract
+// 6. Cell ownership is enforced using 's routing contract
 // ─────────────────────────────────────────────────────────────────────────────
 describe('6. Cell boundary enforcement', () => {
   let runSvc: ExtractionRunService;

@@ -12,7 +12,7 @@ const provenance = {
   evidence: [{ source: 'gmail', sourceId: 'msg-1', observedAt, excerpt: 'Ada Recruiter' }],
 };
 
-describe('Batch 2 recruiter identity, communication, memory, and graph foundation', () => {
+describe('Recruiter identity, communication, memory, and graph foundation', () => {
   it('creates normalized canonical identity profiles with fingerprints, provenance, confidence, and quality', () => {
     const service = new RecruiterIdentityService();
 

@@ -1,5 +1,5 @@
 /**
- * Provenance Pipeline — Epic 4 Prompt 9
+ * Provenance Pipeline
  *
  * Verifies the authoritative provenance pipeline:
  *   Source → ExtractionRun → FactObservation → FactProvenance → CanonicalIntelligence

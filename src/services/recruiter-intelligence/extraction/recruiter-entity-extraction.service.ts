@@ -70,7 +70,7 @@ export interface EntityExtractionResult {
 }
 
 /**
- * RecruiterEntityExtractionService — Prompt 12 implementation.
+ * RecruiterEntityExtractionService —  implementation.
  *
  * Extracts all recruiter intelligence fields from communications:
  *   names, titles, departments, organizations, teams, offices,

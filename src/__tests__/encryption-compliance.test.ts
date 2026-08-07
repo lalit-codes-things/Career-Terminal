@@ -1,5 +1,5 @@
 /**
- * Epic 0.7 — Encryption tests (Phase 33).
+ * Encryption tests.
  *
  * Tests for versioned envelope encryption, key rotation, tamper detection,
  * and configuration validation.
@@ -47,7 +47,7 @@ function loadFresh(): {
 // Test suite
 // ---------------------------------------------------------------------------
 
-describe('Epic 0.7 — Encryption (versioned envelope)', () => {
+describe('Encryption (versioned envelope)', () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };

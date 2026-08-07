@@ -1,5 +1,5 @@
 /**
- * Workload Identity — Phase 2 (Epic 0.7)
+ * Workload Identity —
  *
  * Documents and enforces the workload identity model for secret access.
  *
@@ -46,7 +46,7 @@ export const WORKLOAD_IDENTITIES = {
 export type WorkloadIdentity = (typeof WORKLOAD_IDENTITIES)[keyof typeof WORKLOAD_IDENTITIES];
 
 // ---------------------------------------------------------------------------
-// Secret access policy matrix — Phase 3
+// Secret access policy matrix —
 // ---------------------------------------------------------------------------
 
 /**

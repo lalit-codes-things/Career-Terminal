@@ -7,7 +7,7 @@ import type { ReasoningWorkflow } from '../../../domain/recruiter-intelligence/r
 import type { GraphRagRequest } from '../../../domain/recruiter-intelligence/graph-rag/contracts';
 
 /**
- * RecruiterCopilotService — Prompt 26 implementation.
+ * RecruiterCopilotService —  implementation.
  *
  * Implements an intelligent conversational assistant (Copilot).
  * Understands recruiter context using GraphRAG, memory, and orchestrated context.
@@ -48,7 +48,7 @@ export class RecruiterCopilotService {
       intentWorkflow,
       { tenantId, query: userQuery }
     );
-    
+
     // Map to known intent
     const detectedIntent: CopilotIntent = ['summarize_recruiter', 'analyze_relationship', 'compare_recruiters', 'extract_insights'].includes(intentResult.finalOutput?.intent)
       ? (intentResult.finalOutput.intent as CopilotIntent)

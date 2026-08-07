@@ -1,5 +1,5 @@
 /**
- * Explicit Outcome Events — Epic 4 Prompt 12
+ * Explicit Outcome Events
  *
  * Verifies the outcome event system as a historical immutable record of
  * career events — not derived from mutable application status.

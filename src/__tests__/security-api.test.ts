@@ -1,8 +1,7 @@
 /**
- * Epic 0.5 — API Security Test Suite
+ * API Security Test Suite
  *
- * Tests for all security controls added in Epic 0.5:
- *   - User-aware rate limiting
+ * Tests for all security controls added in  *   - User-aware rate limiting
  *   - SSRF guard
  *   - Resume MIME type validation
  *   - Pagination bounds enforcement

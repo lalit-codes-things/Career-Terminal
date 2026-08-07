@@ -52,23 +52,23 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   INTERNAL_API_KEY: z.string().optional(),
 
-  // Encryption key rotation (Epic 0.7)
+  // Encryption key rotation
   ENCRYPTION_KEY_V2: z.string().length(64).optional(),
   ENCRYPTION_KEY_V3: z.string().length(64).optional(),
   ACTIVE_ENCRYPTION_KEY_VERSION: z.coerce.number().int().positive().default(1),
 
-  // Secret provider backend (Epic 0.7)
+  // Secret provider backend
   // 'env' = environment variables (default)
   // 'vault' = HashiCorp Vault (requires implementation)
   // 'aws' | 'gcp' | 'azure' = cloud secret managers (requires implementation)
   SECRET_PROVIDER_BACKEND: z.enum(['env', 'vault', 'aws', 'gcp', 'azure']).default('env'),
 
-  // Crypto backend (Epic 0.7)
+  // Crypto backend
   // 'software' = AES-256-GCM with env keys (default)
   // 'kms' = cloud KMS / HSM (requires implementation)
   CRYPTO_BACKEND: z.enum(['software', 'kms']).default('software'),
 
-  // Workload identity (Epic 0.7)
+  // Workload identity
   // Set per-workload in k8s deployment to restrict secret access
   WORKLOAD_IDENTITY: z.string().optional(),
 

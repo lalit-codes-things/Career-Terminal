@@ -1,10 +1,10 @@
 /**
- * SnapshotService — Epic 4 Prompt 10
+ * SnapshotService
  *
  * Manages historical candidate-state snapshots so Career Terminal can answer:
  *   "What did the system know about this user at time X?"
  *
- * Design constraints (Prompt 10):
+ * Design constraints ():
  *  - Snapshots are read-optimised historical projections.
  *  - Do NOT duplicate the existing FactObservation history.
  *  - Do NOT implement full event sourcing.
@@ -17,7 +17,7 @@
  *     Used when a precise per-fact link is required (e.g., at application time).
  *     Existing behaviour is preserved for backward compatibility.
  *
- *  2. captureIntelligenceSnapshot (Prompt 10 canonical path)
+ *  2. captureIntelligenceSnapshot ( canonical path)
  *     Captures the CanonicalCandidateIntelligence state as a JSON projection.
  *     Records the last FactObservation ID and a schema version.
  *     Does NOT copy FactObservation rows — the historical facts remain in the
@@ -162,14 +162,14 @@ export class SnapshotService {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Intelligence snapshot (Prompt 10 canonical path)
+  // Intelligence snapshot ( canonical path)
   // ───────────────────────────────────────────────────────────────────────────
 
   /**
    * Capture the current CanonicalCandidateIntelligence state as a read-optimised
    * JSON projection stored in Snapshot.candidateStateJson.
    *
-   * This is the Prompt 10 canonical approach:
+   * This is the  canonical approach:
    *  - Does NOT copy or duplicate FactObservation rows.
    *  - Records the most recent FactObservation ID at capture time as `lastFactId`.
    *  - Stores a schemaVersion so future readers can handle migration.
@@ -184,7 +184,7 @@ export class SnapshotService {
 
     return dbRouter.write().$transaction(async (tx) => {
       // 1. Find the most recent active FactObservation ID at capture time.
-      //    This is the "last included event/fact" required by Prompt 10.
+      //    This is the "last included event/fact" required by .
       const lastFact = await tx.factObservation.findFirst({
         where: { userId, isCurrent: true, deletedAt: null },
         orderBy: { observedAt: 'desc' },

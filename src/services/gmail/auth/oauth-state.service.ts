@@ -1,5 +1,5 @@
 /**
- * OAuth State Service — CSRF protection for OAuth2 flows (Epic 0.7 hardened).
+ * OAuth State Service — CSRF protection for OAuth2 flows (hardened).
  *
  * Generates, validates, and expires temporary state tokens that are passed
  * through the OAuth authorization redirect. This prevents CSRF attacks by
@@ -15,7 +15,7 @@
  *   - Storage backend: Redis when REDIS_HOST is set (horizontal scale),
  *     falls back to in-memory Map for local development.
  *
- * Horizontal scale (Epic 0.7, Phase 4):
+ * Horizontal scale  :
  *   In a multi-instance deployment (multiple API pods), the OAuth callback
  *   may be handled by a different pod than the one that initiated /connect.
  *   The RedisOAuthStateBackend stores state in Redis so any pod can validate

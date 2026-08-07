@@ -1,12 +1,12 @@
 /**
- * Internal API key middleware (Epic 0.7 hardened).
+ * Internal API key middleware (hardened).
  *
  * Some endpoints (e.g. POST /auth/token) are only intended to be called
  * server-side from within our own infrastructure — never by end users.
  * This middleware enforces that by requiring an `x-internal-api-key` header
  * whose value must match the INTERNAL_API_KEY environment variable.
  *
- * Security hardening (Epic 0.7):
+ * Security hardening:
  *   - Comparison uses timingSafeStringEqual() to prevent timing attacks.
  *     A constant-time compare ensures an attacker cannot measure how many
  *     leading bytes of their guess matched the real key.

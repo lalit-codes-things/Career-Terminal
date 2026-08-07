@@ -73,7 +73,7 @@ function makeDimension<T>(
 }
 
 /**
- * RecruiterBehavioralIntelligenceService — Prompt 16 implementation.
+ * RecruiterBehavioralIntelligenceService —  implementation.
  *
  * Infers 13 behavioral dimensions from structured recruiter facts:
  *   communicationStyle, responsiveness, followUpBehavior, hiringUrgency,

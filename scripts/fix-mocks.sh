@@ -19,7 +19,7 @@ for file in \
   "src/__tests__/gmail-sync.test.ts" \
   "src/__tests__/zzz-dbg.test.ts" \
   "src/__tests__/application-merge.service.test.ts" \
-  "src/__tests__/outcome-events.test.ts" \
+  "src/__tests__/outcome-tracking.test.ts" \
   "src/__tests__/security-hardening.test.ts" \
   "src/__tests__/opportunity.service.test.ts" \
   "src/__tests__/gmail-oauth.test.ts" \
@@ -34,7 +34,7 @@ for file in \
   "src/__tests__/application-timeline.service.test.ts" \
   "src/__tests__/provenance-pipeline.test.ts" \
   "src/__tests__/job-analytics.service.test.ts" \
-  "src/__tests__/temporal-snapshots.test.ts" \
+  "src/__tests__/snapshot-versioning.test.ts" \
   "src/__tests__/candidate-intelligence.test.ts" \
   "src/services/recruiter-intelligence/infrastructure/__tests__/vector-store.tenant-isolation.test.ts" \
   "src/services/company/__tests__/company.service.security.test.ts" \

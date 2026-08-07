@@ -1,5 +1,5 @@
 /**
- * Gmail Ingestion Command — Explicit async ingestion contract (Epic 4 Prompt 7)
+ * Gmail Ingestion Command — Explicit async ingestion contract
  *
  * Strongly-typed command for enqueueing Gmail ingestion work.
  * Contains enough information to:

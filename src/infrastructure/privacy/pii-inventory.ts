@@ -1,5 +1,5 @@
 /**
- * PII Inventory — Epic 0.7, Phase 20.
+ * PII Inventory.
  *
  * Authoritative catalogue of all personally identifiable information (PII)
  * processed by the Career Terminal platform. Used for:

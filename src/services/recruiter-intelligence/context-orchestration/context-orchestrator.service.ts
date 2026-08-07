@@ -7,7 +7,7 @@ import type {
 } from '../../../domain/recruiter-intelligence/context-orchestration/contracts';
 
 /**
- * ContextOrchestratorService — Prompt 24 implementation.
+ * ContextOrchestratorService —  implementation.
  *
  * Automatically assembles, deduplicates, and optimizes context from diverse sources
  * (timeline, memory, facts, etc.) to fit within LLM token limits while maximizing relevance.

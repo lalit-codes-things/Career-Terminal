@@ -32,7 +32,7 @@ describe('Company Authenticity Framework', () => {
     engine.registerExecutor(new MockRuleExecutor('provider_agreement', false));
 
     const result = await engine.estimateAuthenticity('C123', {});
-    
+
     // Identity consistency (0.25) passed = 25 points
     // Provider agreement (0.25) failed = 0 points
     // Total weight = 0.5

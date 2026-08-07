@@ -31,7 +31,7 @@ export class AuthenticityEngine {
 
       const evidence = await executor.evaluate(companyId, contextData);
       evidenceList.push(evidence);
-      
+
       const score = evidence.passed ? 100 : 0;
       scoreSum += (score * def.weight);
       totalWeight += def.weight;
@@ -43,7 +43,7 @@ export class AuthenticityEngine {
           description: evidence.details
         });
       }
-      
+
       explanation += `${def.name} (${evidence.passed ? 'Pass' : 'Fail'}), `;
     }
 

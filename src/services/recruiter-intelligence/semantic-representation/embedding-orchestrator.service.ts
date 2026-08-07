@@ -16,7 +16,7 @@ export interface EmbeddingRequest {
 }
 
 /**
- * EmbeddingOrchestratorService — Prompt 21 implementation.
+ * EmbeddingOrchestratorService —  implementation.
  *
  * Orchestrates the lifecycle of embeddings: batching, generation, storage,
  * invalidation, and refresh. Interacts with provider abstraction and vector store.

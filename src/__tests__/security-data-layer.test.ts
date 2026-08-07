@@ -30,7 +30,7 @@ jest.mock('ioredis', () => {
   }));
 });
 
-describe('Epic 0.6: Security Data Layer', () => {
+describe('Security Data Layer', () => {
   describe('Mutex (Safe Redis Lock)', () => {
     let mockRedis: any;
 

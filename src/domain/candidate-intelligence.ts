@@ -1,5 +1,5 @@
 /**
- * Candidate Intelligence Domain Contracts — Epic 4 Prompt 3
+ * Candidate Intelligence Domain Contracts
  *
  * These types form the authoritative domain model for:
  *   A. Extraction runs        – one processing attempt against a source
@@ -8,7 +8,7 @@
  *
  * Design constraints:
  *  - Every extraction run carries cell ownership so the cell boundary
- *    established by Prompt 2 can be enforced at the domain layer.
+ *    established by the routing contract can be enforced at the domain layer.
  *  - Provenance records are write-once; no update path is exported.
  *  - Facts are never silently mutated; a new version supersedes the old.
  *  - Cross-user ownership is a domain error, not an access-control detail.
@@ -435,7 +435,7 @@ export interface ExtractionContext {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Canonical Candidate Intelligence — Epic 4 Prompt 4
+// Canonical Candidate Intelligence
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

@@ -1,5 +1,5 @@
 /**
- * DurableCheckpointService — Durable, resumable Gmail sync checkpoints (Epic 4 Prompt 8)
+ * DurableCheckpointService — Durable, resumable Gmail sync checkpoints
  *
  * Provides atomic checkpoint operations with:
  *   - PostgreSQL advisory locks for real concurrency control

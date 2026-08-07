@@ -54,7 +54,7 @@ function getLevel(): number {
 /**
  * Keys whose values are redacted from log output to prevent credential leakage.
  *
- * Epic 0.7: Extended to cover all secret categories identified in Phase 0.
+ * Extended to cover all secret categories identified in .
  */
 const SENSITIVE_KEYS = new Set([
   // Tokens
