@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { cacheService } from './cache/cache.service';
 import { SupportedRegion } from './placement/placement.types';
 
@@ -20,7 +20,7 @@ export class DataPlaneClient {
   getDatabaseClient() {
     // In the future, this will return a region-specific Prisma client
     // or a connection handle from a pool.
-    return prisma;
+    return dbRouter.write();
   }
 
   /**

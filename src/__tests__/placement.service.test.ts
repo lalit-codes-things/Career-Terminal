@@ -16,14 +16,24 @@ import { prisma } from '../config/database';
 import type { ICacheService } from '../services/cache/cache.service';
 import { ValidationError } from '../errors/app-errors';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 function makeMockCache(): jest.Mocked<ICacheService> {
   return {

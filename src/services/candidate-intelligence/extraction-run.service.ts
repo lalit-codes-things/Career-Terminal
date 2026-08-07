@@ -15,7 +15,7 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { cellRoutingService } from '../routing/cell-routing.service';
 import {
@@ -42,7 +42,7 @@ const TERMINAL_STATUSES = new Set<string>([
 ]);
 
 export class ExtractionRunService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   // ───────────────────────────────────────────────────────────────────────────
   // Create

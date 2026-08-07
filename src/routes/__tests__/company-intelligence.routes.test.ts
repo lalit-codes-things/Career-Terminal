@@ -3,8 +3,8 @@ import request from 'supertest';
 import { companyIntelligenceRouter } from '../company-intelligence.routes';
 import { prisma } from '../../config/database';
 
-jest.mock('../../config/database', () => ({
-  prisma: {
+jest.mock('../../config/database', () => {
+  const prisma = {
     company: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -22,8 +22,18 @@ jest.mock('../../config/database', () => ({
     companyAddress: {
       findMany: jest.fn(),
     },
-  },
-}));
+  };
+  return {
+    prisma,
+    dbRouter: {
+      read: jest.fn().mockReturnValue(prisma),
+      write: jest.fn().mockReturnValue(prisma),
+      withReplicaFallback: jest.fn(),
+      getHealth: jest.fn(),
+      disconnect: jest.fn(),
+    },
+  };
+});
 
 const mockPrisma = prisma as unknown as {
   company: { findUnique: jest.Mock; findMany: jest.Mock; count: jest.Mock };

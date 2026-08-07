@@ -11,7 +11,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { pipeline } from '../recruiter-intelligence/ai/pipeline.factory';
 import type { ExtractionInput, ExtractionOutput } from '../recruiter-intelligence/ai/types';
 import { toConfidenceBand } from '../recruiter-intelligence/ai/utils';
@@ -113,7 +113,7 @@ export abstract class CapabilityBase {
     const confidence = output?.overallConfidence ?? 0;
     const band = toConfidenceBand(confidence);
 
-    const prediction = await prisma.prediction.create({
+    const prediction = await dbRouter.write().prediction.create({
       data: {
         modelId: DEFAULT_MODEL_ID,
         userId: input.userId,
@@ -156,7 +156,7 @@ export abstract class CapabilityBase {
       if (field.confidence < 0.4) continue; // skip very low confidence fields
 
       try {
-        const fact = await prisma.recruiterFact.create({
+        const fact = await dbRouter.write().recruiterFact.create({
           data: {
             recruiterId: input.entityId,
             factType: `${this.name}.${field.field}`,

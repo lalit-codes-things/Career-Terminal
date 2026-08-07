@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import type { JobApplication } from '@prisma/client';
 import type { ExtractedJobData } from '../application-tracking/application-tracking.service';
 import type { ClassifiableEmail } from '../job-intelligence';
@@ -26,12 +26,25 @@ export class ApplicationMergeService {
     atsApplicationId?: string,
     incomingOpportunityId?: string,
   ): Promise<MergeDecision> {
-    // 1. Fetch potential candidates for the user
-    // To be efficient, we fetch all applications for the user, but in a real massive scale system
-    // we would filter by companyDomain first. Since a user has bounded applications, fetching all or
-    // filtering by company is fine.
-    const candidates = await prisma.jobApplication.findMany({
-      where: userOwnershipFilter(userId),
+    const where: Record<string, unknown> = {
+      ...userOwnershipFilter(userId),
+      status: {
+        notIn: ['REJECTED', 'WITHDRAWN'],
+      },
+    };
+
+    if (incomingOpportunityId) {
+      where.opportunityId = incomingOpportunityId;
+    } else if (atsApplicationId) {
+      where.atsApplicationId = atsApplicationId;
+    } else if (incomingData.company.domain) {
+      where.companyDomain = incomingData.company.domain;
+    }
+
+    const candidates = await dbRouter.read().jobApplication.findMany({
+      where,
+      orderBy: { lastActivityAt: 'desc' },
+      take: 50,
     });
 
     let bestMatch: JobApplication | null = null;
@@ -48,7 +61,6 @@ export class ApplicationMergeService {
         incomingOpportunityId,
       );
 
-      // Always track the best reasons for debugging (including strict rejects at 0)
       if (confidence > highestConfidence || highestConfidence === -1) {
         highestConfidence = confidence;
         bestMatch = candidate;
@@ -56,10 +68,8 @@ export class ApplicationMergeService {
       }
     }
 
-    // Normalize (-1 means no candidates)
     if (highestConfidence === -1) highestConfidence = 0;
 
-    // Threshold for merging
     if (highestConfidence >= 80 && bestMatch) {
       return {
         targetApplication: bestMatch,

@@ -7,7 +7,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import type { CandidateProfile, User } from '@prisma/client';
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { isValidUuid } from '../../utils/user-ownership';
 import { logger } from '../../lib/logger';
@@ -27,7 +27,7 @@ export type CandidateProfileUpdate = {
 };
 
 export class UserService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   /**
    * Idempotently resolve or create a user for an external identifier.

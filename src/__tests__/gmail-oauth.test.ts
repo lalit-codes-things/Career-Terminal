@@ -13,8 +13,8 @@ import { OAuthError, NotFoundError, TokenError } from '../errors/app-errors';
 
 // Mock dependencies
 jest.mock('googleapis');
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     userEmailConnection: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
@@ -36,8 +36,18 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 jest.mock('../utils/encryption');
 // Mock oauthStateService so validateAndConsume returns a Promise
 jest.mock('../services/gmail/auth/oauth-state.service', () => ({

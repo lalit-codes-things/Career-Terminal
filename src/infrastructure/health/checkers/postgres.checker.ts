@@ -1,4 +1,4 @@
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { IHealthChecker, HealthCheckResult } from '../health.types';
 
 export class PostgresChecker implements IHealthChecker {
@@ -7,7 +7,7 @@ export class PostgresChecker implements IHealthChecker {
   async check(): Promise<HealthCheckResult> {
     const start = Date.now();
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await dbRouter.write().$queryRaw`SELECT 1`;
       return {
         name: this.name,
         status: 'healthy',

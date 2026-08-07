@@ -40,7 +40,7 @@ export class ResumeMatcherService {
     for (const reqSkill of parsedJob.skills) {
       let bestMatch = 0;
       for (const resSkill of parsedResume.skills) {
-        const score = await this.tokenOverlapMatcher.scoreSimilarity(reqSkill, resSkill);
+        const score = this.tokenOverlapMatcher.scoreSimilarity(reqSkill, resSkill);
         if (score > bestMatch) bestMatch = score;
       }
 
@@ -57,7 +57,7 @@ export class ResumeMatcherService {
     for (const reqTech of parsedJob.technologies) {
       let bestMatch = 0;
       for (const resTech of parsedResume.technologies) {
-        const score = await this.tokenOverlapMatcher.scoreSimilarity(reqTech, resTech);
+        const score = this.tokenOverlapMatcher.scoreSimilarity(reqTech, resTech);
         if (score > bestMatch) bestMatch = score;
       }
       techScoreSum += bestMatch;
@@ -71,7 +71,7 @@ export class ResumeMatcherService {
     for (const reqOcc of parsedJob.occupations) {
       let bestMatch = 0;
       for (const resOcc of parsedResume.occupations) {
-        const score = await this.tokenOverlapMatcher.scoreSimilarity(reqOcc, resOcc);
+        const score = this.tokenOverlapMatcher.scoreSimilarity(reqOcc, resOcc);
         if (score > bestMatch) bestMatch = score;
       }
       occupationScoreSum += bestMatch;

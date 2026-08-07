@@ -3,16 +3,26 @@ import { dashboardService } from '../services/dashboard';
 import { ApplicationTimelineEventType } from '@prisma/client';
 import { JobApplicationStatus } from '../services/job-application';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     jobApplication: {
       groupBy: jest.fn(),
     },
     applicationTimeline: {
       findMany: jest.fn(),
     },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 const mockPrisma = prisma as unknown as {
   jobApplication: {
@@ -80,7 +90,7 @@ describe('DashboardService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           application: expect.objectContaining({
-            OR: [{ userId: 'user-1' }, { legacyUserId: 'user-1' }],
+            userId: 'user-1',
           }),
         }),
         take: 5,

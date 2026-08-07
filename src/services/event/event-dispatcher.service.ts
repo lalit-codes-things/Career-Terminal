@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { queueService } from '../queue/queue.service';
 import { logger } from '../../lib/logger';
 import type { Prisma } from '@prisma/client';
@@ -30,7 +30,7 @@ export class EventDispatcherService {
    * business transaction and `publishFromEvent(event)` after it commits.
    */
   async publish(input: CreateEventInput): Promise<string> {
-    const event = await prisma.$transaction(async (tx) => {
+    const event = await dbRouter.write().$transaction(async (tx) => {
       return this.publishInTransaction(tx, input);
     });
 
@@ -85,7 +85,7 @@ export class EventDispatcherService {
     try {
       await this.dispatchToQueue(event);
 
-      await prisma.event.update({
+      await dbRouter.write().event.update({
         where: { id: event.id },
         data: { status: 'processed', processedAt: new Date() },
       });

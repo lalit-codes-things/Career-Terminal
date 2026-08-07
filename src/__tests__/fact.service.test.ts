@@ -1,8 +1,8 @@
 import { factService } from '../services/fact.service';
 import { prisma } from '../config/database';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     factObservation: {
       create: jest.fn(),
       update: jest.fn(),
@@ -11,8 +11,18 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
     },
     $transaction: jest.fn((callback) => callback(prisma)),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 describe('FactService', () => {
   const userId = 'user-123';

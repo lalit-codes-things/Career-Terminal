@@ -27,6 +27,7 @@ model Opportunity {
   extractionRuns    ExtractionRun[]
   predictions       Prediction[]
   actionEvents      ActionEvent[]
+  economicEvents    EconomicEvent[]
   observations      OpportunityObservation[]
 
   @@index([companyId])

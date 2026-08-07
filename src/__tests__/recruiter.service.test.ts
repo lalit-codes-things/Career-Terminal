@@ -1,15 +1,25 @@
 import { prisma } from '../config/database';
 import { recruiterService } from '../services/recruiter';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     company: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     companyAlias: { findFirst: jest.fn(), upsert: jest.fn() },
     recruiter: { upsert: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
     jobApplication: { update: jest.fn(), findFirst: jest.fn() },
     emailMessage: { update: jest.fn() },
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../services/company', () => ({
   companyService: {

@@ -22,7 +22,7 @@ import { deletionService } from '../services/deletion.service';
 import { tokenService } from '../services/auth/token.service';
 import { cacheService } from '../services/cache/cache.service';
 import { userService } from '../services/user';
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ userRouter.get(
     try {
       await userService.getOrCreateUser(userId);
       const [user, profile] = await Promise.all([
-        prisma.user.findUnique({
+        dbRouter.read().user.findUnique({
           where: { id: await userService.resolveUserId(userId) },
           select: {
             id: true,

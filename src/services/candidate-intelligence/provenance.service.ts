@@ -19,7 +19,7 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import {
   type ProvenanceRecord,
@@ -31,7 +31,7 @@ import { cellRoutingService } from '../routing/cell-routing.service';
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export class ProvenanceService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   // ───────────────────────────────────────────────────────────────────────────
   // Reads (the only permitted operations on provenance)

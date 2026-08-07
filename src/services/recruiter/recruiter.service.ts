@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { companyService } from '../company';
 import { ownershipGuard } from '../ownership/ownership.guard';
@@ -127,7 +127,7 @@ export class RecruiterService {
       recruiter: { name?: string; email?: string };
       title?: string;
     },
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.write(),
   ): Promise<RecruiterProfile | null> {
     await ownershipGuard.ensureApplicationAccess(input.userId, input.application.id, db);
 
@@ -229,7 +229,7 @@ export class RecruiterService {
         : []),
     ];
 
-    const recruiters = (await prisma.recruiter.findMany({
+    const recruiters = (await dbRouter.read().recruiter.findMany({
       where: {
         ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
         applications: {
@@ -268,9 +268,9 @@ export class RecruiterService {
   }
 
   public async getRecruiter(userId: string, recruiterId: string): Promise<RecruiterInsight> {
-    await ownershipGuard.ensureRecruiterAccess(userId, recruiterId, prisma);
+    await ownershipGuard.ensureRecruiterAccess(userId, recruiterId, dbRouter.write());
 
-    const recruiter = (await prisma.recruiter.findFirst({
+    const recruiter = (await dbRouter.read().recruiter.findFirst({
       where: { id: recruiterId },
       include: {
         company: true,
@@ -311,7 +311,7 @@ export class RecruiterService {
     userId: string,
     applicationId: string,
   ): Promise<RecruiterInsight | null> {
-    const application = await prisma.jobApplication.findFirst({
+    const application = await dbRouter.read().jobApplication.findFirst({
       where: {
         id: applicationId,
         userId,

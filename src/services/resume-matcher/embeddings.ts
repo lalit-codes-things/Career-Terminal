@@ -25,7 +25,7 @@ function jaccardScore(tokensA: Set<string>, tokensB: Set<string>): number {
  * matching but does not capture semantic meaning.
  */
 export class TokenOverlapMatcher {
-  public async scoreSimilarity(textA: string, textB: string): Promise<number> {
+  public scoreSimilarity(textA: string, textB: string): number {
     const cleanA = textA.toLowerCase().trim();
     const cleanB = textB.toLowerCase().trim();
 

@@ -12,7 +12,7 @@
  */
 import { google } from 'googleapis';
 import { config } from '../../../config';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { OAuthError, TokenError, NotFoundError } from '../../../errors/app-errors';
 import { cryptoService } from '../../../infrastructure/crypto/crypto-service';
 import { oauthStateService } from './oauth-state.service';
@@ -126,7 +126,7 @@ export class GmailOAuthService {
    * @throws {TokenError} If the refresh token is revoked or invalid
    */
   async refreshAccessToken(userId: string, connectionId: string): Promise<TokenRefreshResult> {
-    const connection = await prisma.userEmailConnection.findUnique({
+    const connection = await dbRouter.read().userEmailConnection.findUnique({
       where: { id: connectionId },
     });
 
@@ -155,7 +155,7 @@ export class GmailOAuthService {
         .ciphertext;
       const expiryDate = new Date(credentials.expiry_date);
 
-      await prisma.userEmailConnection.update({
+      await dbRouter.write().userEmailConnection.update({
         where: { id: connectionId },
         data: {
           accessTokenEncrypted: encryptedAccessToken,
@@ -170,7 +170,7 @@ export class GmailOAuthService {
       };
     } catch (error) {
       // Mark the connection as having an error if refresh fails
-      await prisma.userEmailConnection.update({
+      await dbRouter.write().userEmailConnection.update({
         where: { id: connectionId },
         data: { status: 'ERROR' },
       });
@@ -190,7 +190,7 @@ export class GmailOAuthService {
    * @returns A valid (non-expired) access token
    */
   async getValidAccessToken(userId: string, connectionId: string): Promise<string> {
-    const connection = await prisma.userEmailConnection.findUnique({
+    const connection = await dbRouter.read().userEmailConnection.findUnique({
       where: { id: connectionId },
     });
 
@@ -293,7 +293,7 @@ export class GmailOAuthService {
     const scopes = tokens.scope.split(' ');
     const userScope = await userService.userScopeFor(userId);
 
-    const connection = await prisma.userEmailConnection.upsert({
+    const connection = await dbRouter.write().userEmailConnection.upsert({
       where: {
         unique_user_provider_email: {
           legacyUserId: userId,

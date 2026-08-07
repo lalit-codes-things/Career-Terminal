@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { FactObservation, Prisma } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { factService } from './fact.service';
@@ -16,7 +16,7 @@ export class FactCorrectionService {
     reason: string,
     evidence?: string,
   ): Promise<FactObservation> {
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       const originalFact = await tx.factObservation.findUnique({
         where: { id: originalFactId },
         include: { extractionRun: true, provenance: true },
@@ -95,7 +95,7 @@ export class FactCorrectionService {
    * User flags a fact as needing review (e.g., if they suspect it's incorrect)
    */
   async flagForReview(factId: string, userId: string, reason: string): Promise<void> {
-    await prisma.factObservation.update({
+    await dbRouter.write().factObservation.update({
       where: { id: factId },
       data: {
         needsReview: true,
@@ -120,7 +120,7 @@ export class FactCorrectionService {
     status: 'approved' | 'rejected',
     notes?: string,
   ): Promise<void> {
-    await prisma.factObservation.update({
+    await dbRouter.write().factObservation.update({
       where: { id: factId },
       data: {
         reviewStatus: status,
@@ -143,7 +143,7 @@ export class FactCorrectionService {
    * Get all facts pending review, ordered by lowest confidence first.
    */
   async getPendingReviews(limit: number = 100): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: {
         needsReview: true,
         reviewStatus: 'pending',
@@ -160,7 +160,7 @@ export class FactCorrectionService {
     status: 'approved' | 'rejected' | 'pending',
     limit: number = 100,
   ): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: {
         reviewStatus: status,
       },
@@ -177,7 +177,7 @@ export class FactCorrectionService {
     let currentId: string | null = factId;
 
     while (currentId) {
-      const fact: FactObservation | null = await prisma.factObservation.findUnique({
+      const fact: FactObservation | null = await dbRouter.read().factObservation.findUnique({
         where: { id: currentId },
       });
 

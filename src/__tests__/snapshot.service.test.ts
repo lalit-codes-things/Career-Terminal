@@ -1,8 +1,8 @@
 import { snapshotService } from '../services/snapshot.service';
 import { prisma } from '../config/database';
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     snapshot: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -14,8 +14,18 @@ jest.mock('../config/database', () => ({
       create: jest.fn(),
     },
     $transaction: jest.fn((callback) => callback(prisma)),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 describe('SnapshotService', () => {
   const userId = 'user-456';

@@ -36,7 +36,7 @@
  * invoke periodically (once a day is plenty).
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { isWellFormedKey } from './idempotency.keys';
 import { ValidationError } from '../../errors/app-errors';
@@ -59,7 +59,7 @@ export type ClaimResult =
   | { claimed: false; existing: { resultId: string | null; resultData: unknown } };
 
 export class IdempotencyService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   // ─────────────────────────────────────────────────────────────────────────
   // Single-call convenience API (prefer this)

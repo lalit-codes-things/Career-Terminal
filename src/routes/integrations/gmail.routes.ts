@@ -8,7 +8,7 @@ import { Request, Response, NextFunction, Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, UnauthorizedError } from '../../middleware/auth';
 import { createRateLimiter } from '../../middleware/rate-limiter';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 import { logger } from '../../lib/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,7 +45,7 @@ gmailRouter.post(
 
       // Get user's active Gmail connection
       const scopeFilter = userOwnershipFilter(userId);
-      const connection = await prisma.userEmailConnection.findFirst({
+      const connection = await dbRouter.read().userEmailConnection.findFirst({
         where: {
           ...scopeFilter,
           provider: 'GMAIL',
@@ -126,7 +126,7 @@ gmailRouter.get('/status', requireAuth, async (req: Request, res: Response, next
 
     // Get user's Gmail connection
     const scopeFilter = userOwnershipFilter(userId);
-    const connection = await prisma.userEmailConnection.findFirst({
+    const connection = await dbRouter.read().userEmailConnection.findFirst({
       where: {
         ...scopeFilter,
         provider: 'GMAIL',
@@ -150,13 +150,13 @@ gmailRouter.get('/status', requireAuth, async (req: Request, res: Response, next
     }
 
     // Get sync state
-    const syncState = await prisma.gmailSyncState.findUnique({
+    const syncState = await dbRouter.read().gmailSyncState.findUnique({
       where: { userId },
       select: { historyId: true, lastSyncedAt: true },
     });
 
     // Get checkpoint state
-    const checkpoint = await prisma.gmailCheckpoint.findUnique({
+    const checkpoint = await dbRouter.read().gmailCheckpoint.findUnique({
       where: { userId },
       select: {
         status: true,
@@ -167,7 +167,7 @@ gmailRouter.get('/status', requireAuth, async (req: Request, res: Response, next
     });
 
     // Get latest sync job
-    const latestJob = await prisma.syncJob.findFirst({
+    const latestJob = await dbRouter.read().syncJob.findFirst({
       where: {
         userId,
         type: { in: ['GMAIL_INITIAL_SYNC', 'GMAIL_INCREMENTAL_SYNC'] },

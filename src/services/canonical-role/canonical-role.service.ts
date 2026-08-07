@@ -9,13 +9,13 @@
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { type CanonicalRoleInput, type CanonicalRoleRecord } from '../../domain/canonical-role';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export class CanonicalRoleService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   async createRole(
     input: CanonicalRoleInput,

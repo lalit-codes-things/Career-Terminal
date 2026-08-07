@@ -27,7 +27,7 @@
  * matching so we never scan the full company opportunity set.
  */
 import type { Opportunity, Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { companyService, type CompanyResolveInput } from '../company';
 import { acquireLock, releaseLock } from '../../lib/mutex';
 import { logger } from '../../lib/logger';
@@ -135,7 +135,7 @@ function isRicherText(existing: string | null | undefined, incoming: string | un
 }
 
 export class OpportunityService {
-  constructor(private readonly db: DbClient = prisma) { }
+  constructor(private readonly db: DbClient = dbRouter.write()) { }
 
   // ── Public API ──────────────────────────────────────────────────────────
 
@@ -267,10 +267,10 @@ export class OpportunityService {
     };
 
     try {
-      if (db !== prisma) {
+      if (db !== dbRouter.write()) {
         return await run(db);
       }
-      return await executeWithTransientRetry(prisma, run);
+      return await executeWithTransientRetry(dbRouter.write(), run);
     } finally {
       if (lockToken) {
         await releaseLock(lockKey, lockToken).catch((err) =>

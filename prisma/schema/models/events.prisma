@@ -55,6 +55,8 @@ model ActionEvent {
   opportunity      Opportunity?    @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([userId, actionType])
+  @@index([userId, occurredAt])
   @@index([applicationId])
   @@index([opportunityId])
   @@index([actionType])
@@ -83,6 +85,8 @@ model Event {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, status])
+  @@index([status, createdAt])
   @@index([aggregateId, aggregateType])
   @@index([status])
   @@index([correlationId])

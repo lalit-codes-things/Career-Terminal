@@ -21,7 +21,7 @@
  *   (default)   → [understand, extract]
  */
 
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import {
   understandCapability,
   extractCapability,
@@ -110,7 +110,7 @@ export class Planner {
       entityId: req.entityId,
     }, async () => {
       // Record the planner decision as a Prediction row
-      const planPrediction = await prisma.prediction.create({
+      const planPrediction = await dbRouter.write().prediction.create({
         data: {
           modelId: 'deepseek/deepseek-chat',
           userId: req.userId,
@@ -150,7 +150,7 @@ export class Planner {
           const result = await capability.run(capInput);
           results.push(result);
         } catch {
-          await prisma.prediction.create({
+          await dbRouter.write().prediction.create({
             data: {
               modelId: 'deepseek/deepseek-chat',
               userId: req.userId,

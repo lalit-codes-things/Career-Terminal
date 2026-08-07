@@ -9,7 +9,7 @@
  *   5. Emits structured telemetry
  */
 
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { queueService } from '../../services/queue/queue.service';
 import { idempotencyService } from '../idempotency/idempotency.service';
@@ -145,7 +145,7 @@ export async function enqueueGmailIngestion(command: GmailIngestionCommand): Pro
 async function validateUserOwnsConnection(userId: string, connectionId: string): Promise<void> {
   const scopeFilter = userOwnershipFilter(userId);
 
-  const connection = await prisma.userEmailConnection.findFirst({
+  const connection = await dbRouter.read().userEmailConnection.findFirst({
     where: {
       ...scopeFilter,
       id: connectionId,
@@ -170,7 +170,7 @@ async function validateUserOwnsConnection(userId: string, connectionId: string):
 async function isBackpressured(): Promise<boolean> {
   const limit = config.limits.maxQueryParams;
 
-  const pendingCount = await prisma.syncJob.count({
+  const pendingCount = await dbRouter.read().syncJob.count({
     where: {
       status: { in: ['PENDING', 'RUNNING'] },
     },

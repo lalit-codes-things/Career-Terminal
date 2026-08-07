@@ -23,7 +23,7 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { cellRoutingService } from '../routing/cell-routing.service';
 import {
@@ -154,7 +154,7 @@ function candidateWins(candidate: PrecedenceInput, existing: PrecedenceInput): b
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class CanonicalIntelligenceService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   // ── Write path ─────────────────────────────────────────────────────────────
 

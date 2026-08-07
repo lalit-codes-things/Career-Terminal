@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { DEFAULT_REGION } from '../placement/placement.types';
 import { computeShardKey } from '../placement/placement.service';
 
@@ -24,7 +24,7 @@ export type CellResolution = {
 };
 
 export class CellService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   getDeterministicCellId(userId: string, region: string = DEFAULT_REGION): string {
     const shardKey = computeShardKey(userId);

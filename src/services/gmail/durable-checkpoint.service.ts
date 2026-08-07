@@ -12,7 +12,7 @@
  *   - Atomic advancement: processed → committed → advanced
  *   - Structured telemetry for all lifecycle events
  */
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { Prisma, SyncBatch, GmailCheckpoint } from '@prisma/client';
 import { userService } from '../user';
@@ -61,7 +61,7 @@ export class DurableCheckpointService {
   ): Promise<SyncOpResult> {
     const userScope = await userService.userScopeFor(userId);
 
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       const claim = await this.claimCheckpoint(tx, userScope.userId, workerId);
       if (!claim.claimed) {
         throw new Error(`Cannot initialize sync: ${claim.reason}`);
@@ -141,7 +141,7 @@ export class DurableCheckpointService {
     newHistoryId: string,
     nextPageToken?: string,
   ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    await dbRouter.write().$transaction(async (tx) => {
       const batch = await tx.syncBatch.findUnique({
         where: { id: batchId },
         select: { id: true, status: true, userId: true, failedCount: true, processedCount: true },
@@ -206,8 +206,8 @@ export class DurableCheckpointService {
   async loadDurableState(userId: string): Promise<DurableCheckpointState> {
     const userScope = await userService.userScopeFor(userId);
     const [checkpoint, pendingBatch] = await Promise.all([
-      prisma.gmailCheckpoint.findUnique({ where: { userId: userScope.userId } }),
-      prisma.syncBatch.findFirst({
+      dbRouter.read().gmailCheckpoint.findUnique({ where: { userId: userScope.userId } }),
+      dbRouter.read().syncBatch.findFirst({
         where: {
           userId: userScope.userId,
           status: { in: ['pending', 'processing'] },
@@ -217,7 +217,7 @@ export class DurableCheckpointService {
     ]);
 
     const syncOp = pendingBatch
-      ? await prisma.syncOperation.findFirst({
+      ? await dbRouter.read().syncOperation.findFirst({
           where: {
             userId: userScope.userId,
             status: 'running',
@@ -256,7 +256,7 @@ export class DurableCheckpointService {
       const batch = state.pendingBatch;
 
       if (batch.totalEmails && batch.totalEmails > 0) {
-        const unprocessedJobs = await prisma.batchEmailJob.count({
+        const unprocessedJobs = await dbRouter.read().batchEmailJob.count({
           where: {
             batchId: batch.id,
             status: { in: ['pending', 'processing', 'retryable'] },
@@ -334,7 +334,7 @@ export class DurableCheckpointService {
    * Call this periodically during long sync operations.
    */
   async refreshLease(userId: string, workerId: string): Promise<boolean> {
-    const result = await prisma.gmailCheckpoint.updateMany({
+    const result = await dbRouter.write().gmailCheckpoint.updateMany({
       where: {
         userId,
         leaseOwner: workerId,
@@ -351,7 +351,7 @@ export class DurableCheckpointService {
    * Release a checkpoint lease when sync completes or fails.
    */
   async releaseLease(userId: string, workerId: string): Promise<void> {
-    await prisma.gmailCheckpoint.updateMany({
+    await dbRouter.write().gmailCheckpoint.updateMany({
       where: {
         userId,
         leaseOwner: workerId,
@@ -371,7 +371,7 @@ export class DurableCheckpointService {
    */
   async recoverStaleLeases(): Promise<number> {
     const now = new Date();
-    const result = await prisma.gmailCheckpoint.updateMany({
+    const result = await dbRouter.write().gmailCheckpoint.updateMany({
       where: {
         status: 'syncing',
         leaseExpiresAt: { lt: now },
@@ -395,7 +395,7 @@ export class DurableCheckpointService {
    * Mark a sync operation as completed successfully.
    */
   async completeSyncOp(syncOpId: string): Promise<void> {
-    await prisma.syncOperation.update({
+    await dbRouter.write().syncOperation.update({
       where: { id: syncOpId },
       data: {
         status: 'completed',
@@ -410,7 +410,7 @@ export class DurableCheckpointService {
    * Mark a sync operation as permanently failed.
    */
   async failSyncOp(syncOpId: string, error: string): Promise<void> {
-    await prisma.syncOperation.update({
+    await dbRouter.write().syncOperation.update({
       where: { id: syncOpId },
       data: {
         status: 'failed',
@@ -431,7 +431,7 @@ export class DurableCheckpointService {
     status: 'processed' | 'skipped' | 'failed' | 'retryable' | 'permanently_failed',
     error?: string,
   ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    await dbRouter.write().$transaction(async (tx) => {
       const existing = await tx.batchEmailJob.findFirst({
         where: { batchId, emailId },
       });
@@ -477,7 +477,7 @@ export class DurableCheckpointService {
   }
 
   async finalizeBatchEmails(batchId: string): Promise<void> {
-    await prisma.batchEmailJob.updateMany({
+    await dbRouter.write().batchEmailJob.updateMany({
       where: {
         batchId,
         status: { in: ['pending', 'processing'] },
@@ -499,7 +499,7 @@ export class DurableCheckpointService {
     expectedVersion: number,
     data: Partial<Prisma.GmailCheckpointUpdateInput>,
   ): Promise<boolean> {
-    const result = await prisma.gmailCheckpoint.updateMany({
+    const result = await dbRouter.write().gmailCheckpoint.updateMany({
       where: { userId, version: expectedVersion },
       data: {
         ...data,

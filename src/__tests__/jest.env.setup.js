@@ -4,6 +4,7 @@
  * at module load time during tests.  They do NOT represent real credentials.
  */
 process.env.NODE_ENV = 'test';
+process.env.ALLOW_TEST_AUTH_BYPASS = 'true';
 process.env.JWT_SECRET = 'test-jwt-secret-minimum-32-chars-padding-ok';
 process.env.ENCRYPTION_KEY = 'aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899';
 process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';

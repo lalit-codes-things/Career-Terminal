@@ -14,7 +14,7 @@
  *                          existing deterministic OpportunityIntelligenceEngine
  */
 
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { planner } from '../planner';
 
 export interface OpportunityRankItem {
@@ -57,7 +57,7 @@ export class OpportunityIntelligenceService {
     if (opportunityIds.length === 0) return [];
 
     // Load user facts for context
-    const userFacts = await prisma.factObservation.findMany({
+    const userFacts = await dbRouter.read().factObservation.findMany({
       where: { userId, isCurrent: true, deletedAt: null },
       select: { factType: true, factData: true, confidence: true },
       orderBy: { confidence: 'desc' },
@@ -69,7 +69,7 @@ export class OpportunityIntelligenceService {
       .join('\n');
 
     // Load opportunities
-    const opportunities = await prisma.opportunity.findMany({
+    const opportunities = await dbRouter.read().opportunity.findMany({
       where: { id: { in: opportunityIds } },
       select: {
         id: true,
@@ -146,11 +146,11 @@ export class OpportunityIntelligenceService {
     userId: string,
   ): Promise<RecruiterMatchResult> {
     const [opportunity, recruiterFacts] = await Promise.all([
-      prisma.opportunity.findUnique({
+      dbRouter.read().opportunity.findUnique({
         where: { id: opportunityId },
         select: { title: true, description: true, requirements: true },
       }),
-      prisma.recruiterFact.findMany({
+      dbRouter.read().recruiterFact.findMany({
         where: { recruiterId, deletedAt: null },
         select: { factType: true, factValue: true, confidence: true },
         orderBy: { confidence: 'desc' },
@@ -200,7 +200,7 @@ export class OpportunityIntelligenceService {
    * AI validation of an opportunity record — augments the existing deterministic engine.
    */
   async validateWithAi(opportunityId: string, userId: string): Promise<AiValidationResult> {
-    const opportunity = await prisma.opportunity.findUnique({
+    const opportunity = await dbRouter.read().opportunity.findUnique({
       where: { id: opportunityId },
       select: {
         title: true,

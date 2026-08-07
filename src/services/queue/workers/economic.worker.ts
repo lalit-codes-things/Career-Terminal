@@ -3,7 +3,7 @@ import { bullMQConnection } from '../../../config/redis';
 import { logger } from '../../../lib/logger';
 import { QUEUE_NAMES, type EconomicDocumentJobPayload, EconomicDocumentJobPayloadSchema } from '../queue.types';
 import { config } from '../../../config';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { pipeline } from '../../../services/recruiter-intelligence/ai/pipeline.factory';
 import { randomUUID } from 'crypto';
 
@@ -74,7 +74,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
 
   const needsReview = overallConfidence < 0.55;
 
-  const extractionRun = await prisma.extractionRun.create({
+  const extractionRun = await dbRouter.write().extractionRun.create({
     data: {
       userId,
       sourceType: 'economic-document',
@@ -91,7 +91,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
     },
   });
 
-  const provenance = await prisma.factProvenance.create({
+  const provenance = await dbRouter.write().factProvenance.create({
     data: {
       userId,
       sourceType: 'economic-document',
@@ -105,7 +105,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
     },
   });
 
-  const economicDocument = await prisma.economicDocument.create({
+  const economicDocument = await dbRouter.write().economicDocument.create({
     data: {
       userId,
       documentType,
@@ -135,7 +135,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
     const fieldNeedsReview = fieldConfidence < 0.55;
 
     try {
-      const fact = await prisma.factObservation.create({
+        const fact = await dbRouter.write().factObservation.create({
         data: {
           userId,
           factType: `economic.${field.field}`,
@@ -172,7 +172,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
   const economicEvents = buildEconomicEvents(fields, economicDocument.id, userId, documentType);
   for (const event of economicEvents) {
     try {
-      await prisma.economicEvent.create({
+        await dbRouter.write().economicEvent.create({
         data: {
           userId,
           eventType: event.eventType,
@@ -198,7 +198,7 @@ async function processEconomicDocumentJob(job: Job<EconomicDocumentJobPayload>):
   const signals = inferEconomicSignals(fields, economicDocument.id);
   for (const signal of signals) {
     try {
-      await prisma.economicSignal.create({
+        await dbRouter.write().economicSignal.create({
         data: {
           userId,
           signalType: signal.signalType,
@@ -440,18 +440,17 @@ async function storeEconomicMemory(
     ];
 
     for (const entry of memoryEntries) {
-      await prisma.recruiterMemoryObservation.create({
+      await dbRouter.write().recruiterMemoryObservation.create({
         data: {
           recruiterId: userId,
           factType: entry.factType,
           factValue: entry.factValue as any,
           confidence: entry.confidence,
-          validFrom: new Date(),
-          validTo: null,
-          source: 'economic-document-extraction',
-          provenanceJson: { documentId },
-          evidenceJson: [],
-        },
+           validFrom: new Date(),
+           validTo: null,
+           provenanceJson: { documentId },
+           evidenceJson: [],
+         },
       });
     }
   } catch {

@@ -7,14 +7,14 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { type RecommendationInput, type RecommendationRecord } from '../../domain/recommendation';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export class RecommendationService {
-  constructor(private readonly db: DbClient = prisma) {}
+  constructor(private readonly db: DbClient = dbRouter.write()) {}
 
   async createRecommendation(
     input: RecommendationInput,

@@ -12,7 +12,7 @@
 import { createHash } from 'crypto';
 import path from 'path';
 import { PrismaClient, type Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import type { IStorageService } from '../storage/storage.service';
 import { storageService as defaultStorageService } from '../storage/storage.service';
 import { eventDispatcher } from '../event/event-dispatcher.service';
@@ -112,7 +112,7 @@ export class ResumeUploadService {
 
     const quarantineKey = `uploads/quarantine/resumes/${userId}/${hash}-${Date.now()}${ext}`;
     const cleanStorageKey = `uploads/resumes/${hash}${ext}`;
-    const existingHash = await prisma.resumeHash.findUnique({ where: { hash } });
+    const existingHash = await dbRouter.read().resumeHash.findUnique({ where: { hash } });
 
     await this.storage.uploadToBucket(quarantineBucket, quarantineKey, fileBuffer, mimeType);
 
@@ -128,7 +128,7 @@ export class ResumeUploadService {
       });
     } else {
       try {
-        const newHash = await prisma.resumeHash.create({
+        const newHash = await dbRouter.write().resumeHash.create({
           data: {
             hash,
             storageKey: cleanStorageKey,
@@ -140,7 +140,7 @@ export class ResumeUploadService {
         resumeHashId = newHash.id;
       } catch (err: unknown) {
         if (err instanceof Error && 'code' in err && (err as { code?: string }).code === 'P2002') {
-          const retryHash = await prisma.resumeHash.findUnique({ where: { hash } });
+          const retryHash = await dbRouter.read().resumeHash.findUnique({ where: { hash } });
           if (!retryHash) {
             throw err;
           }
@@ -165,7 +165,7 @@ export class ResumeUploadService {
     const userScope = await userService.userScopeFor(userId);
     const placement = await placementService.resolvePlacementContext(userScope.userId);
     const ownershipFilter = userOwnershipFilter(userId);
-    const currentMaxRow = await prisma.userResume.findFirst({
+    const currentMaxRow = await dbRouter.read().userResume.findFirst({
       where: ownershipFilter,
       orderBy: { version: 'desc' },
       select: { version: true },
@@ -176,7 +176,7 @@ export class ResumeUploadService {
     // Transactional outbox: the userResume write and the RESUME_UPLOADED event
     // insert commit (or roll back) atomically. RLS is set transaction-scoped so
     // the RLS policies apply even under PgBouncer transaction pooling.
-    const outboxEvent = await prisma
+    const outboxEvent = await dbRouter.write()
       .$transaction(async (tx) => {
         await setRlsUserIdInTransaction(tx, userScope.userId);
 
@@ -285,7 +285,7 @@ export class ResumeUploadService {
     createdAt: Date;
     version: number;
   } | null> {
-    const record = await withRlsTransaction(prisma, userId, async (tx) => {
+    const record = await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       const row = await tx.userResume.findFirst({
         where: { ...userOwnershipFilter(userId), isActive: true },
         include: { resumeHash: true },
@@ -310,7 +310,7 @@ export class ResumeUploadService {
   }
 
   async getActiveResumeRow(userId: string): Promise<ActiveResumeRow | null> {
-    return withRlsTransaction(prisma, userId, async (tx) => {
+    return withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       const record = await tx.userResume.findFirst({
         where: { ...userOwnershipFilter(userId), isActive: true },
         include: { resumeHash: true },
@@ -330,7 +330,7 @@ export class ResumeUploadService {
   }
 
   async listVersions(userId: string): Promise<ResumeVersionInfo[]> {
-    return withRlsTransaction(prisma, userId, async (tx) => {
+    return withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       const ownershipFilter = userOwnershipFilter(userId);
       const rows = await tx.userResume.findMany({
         where: ownershipFilter,
@@ -356,7 +356,7 @@ export class ResumeUploadService {
   }
 
   async deleteVersion(userId: string, userResumeId: string): Promise<void> {
-    await withRlsTransaction(prisma, userId, async (tx) => {
+    await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       const ownershipFilter = userOwnershipFilter(userId);
       const row = await tx.userResume.findFirst({
         where: { id: userResumeId, ...ownershipFilter },
@@ -385,7 +385,7 @@ export class ResumeUploadService {
       appliedAt: Date;
       usageContext?: ApplicationResumeLinkContext;
     },
-    db: PrismaClient | Prisma.TransactionClient = prisma,
+    db: PrismaClient | Prisma.TransactionClient = dbRouter.write(),
   ): Promise<void> {
     await ownershipGuard.ensureApplicationAccess(userId, applicationId, db);
     const snapshotMetadata: Record<string, unknown> = {
@@ -426,7 +426,7 @@ export class ResumeUploadService {
     usageContext?: unknown;
     fileSizeBytes?: number;
   } | null> {
-    return withRlsTransaction(prisma, userId, async (tx) => {
+    return withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       const row = await tx.applicationResume.findFirst({
         where: {
           applicationId,

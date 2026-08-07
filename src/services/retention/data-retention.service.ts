@@ -25,7 +25,7 @@
  *   This handles GDPR/CCPA erasure requests.
  */
 import { PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 
@@ -56,7 +56,7 @@ function daysAgo(days: number): Date {
 // ---------------------------------------------------------------------------
 
 export class DataRetentionService {
-  constructor(private readonly db: PrismaClient = prisma) {}
+  constructor(private readonly db: PrismaClient = dbRouter.write()) {}
 
   // ─────────────────────────────────────────────────────────────────
   // Phase 24: User Data Deletion

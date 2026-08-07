@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { DomainValidationError } from '../../errors/domain-errors';
 import { ApplicationStatus, normalizeApplicationStatus } from '../../domain/application-status';
@@ -78,7 +78,7 @@ export class StatusEngine {
       receivedAt?: Date;
       subject?: string;
     },
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
   ): Promise<StatusChangeResult> {
     const status = this.resolveStatusFromEmail(classification);
@@ -115,7 +115,7 @@ export class StatusEngine {
     applicationId: string,
     status: string,
     changedByUserId: string,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
   ): Promise<StatusChangeResult> {
     return this.recordStatusChange(
@@ -136,7 +136,7 @@ export class StatusEngine {
 
   public async getStatusHistory(
     applicationId: string,
-    db: DbClient = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
     pagination?: PaginationInput,
   ): Promise<readonly StatusHistoryItem[]> {

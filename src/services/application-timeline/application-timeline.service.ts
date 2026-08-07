@@ -1,5 +1,5 @@
 import { ApplicationTimelineEventType, PrismaClient, Prisma } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { ApplicationStatus, normalizeApplicationStatus } from '../../domain/application-status';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
@@ -10,7 +10,7 @@ import {
 } from '../job-intelligence';
 import { ownershipGuard } from '../ownership/ownership.guard';
 
-type TimelineDb = PrismaClient | Prisma.TransactionClient;
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export { ApplicationTimelineEventType };
 
@@ -59,7 +59,7 @@ export interface StatusTimelineContext {
 export class ApplicationTimelineService {
   public async listTimeline(
     applicationId: string,
-    db: TimelineDb = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
     pagination?: PaginationInput,
   ): Promise<readonly ApplicationTimelineRecord[]> {
@@ -87,7 +87,7 @@ export class ApplicationTimelineService {
 
   public async getTimelineEvent(
     eventId: string,
-    db: TimelineDb = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
   ): Promise<ApplicationTimelineRecord> {
     const event = userId
@@ -112,7 +112,7 @@ export class ApplicationTimelineService {
 
   public async createTimelineEvent(
     input: CreateTimelineEventInput,
-    db: TimelineDb = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
   ): Promise<ApplicationTimelineRecord> {
     if (userId) {
@@ -137,7 +137,7 @@ export class ApplicationTimelineService {
   public async patchTimelineEvent(
     eventId: string,
     input: UpdateTimelineEventInput,
-    db: TimelineDb = prisma,
+    db: DbClient = dbRouter.read(),
     userId?: string,
   ): Promise<ApplicationTimelineRecord> {
     const existingEvent = userId

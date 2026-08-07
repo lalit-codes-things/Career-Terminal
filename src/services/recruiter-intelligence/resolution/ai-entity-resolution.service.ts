@@ -18,7 +18,7 @@
  *   CompanyAlias rows — same pattern
  */
 
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { verifyCapability } from '../../capabilities/verify';
 import { RecruiterIdentityResolutionService } from './identity-resolution.service';
 import type { RecruiterIdentityProfile } from '../identity/identity.types';
@@ -123,7 +123,7 @@ export class AiEntityResolutionService {
     userId: string,
   ): Promise<AiResolutionResult> {
     // Find existing alias
-    const existing = await prisma.companyAlias.findFirst({
+    const existing = await dbRouter.read().companyAlias.findFirst({
       where: { companyId, normalizedValue: aliasValue.toLowerCase().trim() },
     });
 
@@ -150,7 +150,7 @@ export class AiEntityResolutionService {
     }
 
     // Write confidence back to CompanyAlias
-    await prisma.companyAlias.update({
+    await dbRouter.write().companyAlias.update({
       where: { id: existing.id },
       data: { updatedAt: new Date() }, // CompanyAlias doesn't have a confidence column — update timestamp to mark reviewed
     });
@@ -167,11 +167,11 @@ export class AiEntityResolutionService {
     status: 'VERIFIED' | 'PENDING',
   ): Promise<boolean> {
     try {
-      const existing = await prisma.recruiterAlias.findFirst({
+      const existing = await dbRouter.read().recruiterAlias.findFirst({
         where: { recruiterId },
       });
       if (existing) {
-        await prisma.recruiterAlias.update({
+        await dbRouter.write().recruiterAlias.update({
           where: { id: existing.id },
           data: {
             confidence: Math.max(existing.confidence, confidence),

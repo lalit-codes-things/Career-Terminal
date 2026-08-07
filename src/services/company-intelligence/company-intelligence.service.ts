@@ -14,7 +14,7 @@
  * CompanySignal rows where applicable.
  */
 
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { planner } from '../planner';
 
 export interface CompanyScoreResult {
@@ -96,7 +96,7 @@ export class CompanyIntelligenceService {
     const context = await this.buildCompanyContext(companyId);
 
     // Also fetch existing CompanySignal rows for context
-    const existingSignals = await prisma.companySignal.findMany({
+    const existingSignals = await dbRouter.read().companySignal.findMany({
       where: { companyId },
       orderBy: { discoveryTime: 'desc' },
       take: 10,
@@ -139,7 +139,7 @@ export class CompanyIntelligenceService {
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private async buildCompanyContext(companyId: string): Promise<Record<string, unknown>> {
-    const company = await prisma.company.findUnique({
+    const company = await dbRouter.read().company.findUnique({
       where: { id: companyId },
       select: {
         name: true,

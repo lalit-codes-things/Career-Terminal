@@ -30,7 +30,7 @@
  */
 import type { ICacheService } from '../cache/cache.service';
 import { cacheService } from '../cache/cache.service';
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import {
   DEFAULT_REGION,
   SHARD_COUNT,
@@ -256,7 +256,7 @@ export class PlacementService {
       current?.dataResidencyRegion &&
       current.dataResidencyRegion === (current.region ?? DEFAULT_REGION);
 
-    await prisma.user.update({
+    await dbRouter.write().user.update({
       where: { id: userId },
       data: {
         region: nextRegion,
@@ -308,7 +308,7 @@ export class PlacementService {
   }
 
   private async readFromDatabase(userId: string): Promise<PlacementContext | null> {
-    const row = await prisma.user.findUnique({
+    const row = await dbRouter.read().user.findUnique({
       where: { id: userId },
       select: {
         region: true,

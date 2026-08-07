@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import type { CursorPaginationOptions, RepositoryTransactionContext } from './interfaces';
 
 export type RecruiterPrismaClient = PrismaClient | Prisma.TransactionClient;
@@ -10,7 +10,7 @@ export interface RecruiterTransactionContext extends RepositoryTransactionContex
 }
 
 export abstract class BaseRecruiterRepository<TEntity> {
-  protected constructor(protected readonly db: RecruiterPrismaClient = prisma) {}
+  protected constructor(protected readonly db: RecruiterPrismaClient = dbRouter.write()) {}
 
   protected async withTransaction<T>(
     work: (tx: RecruiterTransactionContext) => Promise<T>,

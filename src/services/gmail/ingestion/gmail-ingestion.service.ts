@@ -12,7 +12,7 @@
  *   - Recovery on worker restart or queue retry
  *   - Concurrent worker protection via SELECT ... FOR UPDATE
  */
-import { prisma } from '../../../config/database';
+import { dbRouter } from '../../../config/database';
 import { config } from '../../../config';
 import { ConnectionStatus, EmailProvider } from '@prisma/client';
 import { GmailClient } from '../client/gmail-client';
@@ -187,7 +187,7 @@ export class GmailIngestionService implements IngestionService {
     }
 
     // Retrieve current sync state for the history cursor
-    const syncState = await prisma.gmailSyncState.findUnique({
+    const syncState = await dbRouter.read().gmailSyncState.findUnique({
       where: { userId },
     });
 
@@ -317,7 +317,7 @@ export class GmailIngestionService implements IngestionService {
   private async setupClient(
     userId: string,
   ): Promise<{ client: GmailClient; connectionId: string }> {
-    const connection = await withRlsTransaction(prisma, userId, async (tx) => {
+    const connection = await withRlsTransaction(dbRouter.write(), userId, async (tx) => {
       return tx.userEmailConnection.findFirst({
         where: {
           ...userOwnershipFilter(userId),
@@ -341,7 +341,7 @@ export class GmailIngestionService implements IngestionService {
 
   private async ensureUserIsActive(userId: string): Promise<void> {
     const resolvedUserId = await userService.resolveUserId(userId);
-    const user = await withRlsTransaction(prisma, resolvedUserId, async (tx) => {
+    const user = await withRlsTransaction(dbRouter.write(), resolvedUserId, async (tx) => {
       return tx.user.findUnique({
         where: { id: resolvedUserId },
         select: { deletionStatus: true },
@@ -379,7 +379,7 @@ export class GmailIngestionService implements IngestionService {
       let jobStatus: 'processed' | 'failed' = 'processed';
 
       try {
-        const result = await withRlsTransaction(prisma, userScope.userId, async (tx) => {
+        const result = await withRlsTransaction(dbRouter.write(), userScope.userId, async (tx) => {
           const existingMessage = await tx.emailMessage.findUnique({
             where: {
               unique_user_message: {
@@ -477,7 +477,7 @@ export class GmailIngestionService implements IngestionService {
   ): Promise<void> {
     const userScope = await userService.userScopeFor(userId);
 
-    await withRlsTransaction(prisma, userScope.userId, async (tx) => {
+    await withRlsTransaction(dbRouter.write(), userScope.userId, async (tx) => {
       await tx.gmailSyncState.upsert({
         where: { legacyUserId: userId },
         create: {

@@ -16,8 +16,8 @@
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-jest.mock('../config/database', () => ({
-  prisma: {
+jest.mock('../config/database', () => {
+  const prisma = {
     extractionRun: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -36,8 +36,18 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
     },
     $transaction: jest.fn(),
+  };
+  return {
+    prisma,
+  dbRouter: {
+    read: jest.fn().mockReturnValue(prisma),
+    write: jest.fn().mockReturnValue(prisma),
+    withReplicaFallback: jest.fn(),
+    getHealth: jest.fn(),
+    disconnect: jest.fn(),
   },
-}));
+  };
+});
 
 jest.mock('../services/routing/cell-routing.service', () => ({
   cellRoutingService: {

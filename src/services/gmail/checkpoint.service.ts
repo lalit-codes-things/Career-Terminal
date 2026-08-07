@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database';
+import { dbRouter } from '../../config/database';
 import { logger } from '../../lib/logger';
 import { Prisma, SyncBatch, GmailCheckpoint } from '@prisma/client';
 
@@ -7,7 +7,7 @@ export class GmailCheckpointService {
    * Get the current checkpoint for a user.
    */
   async getCurrentCheckpoint(userId: string): Promise<GmailCheckpoint | null> {
-    return prisma.gmailCheckpoint.findUnique({
+    return dbRouter.read().gmailCheckpoint.findUnique({
       where: { userId },
     });
   }
@@ -19,7 +19,7 @@ export class GmailCheckpointService {
     userId: string,
     newHistoryId: string,
   ): Promise<{ batchId: string; checkpoint: GmailCheckpoint }> {
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return dbRouter.write().$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create the SyncBatch record
       const batch = await tx.syncBatch.create({
         data: {
@@ -64,7 +64,7 @@ export class GmailCheckpointService {
     status: 'completed' | 'failed',
     error?: string,
   ): Promise<void> {
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await dbRouter.write().$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Upsert the BatchEmailJob record
       await tx.batchEmailJob.upsert({
         where: { id: `job:${batchId}:${emailId}` }, // Use a deterministic ID for idempotency if needed, or just create
@@ -101,7 +101,7 @@ export class GmailCheckpointService {
    * Complete a batch: if all emails processed, advance currentHistoryId to pendingHistoryId.
    */
   async completeBatch(batchId: string): Promise<void> {
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await dbRouter.write().$transaction(async (tx: Prisma.TransactionClient) => {
       const batch = await tx.syncBatch.findUnique({
         where: { id: batchId },
         include: { user: { include: { checkpoint: true } } },
@@ -167,7 +167,7 @@ export class GmailCheckpointService {
    * Fail a batch: set status to 'failed', record error.
    */
   async failBatch(batchId: string, error: string): Promise<void> {
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await dbRouter.write().$transaction(async (tx: Prisma.TransactionClient) => {
       const batch = await tx.syncBatch.update({
         where: { id: batchId },
         data: {
@@ -193,7 +193,7 @@ export class GmailCheckpointService {
    * Get pending batch for a user.
    */
   async getPendingBatch(userId: string): Promise<SyncBatch | null> {
-    return prisma.syncBatch.findFirst({
+    return dbRouter.read().syncBatch.findFirst({
       where: {
         userId,
         status: { in: ['pending', 'processing'] },
@@ -206,7 +206,7 @@ export class GmailCheckpointService {
    * Update total emails count for a batch.
    */
   async setBatchTotal(batchId: string, totalEmails: number): Promise<void> {
-    await prisma.syncBatch.update({
+    await dbRouter.write().syncBatch.update({
       where: { id: batchId },
       data: { totalEmails },
     });

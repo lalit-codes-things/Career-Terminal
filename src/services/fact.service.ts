@@ -1,4 +1,4 @@
-import { prisma } from '../config/database';
+import { dbRouter } from '../config/database';
 import { FactObservation } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { cellRoutingService } from './routing/cell-routing.service';
@@ -201,7 +201,7 @@ export class FactService {
       ? { cellId: input.cellId }
       : await cellRoutingService.resolveUserRouting(input.userId);
 
-    const context = await prisma.$transaction(async (tx) => {
+    const context = await dbRouter.write().$transaction(async (tx) => {
       const run = await tx.extractionRun.create({
         data: {
           userId: input.userId,
@@ -257,7 +257,7 @@ export class FactService {
    * Handles versioning by superseding existing facts of the same type if they match the data signature.
    */
   async recordFact(input: RecordFactInput): Promise<FactObservation> {
-    return prisma.$transaction(async (tx) => {
+    return dbRouter.write().$transaction(async (tx) => {
       // 1. Find existing current facts of the same type for this user
       // Simple heuristic: if the factData (e.g., skill name) is identical, we supersede it.
       // For more complex types like "EXPERIENCE", we might need better matching.
@@ -328,7 +328,7 @@ export class FactService {
    * Retrieve all current facts for a user, optionally filtered by type.
    */
   async getCurrentFacts(userId: string, factType?: string): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: {
         userId,
         factType,
@@ -348,7 +348,7 @@ export class FactService {
     let currentId: string | null = factId;
 
     while (currentId) {
-      const fact: FactObservation | null = await prisma.factObservation.findUnique({
+      const fact: FactObservation | null = await dbRouter.read().factObservation.findUnique({
         where: { id: currentId },
       });
 
@@ -364,7 +364,7 @@ export class FactService {
    * Manually supersede a fact.
    */
   async supersedeFact(factId: string, newFactId: string): Promise<void> {
-    await prisma.factObservation.update({
+    await dbRouter.write().factObservation.update({
       where: { id: factId },
       data: {
         isCurrent: false,
@@ -378,7 +378,7 @@ export class FactService {
    * Soft-delete a fact.
    */
   async deleteFact(factId: string): Promise<void> {
-    await prisma.factObservation.update({
+    await dbRouter.write().factObservation.update({
       where: { id: factId },
       data: {
         deletedAt: new Date(),
@@ -395,7 +395,7 @@ export class FactService {
     timestamp: Date,
     factType?: string,
   ): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: {
         userId,
         factType,
@@ -420,7 +420,7 @@ export class FactService {
    * Get facts for a specific snapshot
    */
   async getSnapshotFacts(snapshotId: string): Promise<FactObservation[]> {
-    return prisma.factObservation.findMany({
+    return dbRouter.read().factObservation.findMany({
       where: { snapshotId },
       orderBy: { factType: 'asc' },
     });
