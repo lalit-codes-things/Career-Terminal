@@ -2,6 +2,15 @@ import type { GmailMessagePart, GmailMessagePartHeader } from '../models/gmail.t
 import type { NormalizedEmail, AttachmentMetadata } from '../models/parser.types';
 import sanitizeHtml from 'sanitize-html';
 
+const SANITIZE_HTML_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+  allowedAttributes: {
+    'a': ['href', 'target'],
+    'img': ['src', 'alt'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+};
+
 export class EmailParserService {
   /**
    * Main entrypoint: Parses a raw Gmail API message into a NormalizedEmail.
@@ -26,7 +35,7 @@ export class EmailParserService {
       },
       subject: headers.subject,
       textContent: textContent || this.fallbackHtmlToText(htmlContent),
-      htmlContent,
+      htmlContent: htmlContent ? sanitizeHtml(htmlContent, SANITIZE_HTML_OPTIONS) : null,
       attachments,
       labels: rawMessage.labelIds ?? [],
       timestamp: headers.date,
@@ -162,19 +171,9 @@ export class EmailParserService {
   private fallbackHtmlToText(html: string | null): string | null {
     if (!html) return null;
 
-    const sanitized = sanitizeHtml(html, {
+    return sanitizeHtml(html, {
       allowedTags: [],
       allowedAttributes: {},
-    });
-
-    return sanitized
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/\n\s*\n/g, '\n\n')
-      .trim();
+    }).trim();
   }
 }
