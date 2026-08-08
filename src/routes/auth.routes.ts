@@ -11,6 +11,7 @@
  * access token (refresh). The refresh token itself is the credential here.
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { tokenService } from '../services/auth/token.service';
 import { userService } from '../services/user';
@@ -18,13 +19,36 @@ import { validateBody } from '../middleware/validate';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalApiKey } from '../middleware/internal-api';
 import { logger } from '../lib/logger';
-import { secureAuthLimiter, secureMutationLimiter } from '../middleware/rate-limiter';
 
 // Rate limiters for auth endpoints
-const tokenIssuanceLimiter = secureAuthLimiter;
-const refreshLimiter = secureAuthLimiter;
-const logoutLimiter = secureMutationLimiter;
-const logoutAllLimiter = secureMutationLimiter;
+const tokenIssuanceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many token requests, please try again later.' },
+});
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many refresh requests, please try again later.' },
+});
+const logoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many logout requests, please try again later.' },
+});
+const logoutAllLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many logout-all requests, please try again later.' },
+});
 
 export const authRouter = Router();
 

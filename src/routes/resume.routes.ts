@@ -10,6 +10,7 @@ import os from 'os';
 import path from 'path';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth';
 import { ValidationError } from '../errors/app-errors';
 import { resumeMatcherService } from '../services/resume-matcher/resume-matcher.service';
@@ -44,6 +45,14 @@ function assertValidResumeFile(file: Express.Multer.File): void {
 
 const tmpDir = path.join(os.tmpdir(), 'career-terminal-uploads');
 fs.mkdirSync(tmpDir, { recursive: true });
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many requests, please try again later.' },
+});
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -120,6 +129,7 @@ resumeRouter.post(
 
 resumeRouter.get(
   '/active',
+  generalLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -191,6 +201,7 @@ resumeRouter.post(
 
 resumeRouter.get(
   '/versions',
+  generalLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -209,6 +220,7 @@ resumeRouter.get(
 
 resumeRouter.delete(
   '/versions/:id',
+  generalLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction) => {
     try {

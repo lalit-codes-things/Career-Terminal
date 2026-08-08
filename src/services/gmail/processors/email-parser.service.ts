@@ -1,5 +1,6 @@
 import type { GmailMessagePart, GmailMessagePartHeader } from '../models/gmail.types';
 import type { NormalizedEmail, AttachmentMetadata } from '../models/parser.types';
+import sanitizeHtml from 'sanitize-html';
 
 export class EmailParserService {
   /**
@@ -156,21 +157,24 @@ export class EmailParserService {
 
   /**
    * Graceful fallback: strips HTML tags to produce basic plaintext.
-   * Replaces <br> and <p> with newlines.
+   * Uses sanitize-html to ensure complete multi-character sanitization.
    */
   private fallbackHtmlToText(html: string | null): string | null {
     if (!html) return null;
 
-    return html
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove styles
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove scripts
-      .replace(/<\/?(?:br|p|div|tr|li)[^>]*>/gi, '\n') // Block elements to newlines
-      .replace(/<[^>]+>/g, '') // Strip all other tags
-      .replace(/&nbsp;/g, ' ') // Decode common entities
+    const sanitized = sanitizeHtml(html, {
+      allowedTags: [],
+      allowedAttributes: {},
+    });
+
+    return sanitized
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n')
+      .replace(/&nbsp;/g, ' ')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&amp;/g, '&')
-      .replace(/\n\s*\n/g, '\n\n') // Collapse excessive newlines
+      .replace(/\n\s*\n/g, '\n\n')
       .trim();
   }
 }
