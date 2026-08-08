@@ -26,6 +26,7 @@ import {
   type IntelligenceJobPayload,
   type GmailSyncJobPayload,
   type EconomicDocumentJobPayload,
+  type InterviewSessionJobPayload,
 } from './queue.types';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ export class QueueService {
   private readonly intelligenceQueue: Queue<IntelligenceJobPayload>;
   private readonly gmailSyncQueue: Queue<GmailSyncJobPayload>;
   private readonly economicDocumentQueue: Queue<EconomicDocumentJobPayload>;
+  private readonly interviewSessionQueue: Queue<InterviewSessionJobPayload>;
 
   constructor() {
     const conn = { connection: bullMQConnection };
@@ -67,6 +69,7 @@ export class QueueService {
     this.intelligenceQueue = new Queue<IntelligenceJobPayload>(QUEUE_NAMES.INTELLIGENCE, conn);
     this.gmailSyncQueue = new Queue<GmailSyncJobPayload>(QUEUE_NAMES.GMAIL_SYNC, conn);
     this.economicDocumentQueue = new Queue<EconomicDocumentJobPayload>(QUEUE_NAMES.ECONOMIC_DOCUMENT, conn);
+    this.interviewSessionQueue = new Queue<InterviewSessionJobPayload>(QUEUE_NAMES.INTERVIEW_SESSION, conn);
 
     logger.info('[QueueService] Queues initialised', {
       queues: Object.values(QUEUE_NAMES),
@@ -221,8 +224,25 @@ export class QueueService {
     return job.id!;
   }
 
+  async addInterviewSessionJob(
+    payload: InterviewSessionJobPayload,
+    opts: JobsOptions = {},
+  ): Promise<string> {
+    const job = await this.interviewSessionQueue.add(payload.type, payload, {
+      ...DEFAULT_JOB_OPTIONS,
+      ...opts,
+    });
+    logger.info('[QueueService] Interview session job enqueued', {
+      jobId: job.id,
+      type: payload.type,
+      userId: payload.userId,
+      sessionId: payload.sessionId,
+    });
+    return job.id!;
+  }
+
   async getDepths(): Promise<Record<string, number>> {
-    const [email, resume, tracking, malware, intelligence, gmailSync, economicDocument] = await Promise.all([
+    const [email, resume, tracking, malware, intelligence, gmailSync, economicDocument, interviewSession] = await Promise.all([
       this.emailQueue.getJobCounts(),
       this.resumeQueue.getJobCounts(),
       this.trackingQueue.getJobCounts(),
@@ -230,6 +250,7 @@ export class QueueService {
       this.intelligenceQueue.getJobCounts(),
       this.gmailSyncQueue.getJobCounts(),
       this.economicDocumentQueue.getJobCounts(),
+      this.interviewSessionQueue.getJobCounts(),
     ]);
     return {
       email: (email.waiting ?? 0) + (email.active ?? 0) + (email.delayed ?? 0),
@@ -241,6 +262,8 @@ export class QueueService {
       gmailSync: (gmailSync.waiting ?? 0) + (gmailSync.active ?? 0) + (gmailSync.delayed ?? 0),
       economicDocument:
         (economicDocument.waiting ?? 0) + (economicDocument.active ?? 0) + (economicDocument.delayed ?? 0),
+      interviewSession:
+        (interviewSession.waiting ?? 0) + (interviewSession.active ?? 0) + (interviewSession.delayed ?? 0),
     };
   }
 
@@ -254,6 +277,7 @@ export class QueueService {
       this.intelligenceQueue.close(),
       this.gmailSyncQueue.close(),
       this.economicDocumentQueue.close(),
+      this.interviewSessionQueue.close(),
     ]);
     logger.info('[QueueService] All queues closed');
   }

@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { dbRouter } from '../../config/database';
+import { prisma } from '../../config/database';
 import { NotFoundError } from '../../errors/app-errors';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 import { cellRoutingService } from '../routing/cell-routing.service';
@@ -18,14 +18,14 @@ export class OwnershipGuard {
   public async ensureApplicationAccess(
     userId: string,
     applicationId: string,
-    db: DbClient = dbRouter.read(),
-  ): Promise<{ id: string; userId: string }> {
+    db: DbClient = prisma,
+  ): Promise<{ id: string; userId: string | null; legacyUserId: string | null }> {
     const application = await db.jobApplication.findFirst({
       where: {
         id: applicationId,
         ...userOwnershipFilter(userId),
       },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, legacyUserId: true },
     });
 
     if (!application) {
@@ -38,7 +38,7 @@ export class OwnershipGuard {
   public async ensureTimelineAccess(
     userId: string,
     eventId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{ id: string; applicationId: string }> {
     const event = await db.applicationTimeline.findFirst({
       where: {
@@ -61,7 +61,7 @@ export class OwnershipGuard {
   public async ensureCompanyAccess(
     userId: string,
     companyId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{ id: string }> {
     const company = await db.company.findFirst({
       where: {
@@ -83,7 +83,7 @@ export class OwnershipGuard {
   public async ensureRecruiterAccess(
     userId: string,
     recruiterId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{ id: string }> {
     const recruiter = await db.recruiter.findFirst({
       where: {
@@ -121,7 +121,7 @@ export class OwnershipGuard {
   public async ensureExtractionRunAccess(
     userId: string,
     runId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{ id: string; userId: string; cellId: string | null; status: string }> {
     const run = await db.extractionRun.findUnique({
       where: { id: runId },
@@ -151,7 +151,7 @@ export class OwnershipGuard {
   public async ensureProvenanceAccess(
     userId: string,
     provenanceId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{ id: string; userId: string; cellId: string | null; extractionRunId: string }> {
     const record = await db.factProvenance.findUnique({
       where: { id: provenanceId },
@@ -181,7 +181,7 @@ export class OwnershipGuard {
   public async ensureFactAccess(
     userId: string,
     factId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{
     id: string;
     userId: string;
@@ -219,7 +219,7 @@ export class OwnershipGuard {
   public async ensureExtractionRunCellBoundary(
     userId: string,
     runId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<void> {
     const run = await this.ensureExtractionRunAccess(userId, runId, db);
     const routing = await cellRoutingService.resolveUserRouting(userId);
@@ -262,7 +262,7 @@ export class OwnershipGuard {
   public async ensureCanonicalIntelligenceAccess(
     userId: string,
     canonicalId: string,
-    db: DbClient = dbRouter.read(),
+    db: DbClient = prisma,
   ): Promise<{
     id: string;
     userId: string;

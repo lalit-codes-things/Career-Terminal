@@ -29,9 +29,8 @@ model EconomicDocument {
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   supersededBy      EconomicDocument?     @relation("EconomicDocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes        EconomicDocument[]    @relation("EconomicDocumentSupersededBy")
-  factObservations  FactObservation[]     @relation("EconomicDocumentFacts")
+  factObservations  FactObservation[]
   economicEvents    EconomicEvent[]
-  economicSignals   EconomicSignal[]      @relation("EconomicDocumentSignals")
 
   @@index([userId, documentType])
   @@index([userId, documentCategory])
@@ -49,6 +48,7 @@ model EconomicEvent {
   sourceDocumentId  String?  @map("source_document_id") @db.Uuid
   sourceOpportunityId String? @map("source_opportunity_id") @db.Uuid
   sourceApplicationId String? @map("source_application_id") @db.Uuid
+  sourceFactId      String?  @map("source_fact_id") @db.Uuid
   entityId          String?  @map("entity_id")
   entityType        String?  @map("entity_type")
   title             String?
@@ -73,10 +73,11 @@ model EconomicEvent {
   sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
   sourceOpportunity Opportunity?          @relation(fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
   sourceApplication JobApplication?       @relation(fields: [sourceApplicationId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
   supersededBy      EconomicEvent?        @relation("EconomicEventSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes        EconomicEvent[]       @relation("EconomicEventSupersededBy")
-  factObservations  FactObservation[]     @relation("FactObservationEconomicEvent")
-  economicSignals   EconomicSignal[]      @relation("EconomicEventSignals")
+  factObservations  FactObservation[]
+  economicSignals   EconomicSignal[]
 
   @@index([userId, eventType])
   @@index([userId, eventCategory])
@@ -97,6 +98,7 @@ model EconomicSignal {
   signalName        String   @map("signal_name")
   signalValue       Json     @map("signal_value")
   sourceEventId     String?  @map("source_event_id") @db.Uuid
+  sourceFactId      String?  @map("source_fact_id") @db.Uuid
   sourceDocumentId  String?  @map("source_document_id") @db.Uuid
   entityId          String?  @map("entity_id")
   entityType        String?  @map("entity_type")
@@ -108,15 +110,17 @@ model EconomicSignal {
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceEvent       EconomicEvent?        @relation("EconomicEventSignals", fields: [sourceEventId], references: [id], onDelete: SetNull)
-  sourceDocument    EconomicDocument?     @relation("EconomicDocumentSignals", fields: [sourceDocumentId], references: [id], onDelete: SetNull)
-  factObservations  FactObservation[]     @relation("FactObservationEconomicSignal")
+  sourceEvent       EconomicEvent?        @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
+  sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  factObservations  FactObservation[]
 
   @@index([userId, signalType])
   @@index([userId, signalCategory])
   @@index([userId, signalName])
   @@index([userId, isCurrent])
   @@index([sourceEventId])
+  @@index([sourceFactId])
   @@index([sourceDocumentId])
   @@map("economic_signals")
 }

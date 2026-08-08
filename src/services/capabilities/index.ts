@@ -7,3 +7,5 @@ export { predictCapability, PredictCapability } from './predict';
 export { recommendCapability, RecommendCapability } from './recommend';
 export { verifyCapability, VerifyCapability } from './verify';
 export { economicExtractCapability, EconomicDocumentExtractionCapability } from './economic-extraction';
+export { interviewExtractCapability, InterviewExtractionCapability } from './interview-extraction';
+export { interviewSimulateCapability, InterviewSimulationCapability } from './interview-simulation';

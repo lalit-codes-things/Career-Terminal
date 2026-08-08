@@ -29,6 +29,7 @@ model Opportunity {
   actionEvents      ActionEvent[]
   economicEvents    EconomicEvent[]
   observations      OpportunityObservation[]
+  interviewSessions InterviewSession[]
 
   @@index([companyId])
   @@index([title])

@@ -31,6 +31,7 @@
     "db:schema:check": "tsx src/services/recruiter-intelligence/migration/run-schema-validation.ts",
     "db:migrate:check": "tsx src/services/recruiter-intelligence/migration/run-migration-validation.ts",
     "db:check": "npm run db:schema:check && npm run db:migrate:check && tsx src/services/recruiter-intelligence/migration/run-startup-validation.ts",
+    "seed:interview-competencies": "tsx scripts/db/seed-interview-competencies.ts",
     "generate": "npm run db:generate"
   },
   "overrides": {
@@ -53,6 +54,7 @@
     "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@prisma/client": "^6.9.0",
+    "@prisma/config": "^7.9.1",
     "@types/jsonwebtoken": "^9.0.10",
     "blocked-at": "^1.2.0",
     "bullmq": "^5.80.5",
