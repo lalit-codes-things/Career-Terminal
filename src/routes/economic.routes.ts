@@ -12,24 +12,13 @@ import { s3Service } from '../infrastructure/storage/s3.service';
 import { uploadLimiter } from '../middleware/rate-limiter';
 import { sanitizeFilename, ALLOWED_DOCUMENT_MIME_TYPES } from '../infrastructure/security/utils';
 import { parseSizeToBytes } from '../lib/size';
+import { validateUploadedFilePath } from '../lib/upload-path';
 import { config } from '../config';
 
 const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize);
 
 const tmpDir = path.join(os.tmpdir(), 'career-terminal-uploads');
 fs.mkdirSync(tmpDir, { recursive: true });
-
-function validateUploadedFilePath(filePath: string): string {
-  const resolvedBase = path.resolve(tmpDir);
-  const safeBasename = path.basename(filePath);
-  const resolvedPath = path.resolve(resolvedBase, safeBasename);
-
-  if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
-    throw new ValidationError('Invalid file path');
-  }
-
-  return resolvedPath;
-}
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -48,8 +37,25 @@ const upload = multer({
   },
 });
 
+/**
+ * Economic routes — document upload and background extraction.
+ *
+ * POST /upload — Upload an economic document for extraction and enrichment.
+ */
 export const economicRouter = Router();
 
+/**
+ * POST /upload
+ *
+ * Uploads an economic document (invoice, payslip, bank statement, etc.).
+ * Validates MIME type, extracts text, queues background enrichment, and
+ * stores the file in S3.
+ *
+ * Response 202: { success: true, data: { jobId, storageKey, status: 'queued' } }
+ * Response 400: Missing document or invalid file type.
+ * Response 401: Missing or invalid JWT.
+ * Response 429: Rate limit exceeded.
+ */
 economicRouter.post(
   '/upload',
   uploadLimiter,
@@ -75,7 +81,7 @@ economicRouter.post(
       const transactionStart = (req.body.transactionStart as string) ?? null;
       const transactionEnd = (req.body.transactionEnd as string) ?? null;
 
-      const validatedPath = validateUploadedFilePath(file.path);
+      const validatedPath = validateUploadedFilePath(file.path, tmpDir);
       const fileBuffer = fs.readFileSync(validatedPath);
       fs.unlinkSync(validatedPath);
 

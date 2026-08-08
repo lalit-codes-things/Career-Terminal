@@ -18,7 +18,6 @@ import { startApplicationTrackingWorker } from './application-tracking.worker';
 import { startGmailSyncWorker } from './gmail-sync.worker';
 import { startIntelligenceWorker } from './intelligence.worker';
 import { startEconomicDocumentWorker } from './economic.worker';
-import { startInterviewSessionWorker } from './interview.worker';
 import { outboxDispatcher } from '../../event/outbox-dispatcher.service';
 import { logger } from '../../../lib/logger';
 import { config } from '../../../config';
@@ -33,7 +32,6 @@ const workerFactories = {
   'gmail-sync': startGmailSyncWorker,
   intelligence: startIntelligenceWorker,
   'economic-document': startEconomicDocumentWorker,
-  'interview-session': startInterviewSessionWorker,
   'outbox-dispatcher': () => {
     outboxDispatcher.start();
     return { close: async () => outboxDispatcher.stop() } as unknown as Worker;

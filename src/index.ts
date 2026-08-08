@@ -285,7 +285,10 @@ app.use(errorHandler);
 export const server = app.listen(config.port, () => {
   initObservability();
 
-  // Start workers in development or if explicitly requested
+  queueService.scheduleInterviewPatternMiningRepeatableJobs().catch((err) =>
+    logger.error('Failed to schedule interview pattern mining jobs', { error: err }),
+  );
+
   if (config.worker.startOnDev) {
     try {
       startAllWorkers();

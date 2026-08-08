@@ -182,7 +182,7 @@ export class InterviewExtractionCapability extends CapabilityBase {
     const sessionField = fields.find((f) => f.field === 'session');
     const sessionData: SessionData | undefined = sessionField?.value as SessionData | undefined;
 
-    const existingSessionId = input.context?.['sessionId'] as string | undefined;
+    const existingSessionId = input.context?.['sessionId'];
 
     let sessionId: string;
     if (existingSessionId) {
@@ -340,6 +340,7 @@ export class InterviewExtractionCapability extends CapabilityBase {
       data: {
         userId: input.userId,
         roleTitle: sessionData?.roleTitle ?? 'Unknown Role',
+        normalizedRoleTitle: this.normalizeRoleTitle(sessionData?.roleTitle ?? 'Unknown Role'),
         jobLevel: sessionData?.jobLevel ?? 'unknown',
         loopType: sessionData?.loopType ?? 'STANDARD',
         sourceType: sessionData?.sourceType ?? 'MANUAL_ENTRY',
@@ -394,6 +395,10 @@ export class InterviewExtractionCapability extends CapabilityBase {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_|_$/g, '');
+  }
+
+  private normalizeRoleTitle(input: string): string {
+    return this.normalizeKey(input);
   }
 
   private stringSimilarity(a: string, b: string): number {

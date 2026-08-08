@@ -22,6 +22,7 @@ import {
   assertFileSignature,
 } from '../infrastructure/security/utils';
 import { parseSizeToBytes } from '../lib/size';
+import { validateUploadedFilePath } from '../lib/upload-path';
 import { config } from '../config';
 import { planner } from '../services/planner';
 import { documentExtractionService } from '../services/document/document-extraction.service';
@@ -32,18 +33,6 @@ const ALLOWED_RESUME_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES;
 
 const MAX_JOB_DESCRIPTION_LENGTH = 50_000;
 
-function validateUploadedFilePath(filePath: string): string {
-  const resolvedBase = path.resolve(tmpDir);
-  const safeBasename = path.basename(filePath);
-  const resolvedPath = path.resolve(resolvedBase, safeBasename);
-
-  if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
-    throw new ValidationError('Invalid file path');
-  }
-
-  return resolvedPath;
-}
-
 /** Shared inline-parse guard: MIME allowlist + magic-byte (anti-spoofing). */
 function assertValidResumeFile(file: Express.Multer.File): string {
   if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
@@ -51,7 +40,7 @@ function assertValidResumeFile(file: Express.Multer.File): string {
       `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX`,
     );
   }
-  const validatedPath = validateUploadedFilePath(file.path);
+       const validatedPath = validateUploadedFilePath(file.path, tmpDir);
   const ext = path.extname(file.originalname).toLowerCase();
   assertFileSignature(fs.readFileSync(validatedPath), file.mimetype, ext);
   return validatedPath;
@@ -78,12 +67,33 @@ const upload = multer({
   limits: { fileSize: MAX_MULTIPART_SIZE_BYTES },
 });
 
+/**
+ * Resume routes — upload, active resume, match, analyze, and versioning.
+ *
+ * POST /resume/upload  — Upload a resume with SHA-256 deduplication.
+ * GET  /resume/active  — Retrieve the user's current active resume.
+ * POST /resume/match   — Score a resume against a job description.
+ * POST /resume/analyze — AI-powered resume analysis.
+ * GET  /resume/versions — List resume versions.
+ * DELETE /resume/versions/:id — Delete a resume version.
+ */
 export const resumeRouter = Router();
 
 // ---------------------------------------------------------------------------
 // POST /resume/upload
 // ---------------------------------------------------------------------------
 
+/**
+ * POST /resume/upload
+ *
+ * Uploads a resume document with SHA-256 deduplication and malware scan.
+ * Validates MIME type and magic bytes before persisting to S3.
+ *
+ * Response 202: { success: true, data: { userResumeId, storageKey, ... } }
+ * Response 400: Missing file or invalid MIME type / magic bytes.
+ * Response 401: Missing or invalid JWT.
+ * Response 429: Rate limit exceeded.
+ */
 resumeRouter.post(
   '/upload',
   uploadLimiter,
@@ -107,7 +117,7 @@ resumeRouter.post(
 
       // Filename sanitization
       const safeFilename = sanitizeFilename(file.originalname);
-      const validatedPath = validateUploadedFilePath(file.path);
+  const validatedPath = validateUploadedFilePath(file.path, tmpDir);
       const fileBuffer = fs.readFileSync(validatedPath);
       fs.unlinkSync(validatedPath);
 
@@ -142,6 +152,15 @@ resumeRouter.post(
 // GET /resume/active
 // ---------------------------------------------------------------------------
 
+/**
+ * GET /resume/active
+ *
+ * Retrieves the authenticated user's currently active resume.
+ *
+ * Response 200: { success: true, data: UserResume }
+ * Response 404: No active resume found.
+ * Response 401: Missing or invalid JWT.
+ */
 resumeRouter.get(
   '/active',
   generalLimiter,

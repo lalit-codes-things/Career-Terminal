@@ -86,8 +86,8 @@ model CanonicalCompany {
   industryClassifications CompanyIndustryClassification[]
   exchangeListings CompanyExchangeListing[]
   providerRecords  CompanyProviderRecord[]
+  interviewSessions     InterviewSession[]
   interviewKnowledgePatterns InterviewKnowledgePattern[]
-  interviewSessions InterviewSession[]
 
   @@index([normalizedName])
   @@index([domain])

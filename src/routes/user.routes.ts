@@ -17,6 +17,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
+import { createUserAwareRateLimiter } from '../middleware/rate-limiter';
 import { dataRetentionService } from '../services/retention/data-retention.service';
 import { deletionService } from '../services/deletion.service';
 import { tokenService } from '../services/auth/token.service';
@@ -36,14 +37,11 @@ const profileLimiter = rateLimit({
   legacyHeaders: false,
   message: { status: 429, error: 'Too many requests, please try again later.' },
 });
+// NOTE: profileLimiter uses in-memory express-rate-limit and must run as a
+// single-process deployment. deletionLimiter is backed by Redis via
+// createUserAwareRateLimiter for per-user enforcement across processes.
 
-const deletionLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 1,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { status: 429, error: 'Too many deletion requests, please try again later.' },
-});
+const deletionLimiter = createUserAwareRateLimiter(60 * 60 * 1000, 1);
 
 // ---------------------------------------------------------------------------
 // Zod schemas
@@ -66,6 +64,12 @@ const updateConsentSchema = z.object({
 // Router
 // ---------------------------------------------------------------------------
 
+/**
+ * User account routes — profile, consent, and account deletion.
+ *
+ * All endpoints require authentication. DELETE /account is user-aware
+ * rate-limited to 1 request per hour.
+ */
 export const userRouter = Router();
 
 /**
@@ -258,6 +262,8 @@ userRouter.put(
  * Permanently deletes all data associated with the authenticated user.
  * This action is irreversible.
  *
+ * Rate-limited to 1 request per hour per authenticated user.
+ *
  * Response 200:
  *   { success: true, message: "Account deleted", deletedCounts: { ... } }
  *
@@ -267,8 +273,8 @@ userRouter.put(
  */
 userRouter.delete(
   '/account',
-  deletionLimiter,
   requireAuth,
+  deletionLimiter,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userId = req.user!.id;
 

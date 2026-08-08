@@ -1,24 +1,22 @@
 jest.mock('sanitize-html', () => {
-  return function sanitizeHtml(html: string, options?: { allowedTags?: string[]; allowedAttributes?: Record<string, string[]> }): string {
+  const DANGEROUS_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed']);
+
+  function sanitizeHtml(html: string, options?: { allowedTags?: string[]; allowedAttributes?: Record<string, string[]>; allowedSchemes?: string[] }): string {
     if (typeof html !== 'string') return '';
-    const allowedTags = options?.allowedTags || [];
+
+    const allowedTags = options?.allowedTags ?? [];
+    const allowedAttributes = options?.allowedAttributes ?? {};
+    const allowedSchemes = options?.allowedSchemes ?? [];
 
     if (allowedTags.length === 0) {
-      let sanitized = html
+      return html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/?(?:p|div|tr|li|h[1-6]|blockquote|pre|table)[^>]*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&amp;/g, '&')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n');
-
-      let previous: string;
-      do {
-        previous = sanitized;
-        sanitized = sanitized.replace(/<[^>]+>/g, '');
-      } while (sanitized !== previous);
-
-      return sanitized
         .replace(/\n\s*\n/g, '\n\n')
         .trim();
     }
@@ -36,14 +34,48 @@ jest.mock('sanitize-html', () => {
 
     for (const tag of tags) {
       if (!allowedTags.includes(tag)) {
-        const openRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
-        const closeRegex = new RegExp(`</${tag}>`, 'gi');
-        result = result.replace(openRegex, '').replace(closeRegex, '');
+        if (DANGEROUS_TAGS.has(tag)) {
+          const openRegex = new RegExp(`<${tag}[^>]*>(?:[\\s\\S]*?)<\\/${tag}>`, 'gi');
+          const selfCloseRegex = new RegExp(`<${tag}[^>]*\\/>`, 'gi');
+          result = result.replace(openRegex, '').replace(selfCloseRegex, '');
+        } else {
+          const openRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
+          const closeRegex = new RegExp(`</${tag}>`, 'gi');
+          result = result.replace(openRegex, '').replace(closeRegex, '');
+        }
+      } else {
+        const attrRegex = new RegExp(`<${tag}([^>]*)>`, 'gi');
+        result = result.replace(attrRegex, (_match: string, attrs: string): string => {
+          const cleanedAttrs = attrs.replace(/\s+(on\w+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '').replace(/\s+/g, ' ').trim();
+          const tagAllowedAttrs = allowedAttributes[tag] ? allowedAttributes[tag] : [];
+          const filteredAttrs = cleanedAttrs.split(/\s+/).filter((attr: string) => {
+            if (!attr.includes('=')) return false;
+            const name = attr.split('=')[0]!;
+            if (!tagAllowedAttrs.includes(name)) return false;
+            if (name === 'href' || name === 'src') {
+              const valueMatch = attr.match(/=(?:"([^"]*)"|'[^']*'|[^\s>]*)/);
+              const value = valueMatch ? (valueMatch[1] || valueMatch[2] || valueMatch[3] || '') : '';
+              if (allowedSchemes.length > 0) {
+                try {
+                  const parsed = new URL(value);
+                  if (!allowedSchemes.includes(parsed.protocol.replace(':', ''))) return false;
+                } catch {
+                  return false;
+                }
+              }
+              if (value.startsWith('javascript:') || value.startsWith('data:')) return false;
+            }
+            return true;
+          }).join(' ');
+          return `<${tag}${filteredAttrs ? ' ' + filteredAttrs : ''}>`;
+        });
       }
     }
 
     return result;
-  };
+  }
+
+  return sanitizeHtml;
 });
 
 import { EmailParserService } from '../services/gmail/processors/email-parser.service';
@@ -213,5 +245,23 @@ describe('EmailParserService', () => {
 
     // Because it stops at depth 20, it should not find the 'Deep text'
     expect(result.textContent).toBeNull();
+  });
+
+  it('should sanitize HTML with production options', () => {
+    const raw: GmailMessage = {
+      id: 'msg-sanitize',
+      payload: {
+        mimeType: 'text/html',
+        body: {
+          data: encodeBase64Url(
+            '<p>Safe</p><script>alert("xss")</script><a href="javascript:alert(1)">click</a><img src="https://example.com/x" onclick="evil()">',
+          ),
+        },
+      },
+    };
+
+    const result = parser.parse(raw);
+    expect(result.htmlContent).toBe('<p>Safe</p><a>click</a>');
+    expect(result.textContent).toBe('Safe\nalert("xss")click');
   });
 });

@@ -21,6 +21,8 @@ import { requireInternalApiKey } from '../middleware/internal-api';
 import { logger } from '../lib/logger';
 
 // Rate limiters for auth endpoints
+// NOTE: These use in-memory express-rate-limit and must run as a single-process
+// deployment. For multi-process scaling, replace with a shared Redis store.
 const tokenIssuanceLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,

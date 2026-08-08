@@ -166,14 +166,28 @@ export class EmailParserService {
 
   /**
    * Graceful fallback: strips HTML tags to produce basic plaintext.
-   * Uses sanitize-html to ensure complete multi-character sanitization.
+   * Preserves block-element boundaries so adjacent headings, paragraphs,
+   * and list items remain readable.
    */
   private fallbackHtmlToText(html: string | null): string | null {
     if (!html) return null;
 
-    return sanitizeHtml(html, {
+    const withSeparators = html
+      .replace(/<(br|hr)\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|tr|li|h[1-6]|blockquote|pre|table)>/gi, '\n')
+      .replace(/<(p|div|tr|li|h[1-6]|blockquote|pre|table)[^>]*>/gi, '\n');
+
+    const sanitized = sanitizeHtml(withSeparators, {
       allowedTags: [],
       allowedAttributes: {},
-    }).trim();
+    });
+
+    return sanitized
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
   }
 }

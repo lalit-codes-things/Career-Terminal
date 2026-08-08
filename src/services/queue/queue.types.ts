@@ -17,7 +17,7 @@ export const QUEUE_NAMES = {
   INTELLIGENCE: 'intelligence',
   GMAIL_SYNC: 'gmail-sync',
   ECONOMIC_DOCUMENT: 'economic-document',
-  INTERVIEW_SESSION: 'interview-session',
+  INTERVIEW_PATTERN_MINING: 'interview-pattern-mining',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -175,26 +175,7 @@ export const EconomicDocumentJobPayloadSchema = BaseJobPayloadSchema.extend({
 });
 export type EconomicDocumentJobPayload = z.infer<typeof EconomicDocumentJobPayloadSchema>;
 
-// ---------------------------------------------------------------------------
-// Interview session job
-// ---------------------------------------------------------------------------
-
-export const InterviewSessionJobTypeSchema = z.enum(['EXTRACT_INTERVIEW_SESSION']);
-export type InterviewSessionJobType = z.infer<typeof InterviewSessionJobTypeSchema>;
-
-export const InterviewSessionJobPayloadSchema = BaseJobPayloadSchema.extend({
-  type: InterviewSessionJobTypeSchema,
-  userId: z.string().min(1),
-  sessionId: z.string().min(1),
-  sourceType: z.string().min(1),
-  s3Key: z.string().optional(),
-  mimeType: z.string().optional(),
-  originalFilename: z.string().optional(),
-  content: z.string(),
-  canonicalCompanyId: z.string().optional(),
-  companyNameRaw: z.string().optional(),
-  roleTitle: z.string().optional(),
-  loopType: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+export const InterviewPatternMiningJobPayloadSchema = BaseJobPayloadSchema.extend({
+  type: z.enum(['MINE_FREQUENT_COMPETENCIES', 'MINE_FAILURE_MODES']),
 });
-export type InterviewSessionJobPayload = z.infer<typeof InterviewSessionJobPayloadSchema>;
+export type InterviewPatternMiningJobPayload = z.infer<typeof InterviewPatternMiningJobPayloadSchema>;

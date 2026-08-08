@@ -4,6 +4,7 @@ model InterviewSession {
   canonicalCompanyId     String?   @map("canonical_company_id") @db.Uuid
   companyNameRaw         String?   @map("company_name_raw")
   roleTitle              String    @map("role_title")
+  normalizedRoleTitle    String    @map("normalized_role_title")
   jobLevel               String    @map("job_level")
   loopType               String    @map("loop_type")
   sourceType             String    @map("source_type")
@@ -89,12 +90,12 @@ model InterviewEvent {
   transactionStart  DateTime? @map("transaction_start") @db.Timestamptz
   transactionEnd    DateTime? @map("transaction_end") @db.Timestamptz
   sequenceNumber    Int       @default(0) @map("sequence_number")
-  confidence        Float     @default(1.0)
+  confidence        Float    @default(1.0)
   isCurrent         Boolean   @default(true) @map("is_current")
   supersededById    String?   @map("superseded_by_id") @db.Uuid
   supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
   version           Int       @default(1)
 
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)

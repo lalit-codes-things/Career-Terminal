@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import { dbRouter } from '../../config/database';
 import { pipeline } from '../recruiter-intelligence/ai/pipeline.factory';
 import { toConfidenceBand } from '../recruiter-intelligence/ai/utils';
-import type { CapabilityInput, CapabilityName, CapabilityResult } from './types';
-import { withAiSpan, recordAiAttributes } from '../../infrastructure/telemetry/ai-spans';
+import type { CapabilityName, CapabilityResult } from './types';
+import { withAiSpan } from '../../infrastructure/telemetry/ai-spans';
 import { interviewMemoryService } from '../interview/interview-memory.service';
 
 const DEFAULT_MODEL_ID = 'deepseek/deepseek-chat';
@@ -139,7 +139,6 @@ export class InterviewSimulationCapability {
       let outputTokens = 0;
       let estimatedCostUsd = 0;
       let provider: string | undefined;
-      let model: string | undefined;
 
       if (competencyGaps.length > 0) {
         const gapList = competencyGaps
@@ -179,7 +178,6 @@ export class InterviewSimulationCapability {
         outputTokens = output.usage.outputTokens;
         estimatedCostUsd = output.usage.estimatedCostUsd;
         provider = output.provider;
-        model = output.model;
       }
 
       const latencyMs = Date.now() - start;

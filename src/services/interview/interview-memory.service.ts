@@ -1,6 +1,4 @@
 import { dbRouter } from '../../config/database';
-import { userOwnershipFilter } from '../../utils/user-ownership';
-import { logger } from '../../lib/logger';
 
 export interface InterviewMemory {
   sessionCount: {
@@ -63,25 +61,25 @@ export class InterviewMemoryService {
     const [byStatus, byOutcome] = await Promise.all([
       dbRouter.read().interviewSession.groupBy({
         by: ['status'],
-        where: userOwnershipFilter(userId),
+        where: { userId },
         _count: { _all: true },
       }),
       dbRouter.read().interviewSession.groupBy({
         by: ['finalDecision'],
-        where: { ...userOwnershipFilter(userId), finalDecision: { not: null } },
+        where: { userId, finalDecision: { not: null } },
         _count: { _all: true },
       }),
     ]);
 
     const statusMap: Record<string, number> = {};
     for (const row of byStatus) {
-      statusMap[row.status] = row._count._all;
+      statusMap[row.status] = row._count._all ?? 0;
     }
 
     const outcomeMap: Record<string, number> = {};
     for (const row of byOutcome) {
       if (row.finalDecision) {
-        outcomeMap[row.finalDecision] = row._count._all;
+        outcomeMap[row.finalDecision] = row._count._all ?? 0;
       }
     }
 
@@ -94,7 +92,7 @@ export class InterviewMemoryService {
 
   private async getCompetencyTrend(userId: string) {
     const observations = await dbRouter.read().interviewCompetencyObservation.findMany({
-      where: userOwnershipFilter(userId),
+      where: { userId },
       include: {
         competency: {
           select: {
@@ -146,7 +144,7 @@ export class InterviewMemoryService {
 
   private async getRecentSessions(userId: string) {
     const sessions = await dbRouter.read().interviewSession.findMany({
-      where: userOwnershipFilter(userId),
+      where: { userId },
       include: {
         _count: {
           select: {
@@ -174,7 +172,7 @@ export class InterviewMemoryService {
 
   private async getStrengthsAndWeaknesses(userId: string) {
     const lastFiveSessions = await dbRouter.read().interviewSession.findMany({
-      where: userOwnershipFilter(userId),
+      where: { userId },
       select: { id: true },
       orderBy: {
         createdAt: 'desc',
