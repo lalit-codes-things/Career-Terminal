@@ -1,0 +1,214 @@
+model InterviewSession {
+  id                     String    @id @default(uuid()) @db.Uuid
+  userId                 String    @map("user_id") @db.Uuid
+  canonicalCompanyId     String?   @map("canonical_company_id") @db.Uuid
+  companyNameRaw         String?   @map("company_name_raw")
+  roleTitle              String    @map("role_title")
+  jobLevel               String    @map("job_level")
+  loopType               String    @map("loop_type")
+  sourceType             String    @map("source_type")
+  sourceOpportunityId    String?   @map("source_opportunity_id") @db.Uuid
+  sourceApplicationId    String?   @map("source_application_id") @db.Uuid
+  s3Key                  String?   @map("s3_key")
+  rawTranscript          String?   @db.Text @map("raw_transcript")
+  status                 String    @default("SCHEDULED") @map("status")
+  finalDecision          String?   @map("final_decision")
+  offerExtended          Boolean?  @map("offer_extended")
+  offerAccepted          Boolean?  @map("offer_accepted")
+  shareForGlobalIntelligence Boolean @default(false) @map("share_for_global_intelligence")
+  confidence             Float     @default(1.0)
+  validFrom              DateTime? @map("valid_from") @db.Timestamptz
+  validTo                DateTime? @map("valid_to") @db.Timestamptz
+  transactionStart       DateTime? @map("transaction_start") @db.Timestamptz
+  transactionEnd         DateTime? @map("transaction_end") @db.Timestamptz
+  isCurrent              Boolean   @default(true) @map("is_current")
+  supersededById         String?   @map("superseded_by_id") @db.Uuid
+  supersededAt           DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  version                Int       @default(1)
+
+  user                   User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  canonicalCompany       CanonicalCompany?         @relation(fields: [canonicalCompanyId], references: [id], onDelete: SetNull)
+  sourceOpportunity      Opportunity?              @relation(fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
+  sourceApplication      JobApplication?           @relation(fields: [sourceApplicationId], references: [id], onDelete: SetNull)
+  supersededBy           InterviewSession?         @relation("InterviewSessionSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes             InterviewSession[]        @relation("InterviewSessionSupersededBy")
+  rounds                 InterviewRound[]
+  events                 InterviewEvent[]
+  signals                InterviewSignal[]
+  competencyObservations InterviewCompetencyObservation[]
+
+  @@index([userId, status])
+  @@index([userId, isCurrent])
+  @@index([canonicalCompanyId])
+  @@index([userId, validFrom, validTo])
+  @@index([shareForGlobalIntelligence])
+  @@map("interview_sessions")
+}
+
+model InterviewRound {
+  id               String   @id @default(uuid()) @db.Uuid
+  sessionId        String   @map("session_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  roundType        String   @map("round_type")
+  sequenceNumber   Int      @default(0) @map("sequence_number")
+  interviewerLabel String?  @map("interviewer_label")
+  durationMinutes  Int?     @map("duration_minutes")
+  outcomeScore     Float?   @map("outcome_score")
+  outcomeLabel     String?  @map("outcome_label")
+  notes            String?  @db.Text
+  confidence       Float    @default(1.0)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  version          Int      @default(1)
+
+  session          InterviewSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user             User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events           InterviewEvent[]
+  signals          InterviewSignal[]
+  competencyObservations InterviewCompetencyObservation[]
+
+  @@index([sessionId])
+  @@index([userId, roundType])
+  @@map("interview_rounds")
+}
+
+model InterviewEvent {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  sessionId         String    @map("session_id") @db.Uuid
+  roundId           String?   @map("round_id") @db.Uuid
+  eventType         String    @map("event_type")
+  eventCategory     String    @map("event_category")
+  title             String
+  description       String?   @db.Text
+  effectiveDate     DateTime? @map("effective_date") @db.Timestamptz
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  transactionStart  DateTime? @map("transaction_start") @db.Timestamptz
+  transactionEnd    DateTime? @map("transaction_end") @db.Timestamptz
+  sequenceNumber    Int       @default(0) @map("sequence_number")
+  confidence        Float     @default(1.0)
+  isCurrent         Boolean   @default(true) @map("is_current")
+  supersededById    String?   @map("superseded_by_id") @db.Uuid
+  supersededAt      DateTime? @map("superseded_at") @db.Timestamptz
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  version           Int       @default(1)
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session           InterviewSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  round             InterviewRound?       @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  supersededBy      InterviewEvent?       @relation("InterviewEventSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes        InterviewEvent[]      @relation("InterviewEventSupersededBy")
+  factObservations  FactObservation[]     @relation("InterviewEventFacts")
+  competencyObservations InterviewCompetencyObservation[] @relation("InterviewEventCompetencyObservations")
+  signals           InterviewSignal[]     @relation("InterviewEventSignals")
+
+  @@index([userId, eventType])
+  @@index([sessionId])
+  @@index([roundId])
+  @@map("interview_events")
+}
+
+model InterviewSignal {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  sessionId         String   @map("session_id") @db.Uuid
+  roundId           String?  @map("round_id") @db.Uuid
+  signalType        String   @map("signal_type")
+  signalCategory    String   @map("signal_category")
+  signalName        String   @map("signal_name")
+  signalValue       Json     @map("signal_value")
+  sourceEventId     String?  @map("source_event_id") @db.Uuid
+  confidence        Float    @default(1.0)
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  validTo           DateTime? @map("valid_to") @db.Timestamptz
+  isCurrent         Boolean  @default(true) @map("is_current")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session           InterviewSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  round             InterviewRound?       @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  sourceEvent       InterviewEvent?       @relation("InterviewEventSignals", fields: [sourceEventId], references: [id], onDelete: SetNull)
+  factObservations  FactObservation[]     @relation("InterviewSignalFacts")
+
+  @@index([userId, signalType])
+  @@index([sessionId])
+  @@map("interview_signals")
+}
+
+model InterviewCompetency {
+  id                  String   @id @default(uuid()) @db.Uuid
+  key                 String   @unique @map("key")
+  name                String   @map("name")
+  category            String   @map("category")
+  parentCompetencyId  String?  @map("parent_competency_id") @db.Uuid
+  description         String?  @db.Text
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  parentCompetency     InterviewCompetency?  @relation("CompetencyHierarchy", fields: [parentCompetencyId], references: [id], onDelete: SetNull)
+  childCompetencies    InterviewCompetency[] @relation("CompetencyHierarchy")
+  observations         InterviewCompetencyObservation[]
+  knowledgePatterns    InterviewKnowledgePattern[]
+
+  @@index([category])
+  @@index([parentCompetencyId])
+  @@map("interview_competencies")
+}
+
+model InterviewCompetencyObservation {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  sessionId         String   @map("session_id") @db.Uuid
+  roundId           String?  @map("round_id") @db.Uuid
+  competencyId      String   @map("competency_id") @db.Uuid
+  demonstratedLevel Float    @map("demonstrated_level")
+  evidenceExcerpt   String?  @map("evidence_excerpt") @db.Text
+  sourceEventId     String?  @map("source_event_id") @db.Uuid
+  confidence        Float    @default(1.0)
+  validFrom         DateTime? @map("valid_from") @db.Timestamptz
+  isCurrent         Boolean  @default(true) @map("is_current")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session           InterviewSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  round             InterviewRound?     @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  competency        InterviewCompetency @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+  sourceEvent       InterviewEvent?     @relation("InterviewEventCompetencyObservations", fields: [sourceEventId], references: [id], onDelete: SetNull)
+
+  @@index([userId, competencyId])
+  @@index([sessionId])
+  @@index([competencyId])
+  @@map("interview_competency_observations")
+}
+
+model InterviewKnowledgePattern {
+  id                    String    @id @default(uuid()) @db.Uuid
+  patternType           String    @map("pattern_type")
+  scope                 String    @map("scope")
+  canonicalCompanyId    String?   @map("canonical_company_id") @db.Uuid
+  roleTitleNormalized   String?   @map("role_title_normalized")
+  competencyId          String?   @map("competency_id") @db.Uuid
+  patternData           Json      @map("pattern_data")
+  distinctUserCount     Int       @map("distinct_user_count")
+  distinctSessionCount  Int       @map("distinct_session_count")
+  statisticalConfidence Float?    @map("statistical_confidence")
+  windowStart           DateTime  @map("window_start") @db.Timestamptz
+  windowEnd             DateTime  @map("window_end") @db.Timestamptz
+  computedAt            DateTime  @default(now()) @map("computed_at") @db.Timestamptz
+  isPublished           Boolean   @default(false) @map("is_published")
+
+  canonicalCompany      CanonicalCompany?       @relation(fields: [canonicalCompanyId], references: [id], onDelete: SetNull)
+  competency            InterviewCompetency?    @relation(fields: [competencyId], references: [id], onDelete: SetNull)
+
+  @@index([patternType, scope])
+  @@index([canonicalCompanyId])
+  @@index([roleTitleNormalized])
+  @@index([isPublished])
+  @@map("interview_knowledge_patterns")
+}

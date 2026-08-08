@@ -68,6 +68,11 @@ model User {
   economicDocuments     EconomicDocument[]
   economicEvents        EconomicEvent[]
   economicSignals       EconomicSignal[]
+  interviewSessions     InterviewSession[]
+  interviewRounds       InterviewRound[]
+  interviewEvents       InterviewEvent[]
+  interviewSignals      InterviewSignal[]
+  interviewCompetencyObservations InterviewCompetencyObservation[]
 
   @@index([region])
   @@index([deletionStatus])

@@ -79,6 +79,7 @@ model JobApplication {
   applicationSource   ApplicationSource?
   statusHistory       ApplicationStatusHistory[]
   applicationResumes  ApplicationResume[]
+  interviewSessions   InterviewSession[]
 
   @@index([userId])
   @@index([userId, status])
