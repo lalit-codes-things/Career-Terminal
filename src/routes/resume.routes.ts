@@ -32,15 +32,29 @@ const ALLOWED_RESUME_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES;
 
 const MAX_JOB_DESCRIPTION_LENGTH = 50_000;
 
+function validateUploadedFilePath(filePath: string): string {
+  const resolvedBase = path.resolve(tmpDir);
+  const safeBasename = path.basename(filePath);
+  const resolvedPath = path.resolve(resolvedBase, safeBasename);
+
+  if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
+    throw new ValidationError('Invalid file path');
+  }
+
+  return resolvedPath;
+}
+
 /** Shared inline-parse guard: MIME allowlist + magic-byte (anti-spoofing). */
-function assertValidResumeFile(file: Express.Multer.File): void {
+function assertValidResumeFile(file: Express.Multer.File): string {
   if (!ALLOWED_RESUME_MIME_TYPES.has(file.mimetype)) {
     throw new ValidationError(
       `File type '${file.mimetype}' is not allowed. Supported types: PDF, DOC, DOCX`,
     );
   }
+  const validatedPath = validateUploadedFilePath(file.path);
   const ext = path.extname(file.originalname).toLowerCase();
-  assertFileSignature(fs.readFileSync(file.path), file.mimetype, ext);
+  assertFileSignature(fs.readFileSync(validatedPath), file.mimetype, ext);
+  return validatedPath;
 }
 
 const tmpDir = path.join(os.tmpdir(), 'career-terminal-uploads');
@@ -93,8 +107,9 @@ resumeRouter.post(
 
       // Filename sanitization
       const safeFilename = sanitizeFilename(file.originalname);
-      const fileBuffer = fs.readFileSync(file.path);
-      fs.unlinkSync(file.path);
+      const validatedPath = validateUploadedFilePath(file.path);
+      const fileBuffer = fs.readFileSync(validatedPath);
+      fs.unlinkSync(validatedPath);
 
       const result = await resumeUploadService.upload({
         userId,
@@ -177,10 +192,10 @@ resumeRouter.post(
          );
        }
 
-       assertValidResumeFile(file);
+       const validatedPath = assertValidResumeFile(file);
 
-       const fileBuffer = fs.readFileSync(file.path);
-       fs.unlinkSync(file.path);
+       const fileBuffer = fs.readFileSync(validatedPath);
+       fs.unlinkSync(validatedPath);
 
        const { rawText: resumeText } = await documentExtractionService.extract(
          fileBuffer,
@@ -262,9 +277,9 @@ resumeRouter.post(
       let entityId = userResumeId ?? 'unknown';
 
       if (file) {
-        assertValidResumeFile(file);
-        const fileBuffer = fs.readFileSync(file.path);
-        fs.unlinkSync(file.path);
+        const validatedPath = assertValidResumeFile(file);
+        const fileBuffer = fs.readFileSync(validatedPath);
+        fs.unlinkSync(validatedPath);
         const { rawText } = await documentExtractionService.extract(fileBuffer, file.mimetype);
         resumeText = rawText;
         entityId = userResumeId ?? `resume-${Date.now()}`;

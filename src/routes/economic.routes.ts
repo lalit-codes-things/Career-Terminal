@@ -19,6 +19,18 @@ const MAX_MULTIPART_SIZE_BYTES = parseSizeToBytes(config.limits.maxMultipartSize
 const tmpDir = path.join(os.tmpdir(), 'career-terminal-uploads');
 fs.mkdirSync(tmpDir, { recursive: true });
 
+function validateUploadedFilePath(filePath: string): string {
+  const resolvedBase = path.resolve(tmpDir);
+  const safeBasename = path.basename(filePath);
+  const resolvedPath = path.resolve(resolvedBase, safeBasename);
+
+  if (!resolvedPath.startsWith(resolvedBase + path.sep)) {
+    throw new ValidationError('Invalid file path');
+  }
+
+  return resolvedPath;
+}
+
 const upload = multer({
   storage: multer.diskStorage({
     destination: tmpDir,
@@ -63,8 +75,9 @@ economicRouter.post(
       const transactionStart = (req.body.transactionStart as string) ?? null;
       const transactionEnd = (req.body.transactionEnd as string) ?? null;
 
-      const fileBuffer = fs.readFileSync(file.path);
-      fs.unlinkSync(file.path);
+      const validatedPath = validateUploadedFilePath(file.path);
+      const fileBuffer = fs.readFileSync(validatedPath);
+      fs.unlinkSync(validatedPath);
 
       const s3Key = s3Service.generateKey('economic-documents', file.originalname);
       const s3Result = await s3Service.upload(fileBuffer, s3Key, file.mimetype);
