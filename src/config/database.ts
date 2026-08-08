@@ -123,10 +123,10 @@ export function createPrismaClient(role?: string): PrismaClient {
      log: logLevels,
    });
 
-   attachRlsMiddleware(client);
-   client = attachTenantExtension(client);
+    client = attachRlsMiddleware(client);
+    client = attachTenantExtension(client);
 
-   return client;
+    return client;
  }
 
 // ---------------------------------------------------------------------------
@@ -149,11 +149,11 @@ export const prismaReplica: PrismaClient =
   g.prismaReplica ??
   (replicaUrl
     ? (() => {
-        const client = new PrismaClient({
+        let client = new PrismaClient({
           datasources: { db: { url: replicaUrl } },
           log: logLevels,
         });
-        attachRlsMiddleware(client);
+        client = attachRlsMiddleware(client);
         return attachTenantExtension(client);
       })()
     : prisma);

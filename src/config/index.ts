@@ -161,6 +161,8 @@ export interface AppConfig {
     maxObjectDepth: number;
     maxArraySize: number;
     maxStringLength: number;
+    globalRateLimitMax: number;
+    globalRateLimitWindowMs: number;
   };
 
   /** Validation configuration */
@@ -490,6 +492,8 @@ function loadConfig(): AppConfig {
       maxObjectDepth: env.MAX_OBJECT_DEPTH,
       maxArraySize: env.MAX_ARRAY_SIZE,
       maxStringLength: env.MAX_STRING_LENGTH,
+      globalRateLimitMax: env.GLOBAL_RATE_LIMIT_MAX,
+      globalRateLimitWindowMs: env.GLOBAL_RATE_LIMIT_WINDOW_MS,
     },
 
     validation: {

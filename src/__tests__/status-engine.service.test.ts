@@ -2,11 +2,13 @@ import { prisma } from '../config/database';
 import { statusEngine } from '../services/status-engine';
 import { JobEmailCategory } from '../services/job-intelligence';
 import { JobApplicationStatus } from '../services/job-application';
+import { DEFAULT_PAGE_SIZE } from '../domain/pagination';
 
 jest.mock('../config/database', () => {
   const prisma = {
     jobApplication: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
     },
     applicationStatusHistory: {
@@ -32,6 +34,7 @@ jest.mock('../config/database', () => {
 const mockPrisma = prisma as unknown as {
   jobApplication: {
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
   };
   applicationStatusHistory: {
@@ -229,5 +232,23 @@ describe('StatusEngine', () => {
         currentStage: 'Rejected',
       },
     });
+  });
+
+  it('applies default pagination when no pagination args are passed to getStatusHistory', async () => {
+    mockPrisma.jobApplication.findFirst.mockResolvedValue({
+      id: 'app-1',
+      status: JobApplicationStatus.APPLIED,
+      currentStage: 'Applied',
+    });
+    mockPrisma.applicationStatusHistory.findMany.mockResolvedValue([]);
+
+    await statusEngine.getStatusHistory('app-1', prisma);
+
+    expect(mockPrisma.applicationStatusHistory.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: DEFAULT_PAGE_SIZE,
+      }),
+    );
   });
 });

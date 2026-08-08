@@ -156,6 +156,9 @@ export const envSchema = z.object({
   REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(60000),
   MAX_OBJECT_DEPTH: z.coerce.number().int().positive().default(10),
   MAX_ARRAY_SIZE: z.coerce.number().int().positive().default(100),
+
+  GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  GLOBAL_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
   MAX_STRING_LENGTH: z.coerce.number().int().positive().default(5000),
 
   // Validation

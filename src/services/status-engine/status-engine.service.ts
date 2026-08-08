@@ -157,7 +157,8 @@ export class StatusEngine {
     const entries = await db.applicationStatusHistory.findMany({
       where: { applicationId },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+      skip: paging.skip,
+      take: paging.take,
     });
 
     return entries.map((entry) => this.mapHistory(entry));

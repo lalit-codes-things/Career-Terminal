@@ -2,15 +2,15 @@
  * Security middleware tests.
  *
  * Tests run under NODE_ENV=test (set by jest.config.js / ts-jest).
- * Under test, requireAuth accepts x-user-id as a bypass header.
- * Real JWT verification is tested via the UnauthorizedError path.
+ * requireAuth has no test bypass — it always requires a valid Bearer JWT.
+ * The x-user-id header is rejected unconditionally.
  */
 import { Request, Response } from 'express';
 import { requireAuth, UnauthorizedError } from '../middleware/auth';
 import { createRateLimiter, RateLimitError } from '../middleware/rate-limiter';
 
 describe('Security Middlewares', () => {
-  describe('Authentication Middleware (NODE_ENV=test)', () => {
+  describe('Authentication Middleware', () => {
     let mockReq: Partial<Request>;
     let mockRes: Partial<Response>;
     let mockNext: jest.Mock;
@@ -44,13 +44,13 @@ describe('Security Middlewares', () => {
       expect(mockNext).toHaveBeenCalledWith(expect.any(UnauthorizedError));
     });
 
-    it('should allow requests with x-user-id header (test escape-hatch)', () => {
-      // The x-user-id bypass is only active when NODE_ENV === 'test'
+    it('should reject x-user-id header even when NODE_ENV=test', () => {
       mockReq.headers = { 'x-user-id': 'user-123' };
       requireAuth(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockNext).toHaveBeenCalledWith(); // called with no arguments = success
-      expect((mockReq as Request & { user?: { id: string } }).user?.id).toBe('user-123');
+      expect(mockNext).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      const err = mockNext.mock.calls[0]?.[0] as UnauthorizedError;
+      expect(err.statusCode).toBe(401);
     });
   });
 

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { companiesRouter } from '../routes/companies.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { companyService } from '../services/company';
+import { authHeader } from './test-utils';
 
 jest.mock('../services/company', () => ({
   companyService: {
@@ -52,7 +53,7 @@ describe('Companies routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/companies?name=Google').set('x-user-id', USER_ID);
+    const response = await request(app).get('/companies?name=Google').set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -89,7 +90,7 @@ describe('Companies routes', () => {
       aliases: ['Google LLC'],
     });
 
-    const response = await request(app).get(`/companies/${COMPANY_ID}`).set('x-user-id', USER_ID);
+    const response = await request(app).get(`/companies/${COMPANY_ID}`).set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -113,7 +114,7 @@ describe('Companies routes', () => {
 
     const response = await request(app)
       .get(`/companies/${COMPANY_ID}/applications`)
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);

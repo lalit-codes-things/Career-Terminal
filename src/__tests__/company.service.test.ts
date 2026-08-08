@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { companyService } from '../services/company';
+import { DEFAULT_PAGE_SIZE } from '../domain/pagination';
 
 jest.mock('../config/database', () => {
   const prisma: Record<string, jest.Mock | Record<string, jest.Mock>> = {
@@ -164,5 +165,32 @@ describe('CompanyService', () => {
 
     expect(applications).toHaveLength(1);
     expect(applications[0]?.companyName).toBe('Google');
+  });
+
+  it('applies default pagination when no pagination args are passed to listCompanies', async () => {
+    mockPrisma.company.findMany.mockResolvedValue([]);
+
+    await companyService.listCompanies('user-1');
+
+    expect(mockPrisma.company.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: DEFAULT_PAGE_SIZE,
+      }),
+    );
+  });
+
+  it('applies default pagination when no pagination args are passed to getCompanyApplications', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+    mockPrisma.jobApplication.findMany.mockResolvedValue([]);
+
+    await companyService.getCompanyApplications('user-1', 'company-1');
+
+    expect(mockPrisma.jobApplication.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: DEFAULT_PAGE_SIZE,
+      }),
+    );
   });
 });

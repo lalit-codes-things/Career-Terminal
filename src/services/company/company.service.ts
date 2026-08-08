@@ -228,7 +228,8 @@ export class CompanyService {
           },
         },
         orderBy: { updatedAt: 'desc' },
-        ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+        skip: paging.skip,
+        take: paging.take,
       });
     })) as CompanyWithRelations[];
 
@@ -291,7 +292,8 @@ export class CompanyService {
           companyId,
         },
         orderBy: { appliedDate: 'desc' },
-        ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+        skip: paging.skip,
+        take: paging.take,
         select: {
           id: true,
           userId: true,
