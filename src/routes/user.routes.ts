@@ -13,9 +13,9 @@
  *   - DELETE is rate-limited to 1/hour per user.
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
-import { createUserAwareRateLimiter } from '../middleware/rate-limiter';
 import { validateBody } from '../middleware/validate';
 import { dataRetentionService } from '../services/retention/data-retention.service';
 import { deletionService } from '../services/deletion.service';
@@ -29,7 +29,21 @@ import { logger } from '../lib/logger';
 // Rate limiters
 // ---------------------------------------------------------------------------
 
-const deletionLimiter = createUserAwareRateLimiter(60 * 60 * 1000, 1);
+const profileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many requests, please try again later.' },
+});
+
+const deletionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 1,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { status: 429, error: 'Too many deletion requests, please try again later.' },
+});
 
 // ---------------------------------------------------------------------------
 // Zod schemas
@@ -70,6 +84,7 @@ export const userRouter = Router();
  */
 userRouter.get(
   '/profile',
+  profileLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userId = req.user!.id;
@@ -118,6 +133,7 @@ userRouter.get(
 
 userRouter.get(
   '/export',
+  profileLimiter,
   requireAuth,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userId = req.user!.id;
@@ -145,6 +161,7 @@ userRouter.get(
  */
 userRouter.put(
   '/profile',
+  profileLimiter,
   requireAuth,
   validateBody(updateProfileSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -181,6 +198,7 @@ userRouter.put(
 
 userRouter.put(
   '/legal-hold',
+  profileLimiter,
   requireAuth,
   validateBody(z.object({ reason: z.string().min(1).max(500) })),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -209,6 +227,7 @@ userRouter.put(
  */
 userRouter.put(
   '/consent',
+  profileLimiter,
   requireAuth,
   validateBody(updateConsentSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {

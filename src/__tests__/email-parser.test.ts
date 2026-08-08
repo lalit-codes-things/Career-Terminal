@@ -1,3 +1,51 @@
+jest.mock('sanitize-html', () => {
+  return function sanitizeHtml(html: string, options?: { allowedTags?: string[]; allowedAttributes?: Record<string, string[]> }): string {
+    if (typeof html !== 'string') return '';
+    const allowedTags = options?.allowedTags || [];
+
+    if (allowedTags.length === 0) {
+      let sanitized = html
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n');
+
+      let previous: string;
+      do {
+        previous = sanitized;
+        sanitized = sanitized.replace(/<[^>]+>/g, '');
+      } while (sanitized !== previous);
+
+      return sanitized
+        .replace(/\n\s*\n/g, '\n\n')
+        .trim();
+    }
+
+    let result = html;
+    const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
+    const tags = new Set<string>();
+    let match: RegExpExecArray | null;
+
+    while ((match = tagRegex.exec(html)) !== null) {
+      if (match[1]) {
+        tags.add(match[1].toLowerCase());
+      }
+    }
+
+    for (const tag of tags) {
+      if (!allowedTags.includes(tag)) {
+        const openRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
+        const closeRegex = new RegExp(`</${tag}>`, 'gi');
+        result = result.replace(openRegex, '').replace(closeRegex, '');
+      }
+    }
+
+    return result;
+  };
+});
+
 import { EmailParserService } from '../services/gmail/processors/email-parser.service';
 
 // Define local types matching the gmail_v1 schema shapes used in tests
@@ -85,7 +133,6 @@ describe('EmailParserService', () => {
     const result = parser.parse(raw);
     expect(result.htmlContent).toContain('<h1>Title</h1>');
 
-    // Check fallback behavior
     expect(result.textContent).toContain('Title');
     expect(result.textContent).toContain('Hello World!');
     expect(result.textContent).toContain('Footer');
