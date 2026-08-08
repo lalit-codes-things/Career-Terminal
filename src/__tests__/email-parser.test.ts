@@ -4,14 +4,21 @@ jest.mock('sanitize-html', () => {
     const allowedTags = options?.allowedTags || [];
 
     if (allowedTags.length === 0) {
-      return html
+      let sanitized = html
         .replace(/&nbsp;/g, ' ')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&amp;/g, '&')
         .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
+        .replace(/<\/?(?:p|div|tr|li)[^>]*>/gi, '\n');
+
+      let previous: string;
+      do {
+        previous = sanitized;
+        sanitized = sanitized.replace(/<[^>]+>/g, '');
+      } while (sanitized !== previous);
+
+      return sanitized
         .replace(/\n\s*\n/g, '\n\n')
         .trim();
     }
