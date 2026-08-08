@@ -72,7 +72,8 @@ export class ApplicationTimelineService {
     const events = await db.applicationTimeline.findMany({
       where: { applicationId },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }],
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+      skip: paging.skip,
+      take: paging.take,
     });
 
     return [...events]

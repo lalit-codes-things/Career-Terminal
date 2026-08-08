@@ -45,6 +45,7 @@ import { ValidationError } from '../../errors/app-errors';
 
 const CACHE_KEY_PREFIX = 'placement:v1';
 const IN_PROCESS_TTL_MS = 60_000; // 1 min
+export const FIVE_MINUTES_MS = 5 * 60 * 1000; // 5 min
 
 type InProcessEntry = {
   ctx: PlacementContext;
@@ -193,7 +194,7 @@ export class PlacementService {
     const ctx: PlacementContext = fromDb ?? this.computeFallbackContext(userId, true);
 
     try {
-      await this.cache.set(cacheKey, ctx, 300);
+      await this.cache.set(cacheKey, ctx, FIVE_MINUTES_MS);
     } catch (err) {
       logger.warn('[placement] redis cache write failed', { userId });
     }

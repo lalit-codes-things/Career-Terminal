@@ -3,6 +3,7 @@ import request from 'supertest';
 import { recruitersRouter } from '../routes/recruiters.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { recruiterService } from '../services/recruiter';
+import { authHeader } from './test-utils';
 
 jest.mock('../services/recruiter', () => ({
   recruiterService: {
@@ -49,7 +50,7 @@ describe('Recruiters routes', () => {
       },
     ]);
 
-    const response = await request(app).get('/recruiters?company=example-organization').set('x-user-id', USER_ID);
+    const response = await request(app).get('/recruiters?company=example-organization').set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -86,7 +87,7 @@ describe('Recruiters routes', () => {
       linkedEmailConversations: [],
     });
 
-    const response = await request(app).get(`/recruiters/${REC_ID}`).set('x-user-id', USER_ID);
+    const response = await request(app).get(`/recruiters/${REC_ID}`).set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -115,7 +116,7 @@ describe('Recruiters routes', () => {
 
     const response = await request(app)
       .get(`/recruiters/${REC_ID}/insights`)
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);

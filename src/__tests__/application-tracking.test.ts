@@ -119,11 +119,13 @@ describe('ApplicationTrackingService', () => {
 
       expect(prisma.jobApplication.findMany).toHaveBeenCalledWith({
         where: {
-          userId: 'user1',
+          OR: [{ userId: 'user1' }, { legacyUserId: 'user1' }],
           status: JobApplicationStatus.APPLIED,
           companyName: { contains: 'Str', mode: 'insensitive' },
         },
         orderBy: { appliedDate: 'desc' },
+        skip: 0,
+        take: 25,
       });
       expect(result).toHaveLength(1);
       expect(result[0]?.company.name).toBe('example-organization');

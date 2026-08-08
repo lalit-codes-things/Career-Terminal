@@ -60,7 +60,8 @@ export class ApplicationQueryService {
     const applications = await db.jobApplication.findMany({
       where,
       orderBy: { appliedDate: 'desc' },
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+      skip: paging.skip,
+      take: paging.take,
     });
 
     return applications.map((record) => applicationReadModelService.toApplication(record));

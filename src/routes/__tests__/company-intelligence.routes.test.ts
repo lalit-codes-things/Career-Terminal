@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { companyIntelligenceRouter } from '../company-intelligence.routes';
 import { prisma } from '../../config/database';
+import { authHeader } from '../../__tests__/test-utils';
 
 jest.mock('../../config/database', () => {
   const prisma = {
@@ -65,7 +66,7 @@ describe('Company Intelligence API', () => {
 
     const res = await request(app)
       .get('/api/company-intelligence/lookup/C123')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe('C123');
     expect(res.body.version).toBe('1.0.0');
@@ -78,7 +79,7 @@ describe('Company Intelligence API', () => {
 
     const res = await request(app)
       .get('/api/company-intelligence/lookup/C999')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(res.body.data.found).toBe(false);
   });
@@ -90,7 +91,7 @@ describe('Company Intelligence API', () => {
 
     const res = await request(app)
       .get('/api/company-intelligence/search?q=test')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.version).toBe('1.0.0');
@@ -99,7 +100,7 @@ describe('Company Intelligence API', () => {
   it('GET /:id/health returns health info', async () => {
     const res = await request(app)
       .get('/api/company-intelligence/C123/health')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(res.body.data.score).toBeDefined();
     expect(res.body.provenance).toContain('health-framework');
@@ -108,7 +109,7 @@ describe('Company Intelligence API', () => {
   it('GET /:id/authenticity returns trust score', async () => {
     const res = await request(app)
       .get('/api/company-intelligence/C123/authenticity')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(res.body.data.trustScore).toBeDefined();
     expect(res.body.provenance).toContain('authenticity-framework');
@@ -121,7 +122,7 @@ describe('Company Intelligence API', () => {
 
     const res = await request(app)
       .post('/api/company-intelligence/bulk-lookup')
-      .set('x-user-id', USER_ID)
+      .set(authHeader(USER_ID))
       .send({ ids: ['C1', 'C2'] });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
@@ -132,7 +133,7 @@ describe('Company Intelligence API', () => {
   it('GET /metadata returns metadata envelope', async () => {
     const res = await request(app)
       .get('/api/company-intelligence/metadata')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
     expect(res.status).toBe(200);
     expect(res.body.data.apiVersion).toBe('v1');
   });

@@ -251,7 +251,8 @@ export class RecruiterService {
         },
       },
       orderBy: { updatedAt: 'desc' },
-      ...(paging ? { skip: paging.skip, take: paging.take } : {}),
+      skip: paging.skip,
+      take: paging.take,
     })) as RecruiterListQueryRecord[];
 
     return recruiters.map((recruiter) => ({

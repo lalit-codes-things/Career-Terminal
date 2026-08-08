@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import { recruiterService } from '../services/recruiter';
+import { DEFAULT_PAGE_SIZE } from '../domain/pagination';
 
 jest.mock('../config/database', () => {
   const prisma = {
@@ -181,5 +182,18 @@ describe('RecruiterService', () => {
     expect(insight.averageResponseTimeMinutes).toBe(1440);
     expect(insight.firstContactAt).toBe('2026-01-01T00:00:00.000Z');
     expect(insight.lastContactAt).toBe('2026-01-02T00:00:00.000Z');
+  });
+
+  it('applies default pagination when no pagination args are passed to listRecruiters', async () => {
+    mockPrisma.recruiter.findMany.mockResolvedValue([]);
+
+    await recruiterService.listRecruiters('user-1');
+
+    expect(mockPrisma.recruiter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: DEFAULT_PAGE_SIZE,
+      }),
+    );
   });
 });

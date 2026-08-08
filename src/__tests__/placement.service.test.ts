@@ -15,6 +15,7 @@ import {
 import { prisma } from '../config/database';
 import type { ICacheService } from '../services/cache/cache.service';
 import { ValidationError } from '../errors/app-errors';
+import { FIVE_MINUTES_MS } from '../services/placement/placement.service';
 
 jest.mock('../config/database', () => {
   const prisma = {
@@ -406,6 +407,40 @@ describe('PlacementService', () => {
       await service.setUserRegion(USER_ID, 'ap-southeast-1');
       expect(cache.del).toHaveBeenCalledWith(expect.stringContaining(USER_ID));
       expect(mockPrisma.user.findUnique).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('cache TTL', () => {
+    it('writes to Redis with a 5-minute TTL, not 300ms', async () => {
+      mockPrisma.user.findUnique.mockResolvedValueOnce(FULL_ROW);
+
+      await service.resolvePlacementContext(USER_ID);
+
+      expect(cache.set).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        FIVE_MINUTES_MS,
+      );
+    });
+
+    it('returns a cache hit before TTL expiry and a miss after', async () => {
+      mockPrisma.user.findUnique.mockResolvedValueOnce(FULL_ROW);
+
+      const ctx1 = await service.resolvePlacementContext(USER_ID);
+      expect(ctx1.region).toBe('eu-west-1');
+      expect(cache.set).toHaveBeenCalledTimes(1);
+
+      cache.get.mockResolvedValueOnce({
+        region: 'eu-west-1' as SupportedRegion,
+        dataResidencyRegion: 'eu-west-1' as SupportedRegion,
+        shardKey: 123,
+        tenantId: 'acme-corp',
+        stale: false,
+      });
+
+      const ctx2 = await service.resolvePlacementContext(USER_ID);
+      expect(ctx2.region).toBe('eu-west-1');
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledTimes(1);
     });
   });
 });

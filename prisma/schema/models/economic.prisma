@@ -29,8 +29,9 @@ model EconomicDocument {
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   supersededBy      EconomicDocument?     @relation("EconomicDocumentSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes        EconomicDocument[]    @relation("EconomicDocumentSupersededBy")
-  factObservations  FactObservation[]
+  factObservations  FactObservation[]     @relation("EconomicDocumentFacts")
   economicEvents    EconomicEvent[]
+  economicSignals   EconomicSignal[]
 
   @@index([userId, documentType])
   @@index([userId, documentCategory])
@@ -73,10 +74,10 @@ model EconomicEvent {
   sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
   sourceOpportunity Opportunity?          @relation(fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
   sourceApplication JobApplication?       @relation(fields: [sourceApplicationId], references: [id], onDelete: SetNull)
-  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation("EconomicEventSourceFact", fields: [sourceFactId], references: [id], onDelete: SetNull)
   supersededBy      EconomicEvent?        @relation("EconomicEventSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
   supersedes        EconomicEvent[]       @relation("EconomicEventSupersededBy")
-  factObservations  FactObservation[]
+  factObservations  FactObservation[]     @relation("FactObservationEconomicEvent")
   economicSignals   EconomicSignal[]
 
   @@index([userId, eventType])
@@ -111,9 +112,9 @@ model EconomicSignal {
 
   user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceEvent       EconomicEvent?        @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
-  sourceFact        FactObservation?      @relation(fields: [sourceFactId], references: [id], onDelete: SetNull)
+  sourceFact        FactObservation?      @relation("EconomicSignalSourceFact", fields: [sourceFactId], references: [id], onDelete: SetNull)
   sourceDocument    EconomicDocument?     @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
-  factObservations  FactObservation[]
+  factObservations  FactObservation[]     @relation("FactObservationEconomicSignal")
 
   @@index([userId, signalType])
   @@index([userId, signalCategory])

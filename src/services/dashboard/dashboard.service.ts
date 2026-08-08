@@ -2,7 +2,8 @@ import { ApplicationTimelineEventType, Prisma, PrismaClient } from '@prisma/clie
 import { dbRouter } from '../../config/database';
 import { ApplicationStatus } from '../../domain/application-status';
 import { DEFAULT_ACTIVITY_LIMIT, DEFAULT_UPCOMING_LIMIT } from '../../lib/constants';
-import { InMemoryCacheStore, type CacheStore } from '../../lib/cache';
+import { type ICacheService } from '../../services/cache/cache.service';
+import { cacheService } from '../../services/cache/cache.service';
 import { resolvePagination, type PaginationInput } from '../../domain/pagination';
 import { userOwnershipFilter } from '../../utils/user-ownership';
 
@@ -47,10 +48,10 @@ const ACTIVITY_CACHE_TTL_MS = 15_000;
 const UPCOMING_CACHE_TTL_MS = 15_000;
 
 export class DashboardService {
-  constructor(private readonly cache: CacheStore = new InMemoryCacheStore()) {}
+  constructor(private readonly cache: ICacheService = cacheService) {}
 
   public async getDashboard(userId: string, db: DbClient = dbRouter.write()): Promise<DashboardSummary> {
-    const cached = this.getCache<DashboardSummary>(this.cacheKey('summary', userId));
+    const cached = await this.getCache<DashboardSummary>(this.cacheKey('summary', userId));
     if (cached) {
       return cached;
     }
@@ -93,7 +94,7 @@ export class DashboardService {
       responseRate: totalApplications > 0 ? responses / totalApplications : 0,
     };
 
-    this.setCache(this.cacheKey('summary', userId), summary, SUMMARY_CACHE_TTL_MS);
+    await this.setCache(this.cacheKey('summary', userId), summary, SUMMARY_CACHE_TTL_MS);
     return summary;
   }
 
@@ -105,14 +106,9 @@ export class DashboardService {
     const pagination =
       typeof limitOrPagination === 'number'
         ? { page: 1, pageSize: limitOrPagination, skip: 0, take: limitOrPagination }
-        : (resolvePagination(limitOrPagination) ?? {
-            page: 1,
-            pageSize: DEFAULT_ACTIVITY_LIMIT,
-            skip: 0,
-            take: DEFAULT_ACTIVITY_LIMIT,
-          });
+        : resolvePagination(limitOrPagination);
     const cacheKey = this.cacheKey('activity', userId, pagination.page, pagination.pageSize);
-    const cached = this.getCache<readonly DashboardActivityItem[]>(cacheKey);
+    const cached = await this.getCache<readonly DashboardActivityItem[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -153,7 +149,7 @@ export class DashboardService {
       metadata: event.metadata,
     }));
 
-    this.setCache(cacheKey, activity, ACTIVITY_CACHE_TTL_MS);
+    await this.setCache(cacheKey, activity, ACTIVITY_CACHE_TTL_MS);
     return activity;
   }
 
@@ -165,14 +161,9 @@ export class DashboardService {
     const pagination =
       typeof limitOrPagination === 'number'
         ? { page: 1, pageSize: limitOrPagination, skip: 0, take: limitOrPagination }
-        : (resolvePagination(limitOrPagination) ?? {
-            page: 1,
-            pageSize: DEFAULT_UPCOMING_LIMIT,
-            skip: 0,
-            take: DEFAULT_UPCOMING_LIMIT,
-          });
+        : resolvePagination(limitOrPagination);
     const cacheKey = this.cacheKey('upcoming', userId, pagination.page, pagination.pageSize);
-    const cached = this.getCache<readonly DashboardUpcomingInterviewItem[]>(cacheKey);
+    const cached = await this.getCache<readonly DashboardUpcomingInterviewItem[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -223,12 +214,12 @@ export class DashboardService {
       metadata: event.metadata,
     }));
 
-    this.setCache(cacheKey, upcoming, UPCOMING_CACHE_TTL_MS);
+    await this.setCache(cacheKey, upcoming, UPCOMING_CACHE_TTL_MS);
     return upcoming;
   }
 
-  public invalidateUser(userId: string): void {
-    this.cache.deletePrefix(`${userId}:`);
+  public async invalidateUser(userId: string): Promise<void> {
+    await this.cache.delByPrefix(`${userId}:`);
   }
 
   private cacheKey(
@@ -240,12 +231,12 @@ export class DashboardService {
     return `${userId}:${kind}:${page ?? 'default'}:${pageSize ?? 'default'}`;
   }
 
-  private getCache<T>(key: string): T | null {
+  private async getCache<T>(key: string): Promise<T | null> {
     return this.cache.get<T>(key);
   }
 
-  private setCache<T>(key: string, value: T, ttlMs: number): void {
-    this.cache.set(key, value, ttlMs);
+  private async setCache<T>(key: string, value: T, ttlMs: number): Promise<void> {
+    await this.cache.set(key, value, ttlMs);
   }
 }
 

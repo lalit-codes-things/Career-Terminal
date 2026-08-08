@@ -172,52 +172,88 @@ export function clearWorkerRlsContext(): void {
 /**
  * Attaches RLS context-setting behavior to a Prisma client.
  *
- * For PgBouncer transaction pooling in production, this interceptor is a
+ * Uses Prisma Client Extensions (`$extends`) to set the SESSION-scoped GUC
+ * before every query. This replaces the deprecated `$use` interceptor which
+ * was removed in Prisma 6.14.0.
+ *
+ * For PgBouncer transaction pooling in production, this extension is a
  * NO-OP at the SESSION level. All production RLS MUST be established via
  * `setRlsUserIdInTransaction()` or `withRlsTransaction()` inside the actual
  * transaction that performs the protected operations.
  *
- * This interceptor is retained as a safety net for:
+ * This extension is retained as a safety net for:
  *   - Direct PostgreSQL connections (development, testing without PgBouncer)
  *   - Non-transaction queries where the caller forgot to wrap in withRlsTransaction
  *   - RLS function setup errors which will now FAIL (throw)
  */
-export function attachRlsMiddleware(client: PrismaClient): void {
-  const anyClient = client as unknown as Record<string, unknown>;
-  if (typeof anyClient.$use !== 'function') {
+export function attachRlsMiddleware(client: PrismaClient): PrismaClient {
+  const rawClient = client;
+
+  return client.$extends({
+    query: {
+      $allModels: {
+        async findMany({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async findFirst({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async findUnique({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async create({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async update({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async updateMany({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async delete({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async deleteMany({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async count({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async groupBy({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+        async aggregate({ args, query }: { args: unknown; query: (args: unknown) => Promise<unknown> }) {
+          await setRlsUserForRequest(rawClient);
+          return query(args);
+        },
+      },
+    },
+  }) as unknown as PrismaClient;
+}
+
+async function setRlsUserForRequest(client: PrismaClient): Promise<void> {
+  const ctx = requestContextStore.getStore();
+  const userId = ctx?.userId;
+
+  if (!userId) {
     return;
   }
 
-  anyClient.$use(async (params: unknown, next: (params: unknown) => Promise<unknown>) => {
-    // Read from AsyncLocalStorage — never from a process-global variable
-    const ctx = requestContextStore.getStore();
-    const userId = ctx?.userId;
-
-    if (userId) {
-      // Use the SESSION-scoped GUC. Under PgBouncer transaction pooling this
-      // is discarded between pooled transactions (fails closed). Callers doing
-      // user-scoped work must use withRlsTransaction().
-      try {
-        await client.$executeRawUnsafe('SELECT set_app_user_id_session($1)', userId);
-      } catch (err) {
-        // FAIL CLOSED — log and rethrow
-        logger.error('[RLS] Failed to set current_user_id session', {
-          error: (err as Error).message,
-          userId,
-          query:
-            params && typeof params === 'object' && 'model' in (params as Record<string, unknown>)
-              ? (params as Record<string, unknown>).model
-              : 'unknown',
-          action:
-            params && typeof params === 'object' && 'action' in (params as Record<string, unknown>)
-              ? (params as Record<string, unknown>).action
-              : 'unknown',
-        });
-        throw new Error(`RLS setup failed for user ${userId}: ${(err as Error).message}`);
-      }
-    }
-    return next(params);
-  });
+  try {
+    await client.$executeRawUnsafe('SELECT set_app_user_id_session($1)', userId);
+  } catch (err) {
+    throw new Error(`RLS setup failed for user ${userId}: ${(err as Error).message}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

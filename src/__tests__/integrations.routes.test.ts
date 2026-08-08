@@ -4,6 +4,7 @@ import { integrationsRouter } from '../routes/integrations.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { gmailOAuthService } from '../services/gmail';
 import { OAuthError } from '../errors/app-errors';
+import { authHeader } from './test-utils';
 
 jest.mock('../services/gmail', () => ({
   gmailOAuthService: {
@@ -17,9 +18,8 @@ app.use(express.json());
 app.use('/integrations', integrationsRouter);
 app.use(errorHandler);
 
-// Helper — sets the x-user-id test escape-hatch (active when NODE_ENV=test)
 const authedGet = (path: string, userId = 'user-123') =>
-  request(app).get(path).set('x-user-id', userId);
+  request(app).get(path).set(authHeader(userId));
 
 describe('Integration Routes', () => {
   beforeEach(() => {

@@ -15,9 +15,14 @@ export interface PaginationWindow {
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 
-export function resolvePagination(input?: PaginationInput): PaginationWindow | null {
+export function resolvePagination(input?: PaginationInput): PaginationWindow {
   if (!input) {
-    return null;
+    return {
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      skip: 0,
+      take: DEFAULT_PAGE_SIZE,
+    };
   }
 
   const hasPaginationInput =
@@ -27,7 +32,12 @@ export function resolvePagination(input?: PaginationInput): PaginationWindow | n
     input.offset !== undefined;
 
   if (!hasPaginationInput) {
-    return null;
+    return {
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      skip: 0,
+      take: DEFAULT_PAGE_SIZE,
+    };
   }
 
   const pageSizeCandidate = input.pageSize ?? input.limit;

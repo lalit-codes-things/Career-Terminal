@@ -313,3 +313,40 @@ export const secureOAuthCallbackLimiter = createSecureRateLimiter(15 * 60 * 1000
  * Use for credential mutations, connection management, deletion requests.
  */
 export const secureMutationLimiter = createSecureUserRateLimiter(15 * 60 * 1000, 10);
+
+// ---------------------------------------------------------------------------
+// Global rate limiter — Redis-backed, configurable threshold
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a global rate limiter that uses the same Redis store as the
+ * per-route limiters. The threshold is configurable via env vars:
+ *   GLOBAL_RATE_LIMIT_MAX (default: 100)
+ *   GLOBAL_RATE_LIMIT_WINDOW_MS (default: 900000 = 15 min)
+ *
+ * The underlying rate-limiter-flexible store uses a Lua script for atomic
+ * INCR+EXPIRE, so the cap holds correctly across pods.
+ */
+export function createGlobalRateLimiter(): RequestHandler {
+  const windowSec = Math.ceil(config.limits.globalRateLimitWindowMs / 1000);
+  const maxRequests = config.limits.globalRateLimitMax;
+  const { limiter } = buildLimiterPair(windowSec, maxRequests, 'rl_global');
+
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await limiter.consume(req.ip ?? req.socket.remoteAddress ?? 'global');
+      next();
+    } catch (err: unknown) {
+      const isRateLimitExceeded = err !== null && typeof err === 'object' && 'msBeforeNext' in err;
+      if (isRateLimitExceeded) {
+        const rateLimitRes = err as RateLimiterRes;
+        const retryAfterSeconds = Math.ceil(rateLimitRes.msBeforeNext / 1000);
+        res.setHeader('Retry-After', String(retryAfterSeconds));
+        logRateLimitExceeded(req, retryAfterSeconds, req.user?.id ? 'user' : 'ip');
+        next(new RateLimitError());
+        return;
+      }
+      next(new RateLimitError('Service temporarily unavailable. Please try again later.'));
+    }
+  };
+}

@@ -51,6 +51,8 @@ model FactObservation {
   economicEvents   EconomicEvent[]                  @relation("FactObservationEconomicEvent")
   economicSignals  EconomicSignal[]                 @relation("FactObservationEconomicSignal")
   economicDocuments EconomicDocument[]              @relation("EconomicDocumentFacts")
+  economicEventSource EconomicEvent[]               @relation("EconomicEventSourceFact")
+  economicSignalSource EconomicSignal[]             @relation("EconomicSignalSourceFact")
   interviewEventFacts InterviewEvent[]              @relation("InterviewEventFacts")
   interviewSignalFacts InterviewSignal[]            @relation("InterviewSignalFacts")
 

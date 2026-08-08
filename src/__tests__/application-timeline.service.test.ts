@@ -4,6 +4,7 @@ import {
   applicationTimelineService,
 } from '../services/application-timeline';
 import { JobEmailCategory } from '../services/job-intelligence';
+import { DEFAULT_PAGE_SIZE } from '../domain/pagination';
 
 jest.mock('../config/database', () => {
   const prisma = {
@@ -92,6 +93,8 @@ describe('ApplicationTimelineService', () => {
     expect(mockPrisma.applicationTimeline.findMany).toHaveBeenCalledWith({
       where: { applicationId: 'app-1' },
       orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }],
+      skip: 0,
+      take: 25,
     });
     expect(timeline).toHaveLength(2);
     expect(timeline[0]?.id).toBe('evt-1');
@@ -133,5 +136,18 @@ describe('ApplicationTimelineService', () => {
         description: undefined,
       },
     });
+  });
+
+  it('applies default pagination when no pagination args are passed to listTimeline', async () => {
+    mockPrisma.applicationTimeline.findMany.mockResolvedValue([]);
+
+    await applicationTimelineService.listTimeline('app-1');
+
+    expect(mockPrisma.applicationTimeline.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: DEFAULT_PAGE_SIZE,
+      }),
+    );
   });
 });

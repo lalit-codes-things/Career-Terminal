@@ -5,6 +5,7 @@ import { timelineRouter } from '../routes/timeline.routes';
 import { errorHandler } from '../middleware/error-handler';
 import { applicationTrackingService } from '../services/application-tracking/application-tracking.service';
 import { recruiterService } from '../services/recruiter';
+import { authHeader } from './test-utils';
 
 jest.mock('../services/application-tracking/application-tracking.service', () => ({
   applicationTrackingService: {
@@ -73,7 +74,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .get('/applications?status=APPLIED&company=example-organization&role=Engineer')
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -116,7 +117,7 @@ describe('Applications routes', () => {
       ],
     });
 
-    const response = await request(app).get(`/applications/${APP_ID}`).set('x-user-id', USER_ID);
+    const response = await request(app).get(`/applications/${APP_ID}`).set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -149,7 +150,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .get(`/applications/${APP_ID}/timeline`)
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -179,7 +180,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .get(`/applications/${APP_ID}/status-history`)
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -212,7 +213,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .patch(`/applications/${APP_ID}/status`)
-      .set('x-user-id', USER_ID)
+      .set(authHeader(USER_ID))
       .send({ status: 'INTERVIEW' });
 
     expect(response.status).toBe(200);
@@ -240,7 +241,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .patch(`/timeline/${EVT_ID_2}`)
-      .set('x-user-id', USER_ID)
+      .set(authHeader(USER_ID))
       .send({ metadata: { note: 'Updated' } });
 
     expect(response.status).toBe(200);
@@ -276,7 +277,7 @@ describe('Applications routes', () => {
 
     const response = await request(app)
       .get(`/applications/${APP_ID}/recruiter`)
-      .set('x-user-id', USER_ID);
+      .set(authHeader(USER_ID));
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -287,7 +288,7 @@ describe('Applications routes', () => {
   it('rejects invalid statuses', async () => {
     const response = await request(app)
       .patch(`/applications/${APP_ID}/status`)
-      .set('x-user-id', USER_ID)
+      .set(authHeader(USER_ID))
       .send({ status: 'Pending' });
 
     expect(response.status).toBe(400);

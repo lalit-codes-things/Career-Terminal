@@ -2,7 +2,6 @@
  * Express application entry point.
  */
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
@@ -41,6 +40,7 @@ import {
   requestTimeout,
   securityHeaders,
 } from './infrastructure/security/middleware';
+import { createGlobalRateLimiter } from './middleware/rate-limiter';
 
 const app = express();
 
@@ -255,13 +255,7 @@ app.use(compression({ threshold: 1024 }));
 app.use(healthRouter);
 
 // ── Global rate limiter ───────────────────────────────────────────────────────
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { status: 429, error: 'Too many requests, please try again later.' },
-});
+const globalLimiter = createGlobalRateLimiter();
 app.use(globalLimiter);
 
 // ── API Routes ────────────────────────────────────────────────────────────────
